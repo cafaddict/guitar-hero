@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root,
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-2: #334155;
+  --fg: #f8fafc;
+  --muted: #cbd5e1;
+  --accent: #38bdf8;
+  --accent-fg: #082f49;
+  --ok: #4ade80;
+  --fail: #f87171;
+  --retry: #fbbf24;
+  --info: #a5b4fc;
+  --focus: #fde047;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #e2e8f0;
+  --fg: #0f172a;
+  --muted: #334155;
+  --accent: #0369a1;
+  --accent-fg: #ffffff;
+  --ok: #15803d;
+  --fail: #b91c1c;
+  --retry: #92400e;
+  --info: #4338ca;
+  --focus: #1d4ed8;
+  color-scheme: light;
+}
+
+[data-theme="contrast"] {
+  --bg: #000000;
+  --surface: #000000;
+  --surface-2: #1a1a1a;
+  --fg: #ffffff;
+  --muted: #ffffff;
+  --accent: #ffff00;
+  --accent-fg: #000000;
+  --ok: #00ff66;
+  --fail: #ff5c5c;
+  --retry: #ffd400;
+  --info: #9ecbff;
+  --focus: #00ffff;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ok: var(--ok);
+  --color-fail: var(--fail);
+  --color-retry: var(--retry);
+  --color-info: var(--info);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+[data-theme="contrast"] .card,
+[data-theme="contrast"] button {
+  outline: 1px solid var(--fg);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced-motion must override component transitions */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced-motion must override component transitions */
+    transition-duration: 0.01ms !important;
+  }
+}

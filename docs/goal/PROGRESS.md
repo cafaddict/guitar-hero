@@ -5,20 +5,21 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: M0 (시작 전)
-- 마지막 갱신: —
-- 누적 턴(대략): 0
+- 현재 마일스톤: M1 (도메인·콘텐츠·데이터) 시작 전 — M0 완료
+- 마지막 갱신: 2026-10-07 (M0 커밋 직후)
+- 누적 턴(대략): 1
+- 턴 상한: **1000** (사용자 지시, D-011). §16.1 축소는 턴 800 이후에만.
 - 다음 할 일:
-  1. `git checkout -b feat/practice-app-v1` (main 9e7eda6에서), docs/research·docs/goal을 첫 커밋으로 포함
-  2. Vite 8 + React 19 + TS 스캐폴드, Biome/Vitest/Playwright 설정, `npx playwright install chromium webkit`
-  3. M0 스파이크 3종(SPEC §16)
+  1. M1: `src/domain/`(strings, theory, voicing: expectedNotes/mutedStrings/anchors/partialCollisionMap) + 시드 25 보이싱 zod 검증·tonal 테스트
+  2. M1: 커리큘럼 0–11·진급 규칙 데이터·연습곡 8곡·코칭 규칙, 루틴 생성기·진급 엔진·복습 큐·안전 규칙 테스트
+  3. M1: Dexie 스키마·repo·export/import 왕복·rebuildDerived (fake-indexeddb)
 - 막힌 점: 없음
 
 ## 마일스톤
 
 | M | 이름 | 상태 | 커밋 | 비고 |
 |---|---|---|---|---|
-| M0 | 부트스트랩·스파이크 | TODO | | |
+| M0 | 부트스트랩·스파이크 | DONE | (M0 커밋) | 스파이크 3종 통과(D-014, D-015) |
 | M1 | 도메인·콘텐츠·데이터 | TODO | | |
 | M2 | DSP 코어·합성기·벤치마크 | TODO | | |
 | M3 | 실녹음 벤치마크 | TODO | | |
@@ -33,10 +34,10 @@
 | AC | 요약 | 상태 | 증거 |
 |---|---|---|---|
 | AC-P1 | 브랜치·커밋·main 불변·push 없음·clean | TODO | |
-| AC-P2 | `npm ci && npm run verify` exit 0 | TODO | |
-| AC-P3 | 라이선스 검사 통과 | TODO | |
+| AC-P2 | `npm ci && npm run verify` exit 0 | DOING | M0: `npm run verify` exit 0, RESULT: PASS (NOT_YET: bench:dsp, bench:guitarset) — `tools/verify.ts`, `tools/verify.test.ts` |
+| AC-P3 | 라이선스 검사 통과 | DONE | `npm run licenses` (`tools/licenses.ts`): 78 prod packages 표 출력, 전부 허용. `tools/licenses.test.ts` (GPL/LGPL/AGPL/BlueOak 거부). svguitar 제거(D-013) |
 | AC-P4 | 무결성 테스트 통과 | TODO | |
-| AC-P5 | TS strict·noExplicitAny·린트 경고 0 | TODO | |
+| AC-P5 | TS strict·noExplicitAny·린트 경고 0 | DOING | `tsconfig.base.json`(strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes), `biome.json` noExplicitAny=error, `lint` = `biome check --error-on-warnings` — 최종 확인은 M8 |
 | AC-P6 | SPEC.md·thresholds.json SHA-256 일치 | TODO | |
 | AC-D1 | 시드 보이싱 25개 검증 | TODO | |
 | AC-D2 | partial 충돌 맵·커버리지 리포트 | TODO | |
@@ -93,4 +94,4 @@
 
 ## 턴 로그 (최근 것이 위, 한 줄씩)
 
-- (비어 있음)
+- 턴 1: M0 완료 — 브랜치·docs 커밋, 스캐폴드(Vite 8/React 19/TS 7/Tailwind 4), Biome/Vitest/Playwright(4 프로젝트), verify·licenses·무결성(일부) 도구, 스파이크 3종 통과. 사용자 지시로 턴 상한 1000(D-011).

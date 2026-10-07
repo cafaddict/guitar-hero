@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-e2e/
+data/
+bench-results/
+test-results/
+playwright-report/
+blob-report/
+coverage/
+*.log
+.DS_Store
+.vite/
+tests/fixtures/real/**/*.wav
+!tests/fixtures/real/.gitkeep
+tests/fixtures/generated/*.wav
