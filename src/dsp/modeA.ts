@@ -23,6 +23,9 @@ import { DETECTOR_VERSION } from './version';
 export interface ModeAParams {
   pitchStartMs: number;
   pitchEndMs: number;
+  /** Second pitch window used when the first is ambiguous (real attacks can blur the first 130 ms). */
+  retryPitchStartMs: number;
+  retryPitchEndMs: number;
   pitchFrameMs: number;
   pitchHopMs: number;
   clarityMin: number;
@@ -38,13 +41,15 @@ export interface ModeAParams {
 export const DEFAULT_MODE_A_PARAMS: ModeAParams = {
   pitchStartMs: 30,
   pitchEndMs: 130,
+  retryPitchStartMs: 130,
+  retryPitchEndMs: 330,
   pitchFrameMs: (2048 / 48000) * 1000,
   pitchHopMs: (512 / 48000) * 1000,
-  clarityMin: 0.85,
+  clarityMin: 0.8,
   toleranceCents: { lenient: 35, normal: 30, strict: 25 },
-  minLevelDb: 10,
+  minLevelDb: 7,
   mutedTemplateFactor: { lenient: 0.25, normal: 0.3, strict: 0.35 },
-  mutedGlobalRatio: { lenient: 0.1, normal: 0.12, strict: 0.15 },
+  mutedGlobalRatio: { lenient: 0.07, normal: 0.085, strict: 0.1 },
   decayPartials: 8,
 };
 
@@ -99,12 +104,16 @@ function bandPower(
 }
 
 /** Median pitch over restricted MPM frames, then harmonic refinement on the whole window. */
-export function measurePitch(input: PluckInput, params: ModeAParams): { f0: number | null; clarity: number } {
+export function measurePitch(
+  input: PluckInput,
+  params: ModeAParams,
+  span: { startMs: number; endMs: number } = { startMs: params.pitchStartMs, endMs: params.pitchEndMs },
+): { f0: number | null; clarity: number } {
   const fs = input.sampleRate;
   const frame = msToSamples(params.pitchFrameMs, fs);
   const hop = msToSamples(params.pitchHopMs, fs);
-  const start = input.onsetSample + msToSamples(params.pitchStartMs, fs);
-  const end = input.onsetSample + msToSamples(params.pitchEndMs, fs);
+  const start = input.onsetSample + msToSamples(span.startMs, fs);
+  const end = Math.min(input.samples.length, input.onsetSample + msToSamples(span.endMs, fs));
   const lo = input.expectedF0 / 1.5;
   const hi = input.expectedF0 * 1.5;
   const estimates: { f0: number; clarity: number }[] = [];
@@ -178,26 +187,56 @@ export function verifyPluck(input: PluckInput): PluckResult {
     const confidence = Math.min(1, 1 - decayRatio / mutedBelow);
     return finish({ ...base('MUTED', 'FAIL', [], common), confidence });
   }
-  if (pitch.f0 === null || pitch.clarity < params.clarityMin) {
-    return finish(base('WEAK', 'RETRY', ['AMBIGUOUS'], common));
-  }
-  const cents = 1200 * Math.log2(pitch.f0 / input.expectedF0);
   const tol = params.toleranceCents[strictness];
-  if (Math.abs(cents) <= tol) {
-    return finish({
-      ...base('OK', 'PASS', [], { ...common, cents, semitones: 0 }),
-      confidence: Math.min(1, pitch.clarity),
+  type PitchDecision =
+    | { kind: 'ok'; cents: number }
+    | { kind: 'wrong'; cents: number; semitones: number }
+    | { kind: 'retry'; reason: RetryReason; cents: number | null };
+  const decide = (p: { f0: number | null; clarity: number }): PitchDecision => {
+    if (p.f0 === null || p.clarity < params.clarityMin)
+      return { kind: 'retry', reason: 'AMBIGUOUS', cents: null };
+    const cents = 1200 * Math.log2(p.f0 / input.expectedF0);
+    if (Math.abs(cents) <= tol) return { kind: 'ok', cents };
+    const semitones = Math.round(cents / 100);
+    if (Math.abs(semitones) >= 12) return { kind: 'retry', reason: 'AMBIGUOUS', cents };
+    if (semitones !== 0 && Math.abs(cents - 100 * semitones) <= tol)
+      return { kind: 'wrong', cents, semitones };
+    return { kind: 'retry', reason: 'DETUNED', cents };
+  };
+  let decision = decide(pitch);
+  let used = pitch;
+  if (decision.kind === 'retry') {
+    // The first window can still hold the attack (pick noise, finger slide); the string usually settles
+    // into a clear pitch a little later, well inside the +400 ms segment.
+    const later = measurePitch(input, params, {
+      startMs: params.retryPitchStartMs,
+      endMs: params.retryPitchEndMs,
     });
+    const second = decide(later);
+    if (second.kind !== 'retry') {
+      decision = second;
+      used = later;
+    }
   }
-  const semitones = Math.round(cents / 100);
-  if (Math.abs(semitones) >= 12) return finish(base('WEAK', 'RETRY', ['AMBIGUOUS'], { ...common, cents }));
-  if (semitones !== 0 && Math.abs(cents - 100 * semitones) <= tol) {
-    return finish({
-      ...base('WRONG_NOTE', 'FAIL', [], { ...common, cents, semitones }),
-      confidence: pitch.clarity,
-    });
+  const measured = { ...common, clarity: used.clarity, f0: used.f0 };
+  switch (decision.kind) {
+    case 'ok':
+      return finish({
+        ...base('OK', 'PASS', [], { ...measured, cents: decision.cents, semitones: 0 }),
+        confidence: Math.min(1, used.clarity),
+      });
+    case 'wrong':
+      return finish({
+        ...base('WRONG_NOTE', 'FAIL', [], {
+          ...measured,
+          cents: decision.cents,
+          semitones: decision.semitones,
+        }),
+        confidence: used.clarity,
+      });
+    case 'retry':
+      return finish(base('WEAK', 'RETRY', [decision.reason], { ...measured, cents: decision.cents }));
   }
-  return finish(base('WEAK', 'RETRY', ['DETUNED'], { ...common, cents }));
 }
 
 /** Optional x-string check (SPEC §10.5): the muted string was plucked; any sustained pitched sound → UNEXPECTED. */

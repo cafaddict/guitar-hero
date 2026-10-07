@@ -3,7 +3,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { GuitarSetMetric } from './bench-wip';
+import type { GuitarSetMetric } from './bench';
 import type { ClipOutcome } from './evaluate';
 
 export const GUITARSET_START = '<!-- guitarset:start -->';

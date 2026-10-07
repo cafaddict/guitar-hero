@@ -5,15 +5,15 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **M3 (실녹음 벤치마크)** 시작 — M0·M1·M2 완료
-- 마지막 갱신: 2026-10-08 (M2 커밋 직후)
+- 현재 마일스톤: **M4 (오디오 엔진·캘리브레이션)** 시작 — M0–M3 완료
+- 마지막 갱신: 2026-10-08 (M3 커밋 직후)
 - 누적 턴(대략): 1
 - 턴 상한: **1000** (사용자 지시, D-011). §16.1 축소는 턴 800 이후에만.
 - 다음 할 일:
-  1. M3: `tools/guitarset/bench-wip.ts` → `bench.ts`로 활성화, dev 플레이어(00–03)로 지표 확인·개선, test(04–05) 보고
-  2. M3: 소프트 지표 원인 분석·개선 시도 → `docs/DSP.md` §13, `bench:real` 테스트
-  3. M3 verify(bench:guitarset 포함) → 커밋
-- 막힌 점: 없음 (GuitarSet 다운로드 완료: data/guitarset, 360 clips)
+  1. M4: AudioEngine(capture worklet = CaptureCore, DSP worker, MessageChannel, 세그먼트 풀), 장치·권한·iOS audioSession, getSettings 진단
+  2. M4: 메트로놈 스케줄러(lookahead, 가짜 시계 10분 지터 테스트), 타이머(시계 차이), Wake Lock, 튜너·메트로놈 화면
+  3. M4: 온보딩/캘리브레이션 마법사(환경·튜닝·템플릿·RTT loopback + tap) + E2E-01
+- 막힌 점: 없음
 
 ## 마일스톤
 
@@ -21,8 +21,8 @@
 |---|---|---|---|---|
 | M0 | 부트스트랩·스파이크 | DONE | cc0a7d6 | 스파이크 3종 통과(D-014, D-015) |
 | M1 | 도메인·콘텐츠·데이터 | DONE | d37e9c1 | D-019–D-023 |
-| M2 | DSP 코어·합성기·벤치마크 | DONE | (M2 커밋) | test split 첫 실행 전 지표 통과(8,950 cases, 62 s), 리뷰 반영 D-028 |
-| M3 | 실녹음 벤치마크 | TODO | | |
+| M2 | DSP 코어·합성기·벤치마크 | DONE | 557f39d | test split 첫 실행 전 지표 통과(8,950 cases, 62 s), 리뷰 반영 D-028 |
+| M3 | 실녹음 벤치마크 | DONE | (M3 커밋) | GuitarSet 하드 4/4·소프트 2/2(test), detector 1.3.1, test 3회 실행(D-029–D-031) |
 | M4 | 오디오 엔진·캘리브레이션 | TODO | | |
 | M5 | 연습 플러그인 | TODO | | |
 | M6 | 커리큘럼·루틴·진도 | TODO | | |
@@ -57,9 +57,9 @@
 | AC-S6 | RTT 지표 | DONE | M2 verify(2026-10-08) `npm run bench:dsp` test split(시드 9000–9999) — `docs/BENCHMARK.md`, `bench-results/dsp-test.json`: |err| p95 0.028≤2 ms, 무신호 실패 보고 1.000 (`src/dsp/rtt.ts`) |
 | AC-S7 | 성능 지표 | DONE | M2 verify(2026-10-08) `npm run bench:dsp` test split(시드 9000–9999) — `docs/BENCHMARK.md`, `bench-results/dsp-test.json`: verifyStrum median 9.4≤20 ms, verifyPluck 2.3≤10 ms, worklet block avg 0.018≤0.3 ms (`CaptureCore`, 무할당 — D-028) |
 | AC-S8 | 커버리지·매트릭스·표본 수 | DONE | M2 verify(2026-10-08) `npm run bench:dsp` test split(시드 9000–9999) — `docs/BENCHMARK.md`, `bench-results/dsp-test.json`: coverage 0.4565 ≥ 기본 규칙 0.4565; `tests/integrity/thresholds-contract.test.ts`(매트릭스 전 값·구간 양끝 10%·최소 표본·조건별 최소(Mode B는 판정 층 안)·시드 범위·임계값 양방향 키) |
-| AC-G1 | GuitarSet 파이프라인 | TODO | |
-| AC-G2 | GuitarSet 하드 지표 | TODO | |
-| AC-G3 | GuitarSet 소프트 지표 보고·분석 | TODO | |
+| AC-G1 | GuitarSet 파이프라인 | DONE | `tools/guitarset/download.ts`(Zenodo 3371780 API MD5 검증, curl, 3회 백오프, 실패 시 `.download-blocked` JSON 마커), `unzip.ts`(+`unzip.test.ts`), `jams.ts`(스트럼/단음/onset 정답 추출, `jams.test.ts`), `evaluate.ts`, `bench.ts`(dev 00–03 / test 04–05, `--dev-only`); 360 clips 다운로드·추출 완료 |
+| AC-G2 | GuitarSet 하드 지표 | DONE | M3 verify `npm run bench:guitarset` test 플레이어(detector 1.3.1): Mode A OK 1.000(17/17)≥0.95, ±1 반음 오수용 0≤0.03, Mode C 2지선다 0.980≥0.90, 스트럼 onset F1@50ms 0.877≥0.85 — `docs/BENCHMARK.md` GuitarSet 절, `bench-results/guitarset.json` |
+| AC-G3 | GuitarSet 소프트 지표 보고·분석 | DONE | 소프트(test): Mode B FAIL 0.064≤0.10, 교란 OK 0.003≤0.15 — 통과. 분석·개선 기록 `docs/DSP.md` §13(onset 재튜닝 표, Mode A 강건화), D-029–D-031 |
 | AC-X1 | 플러그인 레지스트리·오디오 없는 러너 | TODO | |
 | AC-X2 | E1 코드 정밀 체크·E2E-02/03/04 | TODO | |
 | AC-X3 | E2 1분 코드 체인지·E2E-05 | TODO | |
@@ -94,6 +94,7 @@
 
 ## 턴 로그 (최근 것이 위, 한 줄씩)
 
+- 턴 1(계속): M3 완료 — GuitarSet 파이프라인, onset 재튜닝(합성+GuitarSet dev), Mode A 강건화, bench:real; GuitarSet test 하드 4/4.
 - 턴 1(계속): M2 완료 — 리뷰(code-reviewer) 결함 6건 수정(D-028), test split 전 지표 통과. GuitarSet 다운로드(curl) 완료.
 - 턴 1(계속): M2 — DSP 전 모듈·합성기·벤치마크 하네스·무결성 §14.6-2, dev 튜닝(D-024–D-027).
 - 턴 1(계속): M1 완료 — 도메인(보이싱·충돌 맵·앵커·코칭·루틴·진급·SRS·안전), 콘텐츠(25 보이싱·커리큘럼 0–11·연습곡 10곡), Dexie 저장소·export/import·rebuildDerived. 295 tests.

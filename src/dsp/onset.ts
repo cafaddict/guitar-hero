@@ -35,6 +35,27 @@ export interface OnsetParams {
   broadbandLookbackFrames: number;
   /** Absolute gate: high-band flux must exceed this. */
   minHighFlux: number;
+  /** A candidate failing the broadband condition is still accepted when its < lowBandHz flux reaches this
+   * (a soft new bass note brings little high-frequency attack). Infinity disables. */
+  lowFluxAccept: number;
+  /** Every candidate needs at least this much < lowBandHz flux (0 disables). */
+  minLowFlux: number;
+  /** Low-band-only acceptance also needs lowFlux ≥ lowMedianFactor × median lowFlux of the past
+   * lowMedianWindowMs (stationary noise keeps producing low-band flux; a new soft note stands out). */
+  lowMedianFactor: number;
+  lowMedianWindowMs: number;
+  /** Also take candidates whose total flux misses the threshold but whose low-band flux spikes (see above). */
+  lowSpikeAccept: boolean;
+  /** Low-band path: lowFlux ≥ lowRecentFactor × the largest low-band flux of the previous lowRecentMs
+   * (the decay right after a big strum beats; a real new note is comparable to recent events). 0 disables. */
+  lowRecentFactor: number;
+  lowRecentMs: number;
+  /** Anticipation suppression: drop an event when a ≥ anticipationRatio× stronger event follows within
+   * (anticipationMinMs, anticipationMaxMs] — left-hand noise just before a strum (chord change, finger
+   * placement). Ratio 0 disables. Costs anticipationMaxMs of decision latency. */
+  anticipationMinMs: number;
+  anticipationMaxMs: number;
+  anticipationRatio: number;
   /** Click masking (scheduled + RTT ± window): drop when the low-band (< lowBandHz) flux stays below this. */
   clickWindowMs: number;
   lowBandHz: number;
@@ -54,11 +75,11 @@ export interface OnsetParams {
 }
 
 export const DEFAULT_ONSET_PARAMS: OnsetParams = {
-  frameMs: (2048 / 48000) * 1000,
+  frameMs: (4096 / 48000) * 1000,
   hopMs: (256 / 48000) * 1000,
   gamma: 100,
   maxFilterBins: 3,
-  lagFrames: 4,
+  lagFrames: 8,
   maxFluxHz: 10_000,
   medianWindowMs: 100,
   delta: 2,
@@ -66,10 +87,20 @@ export const DEFAULT_ONSET_PARAMS: OnsetParams = {
   minIoiMs: 60,
   groupMs: 60,
   broadbandHz: 2000,
-  broadbandRiseDb: 3,
+  broadbandRiseDb: 1,
   broadbandLookaheadFrames: 4,
   broadbandLookbackFrames: 3,
-  minHighFlux: 1,
+  minHighFlux: 0.5,
+  lowFluxAccept: 3,
+  minLowFlux: 1,
+  lowMedianFactor: 4,
+  lowMedianWindowMs: 1000,
+  lowSpikeAccept: true,
+  lowRecentFactor: 0.15,
+  lowRecentMs: 400,
+  anticipationMinMs: 60,
+  anticipationMaxMs: 180,
+  anticipationRatio: 4,
   clickWindowMs: 10,
   lowBandHz: 1000,
   clickLowFluxMax: 1.5,
@@ -77,7 +108,7 @@ export const DEFAULT_ONSET_PARAMS: OnsetParams = {
   refineFrameMs: (512 / 48000) * 1000,
   refineHopMs: 1,
   refineLagMs: 5,
-  refineLookbackMs: 60,
+  refineLookbackMs: 40,
   refineLookaheadMs: 15,
   refineFraction: 0.3,
   refineBiasMs: 5,
@@ -100,6 +131,8 @@ export interface OnsetCandidate {
   /** Coarse sample position (frame centre). */
   sample: number;
   strength: number;
+  /** Passed the broadband (high-frequency attack) condition; false = accepted on low-band flux only. */
+  broadband: boolean;
 }
 
 export interface StrumEvent {
@@ -271,13 +304,17 @@ export interface PickOptions {
 export class OnsetPicker {
   private readonly frames: OnsetFrame[];
   private readonly sortBuf: Float64Array;
+  /** Ring of past low-band flux values (frame index modulo length) and a sort buffer for its median. */
+  private readonly lowRing: Float64Array;
+  private framesPushed = 0;
+  private readonly lowSort: Float64Array;
   private readonly w: number;
   private readonly minGap: number;
   private readonly clickWin: number;
   /** Preallocated candidate objects: the scratch result, the pending peak and the last emitted onset. */
-  private readonly scratch: OnsetCandidate = { frame: 0, sample: 0, strength: 0 };
-  private readonly pending: OnsetCandidate = { frame: 0, sample: 0, strength: 0 };
-  private readonly emitted: OnsetCandidate = { frame: 0, sample: 0, strength: 0 };
+  private readonly scratch: OnsetCandidate = { frame: 0, sample: 0, strength: 0, broadband: true };
+  private readonly pending: OnsetCandidate = { frame: 0, sample: 0, strength: 0, broadband: true };
+  private readonly emitted: OnsetCandidate = { frame: 0, sample: 0, strength: 0, broadband: true };
   private hasPending = false;
   private readonly lookahead: number;
 
@@ -301,6 +338,9 @@ export class OnsetPicker {
       }),
     );
     this.sortBuf = new Float64Array(this.w);
+    const lowLen = Math.max(1, Math.round(params.lowMedianWindowMs / params.hopMs));
+    this.lowRing = new Float64Array(lowLen);
+    this.lowSort = new Float64Array(lowLen);
     this.minGap = (params.minIoiMs / 1000) * sampleRate;
     this.clickWin = (params.clickWindowMs / 1000) * sampleRate + frameLength / 2;
   }
@@ -313,6 +353,7 @@ export class OnsetPicker {
     to.frame = from.frame;
     to.sample = from.sample;
     to.strength = from.strength;
+    to.broadband = from.broadband;
     return to;
   }
 
@@ -328,6 +369,8 @@ export class OnsetPicker {
     slot.lowFlux = frame.lowFlux;
     slot.clickFlux = frame.clickFlux;
     slot.highEnergy = frame.highEnergy;
+    this.lowRing[index % this.lowRing.length] = frame.lowFlux;
+    this.framesPushed = index + 1;
     let emitted: OnsetCandidate | null = null;
     if (index >= 1 + this.lookahead && this.evaluate(index - this.lookahead)) {
       const candidate = this.scratch;
@@ -362,17 +405,26 @@ export class OnsetPicker {
     const first = Math.max(0, n - this.w);
     const buf = this.sortBuf;
     let len = 0;
-    for (let j = first; j < n; j++) {
-      const v = this.at(j).flux;
-      let k = len++;
-      while (k > 0 && buf[k - 1]! > v) {
-        buf[k] = buf[k - 1]!;
-        k--;
-      }
-      buf[k] = v;
-    }
-    if (len === 0) return 0;
-    return len % 2 ? buf[len >> 1]! : 0.5 * (buf[(len >> 1) - 1]! + buf[len >> 1]!);
+    for (let j = first; j < n; j++) len = insertSorted(buf, len, this.at(j).flux);
+    return medianOfSorted(buf, len);
+  }
+
+  /** Largest low-band flux in the lowRecentMs before frame n (excluding the ±lag neighbourhood of n). */
+  private recentLowMax(n: number): number {
+    const span = Math.min(Math.round(this.params.lowRecentMs / this.params.hopMs), this.lowRing.length - 2);
+    let max = 0;
+    for (let j = Math.max(0, n - span); j < n - this.params.lagFrames; j++)
+      max = Math.max(max, this.lowRing[j % this.lowRing.length]!);
+    return max;
+  }
+
+  /** Median low-band flux over the frames before n (within the ring). */
+  private lowMedian(n: number): number {
+    const count = Math.min(n, this.lowRing.length - 2, this.framesPushed - 2);
+    let len = 0;
+    for (let j = n - count; j < n; j++)
+      if (j >= 0) len = insertSorted(this.lowSort, len, this.lowRing[j % this.lowRing.length]!);
+    return medianOfSorted(this.lowSort, len);
   }
 
   /** Writes the candidate for frame n into `this.scratch` and returns true, or returns false. */
@@ -382,7 +434,15 @@ export class OnsetPicker {
     const prev = this.at(n - 1);
     const next = this.at(n + 1);
     if (f.flux < prev.flux || f.flux <= next.flux) return false;
-    if (f.flux < this.runningMedian(n) * p.medianFactor + p.delta) return false;
+    const threshold = this.runningMedian(n) * p.medianFactor + p.delta;
+    // A soft new low note may not lift the total flux over the threshold (other bands fluctuate), but its
+    // low-band flux spikes against this recording's own low-band level: let it through to the low-band path.
+    const lowSpike =
+      p.lowSpikeAccept &&
+      f.lowFlux >= p.lowFluxAccept &&
+      this.framesPushed >= this.lowRing.length / 4 &&
+      f.lowFlux >= p.lowMedianFactor * this.lowMedian(n);
+    if (f.flux < threshold && !lowSpike) return false;
     let before = Number.POSITIVE_INFINITY;
     for (
       let j = Math.max(0, n - p.lagFrames - p.broadbandLookbackFrames);
@@ -394,7 +454,16 @@ export class OnsetPicker {
     let peakHigh = 0;
     for (let j = n; j <= n + this.lookahead; j++) peakHigh = Math.max(peakHigh, this.at(j).highEnergy);
     const riseDb = 10 * Math.log10((peakHigh + 1e-15) / (before + 1e-15));
-    if (riseDb < p.broadbandRiseDb || f.highFlux < p.minHighFlux) return false;
+    const broadband = riseDb >= p.broadbandRiseDb && f.highFlux >= p.minHighFlux;
+    if (!broadband) {
+      if (f.lowFlux < p.lowFluxAccept) return false;
+      // The low-band path needs history (warm-up) and must stand out from this recording's own low-band
+      // flux, and the low band must gain energy (beating only moves energy between nearby partials).
+      if (this.framesPushed < this.lowRing.length / 4) return false;
+      if (p.lowMedianFactor > 0 && f.lowFlux < p.lowMedianFactor * this.lowMedian(n)) return false;
+      if (p.lowRecentFactor > 0 && f.lowFlux < p.lowRecentFactor * this.recentLowMax(n)) return false;
+    }
+    if (f.lowFlux < p.minLowFlux) return false;
     const sample = f.start + this.frameLength / 2;
     // Click masking (SPEC §10.4): near a scheduled click, drop a candidate whose rise sits in the click band
     // (template proxy) without low-frequency energy; an on-beat strum always brings low-band flux.
@@ -403,8 +472,25 @@ export class OnsetPicker {
     this.scratch.frame = n;
     this.scratch.sample = sample;
     this.scratch.strength = f.flux;
+    this.scratch.broadband = broadband;
     return true;
   }
+}
+
+/** Inserts v into the sorted prefix buf[0..len) and returns the new length (no allocation). */
+function insertSorted(buf: Float64Array, len: number, v: number): number {
+  let k = len;
+  while (k > 0 && buf[k - 1]! > v) {
+    buf[k] = buf[k - 1]!;
+    k--;
+  }
+  buf[k] = v;
+  return len + 1;
+}
+
+function medianOfSorted(buf: Float64Array, len: number): number {
+  if (len === 0) return 0;
+  return len % 2 ? buf[len >> 1]! : 0.5 * (buf[(len >> 1) - 1]! + buf[len >> 1]!);
 }
 
 /** Offline peak picking over precomputed frames (same code path as the streaming picker). */
@@ -550,7 +636,27 @@ export function groupStrums(
   return events;
 }
 
-/** Full offline pipeline: flux → peaks → refinement → strum grouping. */
+/** Drops weak events that a much stronger event follows shortly (see OnsetParams.anticipation*). */
+export function suppressAnticipations(
+  events: readonly StrumEvent[],
+  sampleRate: number,
+  params: OnsetParams,
+): StrumEvent[] {
+  if (params.anticipationRatio <= 0) return [...events];
+  const lo = (params.anticipationMinMs / 1000) * sampleRate;
+  const hi = (params.anticipationMaxMs / 1000) * sampleRate;
+  return events.filter(
+    (e) =>
+      !events.some(
+        (o) =>
+          o.sample - e.sample > lo &&
+          o.sample - e.sample <= hi &&
+          o.strength >= params.anticipationRatio * e.strength,
+      ),
+  );
+}
+
+/** Full offline pipeline: flux → peaks → refinement → strum grouping → anticipation suppression. */
 export function detectStrums(
   signal: ArrayLike<number>,
   sampleRate: number,
@@ -561,5 +667,9 @@ export function detectStrums(
   const frameLength = Math.round((params.frameMs / 1000) * sampleRate);
   const candidates = pickOnsets(frames, sampleRate, frameLength, params, options);
   const refined = candidates.map((c) => refineOnset(signal, c.sample, frameLength, sampleRate, params));
-  return groupStrums(candidates, refined, sampleRate, params.groupMs);
+  return suppressAnticipations(
+    groupStrums(candidates, refined, sampleRate, params.groupMs),
+    sampleRate,
+    params,
+  );
 }

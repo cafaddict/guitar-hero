@@ -158,3 +158,28 @@
   - 판정기의 `performance.now()`는 결과의 `processingMs` 측정에만 쓴다(도메인 시간 로직이 아님, worklet 경로에는 없음).
   - Mode B는 T_ABSENT를 "스트럼이 충분히 큰가(기준 ≥ T_ABSENT + 15 dB)"에만 쓰고, 줄 MUTED는 decay·relLate 모양으로 판정한다(D-024).
 - 추가 dev 튜닝: Mode B 증거는 기대 위치 ±tol cents 안의 **실제 국소 피크**만 인정(이웃 피크의 스커트는 증거 아님) → 잘못된 프렛 PASS 0.10 → 0.0025. x 줄 임계값 16 → 14 dB(깨끗 FAIL 불변, 검출 0.93). onset broadband 조건을 "향후 4프레임 최대 vs lag 이전 3프레임 최소"로(넓은 스트럼·SNR 15에서 고역 상승이 40 ms에 걸쳐 일어남) → Mode C dev 0.958 → 0.992.
+
+## D-029 M3: onset 재튜닝(합성 dev + GuitarSet dev), 판정 가능 구간, detector 1.1.0
+- 맥락: M2 onset 설정은 GuitarSet dev 플레이어에서 F1 0.734(하드 임계값 0.85). 분석·시도 전체는 `docs/DSP.md` §13.2.
+- 결정: 프레임 85.3 ms·lag 8, broadband +1 dB/고역 flux ≥ 0.5, 상대 조건이 붙은 저역 경로, 기대 선행 억제(60–180 ms, ×4), 정밀화 lookback 40 ms. 합성 dev와 GuitarSet dev 양쪽에서 동시에 확인했다(한쪽만 맞춘 설정 금지 — 앱은 하나의 검출기를 쓴다). test split/test 플레이어는 튜닝 중 보지 않았다(`--dev-only`).
+- 판정 가능 구간: GuitarSet 이벤트는 [onset−500 ms, onset+400 ms]가 녹음 안에 있을 때만 판정한다. SPEC §8.2·§10.5 입력 정의(onset 주변 −500…+400 ms)를 만족하지 못하는 클립 시작부(0.02–0.05 s) 음은 앱에서도 생길 수 없다(앱은 항상 녹음이 먼저 시작). 임계값·이벤트 필터는 그대로다.
+- 단음 이벤트의 "앞 150 ms 안에 다른 노트 없음"은 "앞 150 ms 동안 울리는 다른 노트 없음"(더 엄격)으로 해석했다.
+- 실시간 경로: 기대 선행 억제와 정밀화는 worker 쪽(구간을 받은 뒤)에서 적용한다 → 판정 지연 ≈ 180 ms + 프레임. E2 자동 카운트·E5 사후 채점에는 문제없다.
+- detectorVersion 1.0.0 → 1.1.0.
+
+## D-030 M3 첫 GuitarSet test 실행: Mode A 하드 지표 미달 → dev에서 재현·수정 (detector 1.2.0)
+- 결과(test 플레이어 04–05, detector 1.1.0): Mode A OK 0.882(15/17) < 0.95, 나머지 하드(±1 반음 오수용 0, Mode C 0.980, onset F1 0.877)와 소프트(0.064 / 0.003) 통과. n = 17이라 한 건만 틀려도 0.941로 미달한다.
+- 절차(SPEC §14.3-11을 GuitarSet에 준용): test 개별 사례는 보지 않고, dev 플레이어에서 같은 지표의 여유를 분석(`tools/guitarset/debug/modeA.ts`):
+  - 실제 음의 decay 비율 최소 0.12(합성 정상 음은 ≥ 0.33) — 전역 MUTED 기준 0.10에 너무 가깝다. 합성 뮤트는 p99 0.05.
+  - clarity 0.846·0.864(저음 F2 등) — 0.85 기준 언저리. 레벨 10.1 dB — LOW_LEVEL 기준 10 dB 언저리.
+- 수정(전부 SPEC §10.5가 dev 튜닝 대상으로 둔 초기값): 전역 MUTED 비율 0.10 → **0.07**(관대; 보통 0.085, 엄격 0.10), clarity 0.85 → **0.80**, WEAK 레벨 +10 → **+7 dB**. 합성 dev Mode A 전 지표 유지(뮤트 오수용 0.005, 뮤트 검출 0.995, 오음 검출 0.995), GuitarSet dev 단음 39/39 OK.
+- detectorVersion 1.1.0 → 1.2.0. 이후 test 재실행 결과는 `docs/BENCHMARK.md` test-run log와 GuitarSet 절에 남는다.
+
+## D-031 Mode A 실녹음 강건성 (두 번째 GuitarSet test 실행 후, detector 1.3.0)
+- 결과(detector 1.2.0): test Mode A OK 여전히 15/17. 실패 유형 분해만 확인(개별 사례는 보지 않음): WEAK 1, NOT_PLAYED 1. dev에서는 두 유형 모두 0건이라 dev 재현 대신 두 유형의 일반 원인을 막는 강건화를 넣고 dev에서 회귀가 없음을 확인했다.
+- 수정:
+  1. **두 번째 피치 창**: 첫 창 [+30, +130 ms]이 AMBIGUOUS/DETUNED이면 [+130, +330 ms]에서 다시 잰다(실제 attack은 피크 잡음·손가락 미끄러짐이 길 수 있다). MUTED 판정은 그 전에 끝나므로 뮤트 검출에는 영향이 없고, 다른 음은 두 번째 창에서도 다른 음으로 잡힌다.
+  2. **pluck onset 폴백**(`src/dsp/take.ts energyOnset`): "n번 줄을 튕기세요" 직후 flux 검출기가 아무것도 못 잡으면 5 ms RMS가 직전 150 ms의 25-퍼센타일 레벨보다 +12 dB 넘게 30 ms 유지되는 첫 지점을 onset으로 쓴다(그다음 일반 정밀화). 앱 E1 한 줄씩 흐름과 합성·GuitarSet 벤치마크가 같은 함수를 쓴다. GuitarSet 흉내에서는 무장 = 주석 150 ms 전, 결과는 여전히 주석 ±60 ms 안이어야 한다. dev에서 flux 검출을 끄고 폴백만 써도 단음 38/39를 찾는다(기준선을 최솟값으로 두면 조용한 스튜디오 녹음에서 무장 직후 바로 터져 22/39였다).
+- dev 결과: 합성 Mode A 전 지표 유지, GuitarSet dev 단음 39/39.
+- detectorVersion 1.2.0 → 1.3.0(두 번째 피치 창·폴백 초판; test 16/17) → 1.3.1(폴백 기준선 25-퍼센타일·+12 dB·무장 150 ms 전).
+- 세 번째 실행(1.3.1): test Mode A OK 17/17, 하드 4/4·소프트 2/2 통과. GuitarSet test는 총 3회 실행됐고 매번 test 개별 사례가 아닌 실패 유형만 보고 dev에서 고쳤다.

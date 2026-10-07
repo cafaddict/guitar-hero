@@ -166,17 +166,29 @@ async function main(): Promise<void> {
     process.exit(BLOCKED_EXIT_CODE);
   }
   const started = performance.now();
-  const tasks = listTasks(t);
+  // --dev-only: tuning runs evaluate and print the dev players only (test players stay unseen).
+  const devOnly = process.argv.includes('--dev-only');
+  const tasks = listTasks(t).filter(
+    (task) => !devOnly || t.guitarset.split.devPlayers.includes(task.info.player),
+  );
   const outcomes = await runTasks(tasks);
   const split = (players: string[]) => outcomes.filter((o) => players.includes(o.player));
   const dev = computeMetrics(split(t.guitarset.split.devPlayers), t);
-  const test = computeMetrics(split(t.guitarset.split.testPlayers), t);
   const elapsedS = (performance.now() - started) / 1000;
   console.log(
     `\nGuitarSet benchmark — detector ${DETECTOR_VERSION}, ${outcomes.length} clips, ${elapsedS.toFixed(0)} s`,
   );
   console.log('\n[dev players 00–03 — tuning only]');
   console.log(table(dev));
+  mkdirSync(join(ROOT, 'bench-results'), { recursive: true });
+  if (devOnly) {
+    writeFileSync(
+      join(ROOT, 'bench-results', 'guitarset-dev.json'),
+      `${JSON.stringify({ dev, outcomes }, null, 1)}\n`,
+    );
+    return;
+  }
+  const test = computeMetrics(split(t.guitarset.split.testPlayers), t);
   console.log('\n[TEST players 04–05 — judged]');
   console.log(table(test));
   mkdirSync(join(ROOT, 'bench-results'), { recursive: true });
@@ -201,4 +213,4 @@ async function main(): Promise<void> {
   process.exit(hard.every((m) => m.pass) ? 0 : 1);
 }
 
-if (process.argv[1]?.endsWith('bench.ts') || process.argv[1]?.endsWith('bench-wip.ts')) void main();
+if (process.argv[1]?.endsWith('bench.ts')) void main();

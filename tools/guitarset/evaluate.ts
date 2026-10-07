@@ -12,6 +12,7 @@ import { verifyPluck } from '../../src/dsp/modeA';
 import { verifyStrum } from '../../src/dsp/modeB';
 import { classifyPair } from '../../src/dsp/modeC';
 import { detectStrums, type StrumEvent } from '../../src/dsp/onset';
+import { energyOnset } from '../../src/dsp/take';
 import { decodeWav, toMono } from '../../src/dsp/wav';
 import {
   type ClipInfo,
@@ -109,9 +110,24 @@ export function evaluateClip(task: ClipTask): ClipOutcome {
   };
   const tolEvent = Math.round(0.06 * fs);
 
+  // A judgement needs its analysis segment [onset − 500 ms, onset + 400 ms] inside the recording (SPEC §8.2,
+  // §10.5–10.6 inputs); notes at the very start of a clip have no pre-onset audio to detect or reference.
+  const durationS = signal.length / fs;
+  const judgeable = (time: number) => time >= 0.5 && time + 0.4 <= durationS;
+
   if (task.info.kind === 'solo') {
-    for (const s of singleEvents(parsed, task.filters)) {
-      const e = nearest(events, Math.round(s.time * fs), tolEvent);
+    for (const s of singleEvents(parsed, task.filters).filter((e) => judgeable(e.time))) {
+      const target = Math.round(s.time * fs);
+      // App flow: the prompt arms the pluck detector shortly before the note; the energy fallback covers very
+      // soft plucks the flux detector misses. The result must still land within ±60 ms of the annotation.
+      const fallbackSample = nearest(events, target, tolEvent)
+        ? null
+        : energyOnset(signal, fs, target - Math.round(0.15 * fs), target + tolEvent);
+      const e =
+        nearest(events, target, tolEvent) ??
+        (fallbackSample !== null && Math.abs(fallbackSample - target) <= tolEvent
+          ? { sample: fallbackSample }
+          : null);
       const expected = midiToHz(s.midi) * 2 ** (delta[s.idx]! / 1200);
       if (!e) {
         out.singles.push({ ok: false, perturbedOk: false, status: 'NOT_PLAYED', cents: null, midi: s.midi });
@@ -143,7 +159,7 @@ export function evaluateClip(task: ClipTask): ClipOutcome {
   }
 
   // Comp clips: strum events.
-  const strums = strumEvents(parsed.notes, task.filters);
+  const strums = strumEvents(parsed.notes, task.filters).filter((e) => judgeable(e.time));
   strums.forEach((ev, k) => {
     const voicing = voicingFromMidis(ev.midis, `${task.info.id}#${k}`);
     if (!voicing) return;

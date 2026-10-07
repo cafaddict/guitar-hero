@@ -9,7 +9,7 @@ import { verifyStrum } from '../../src/dsp/modeB';
 import { ChangeCounter, classifyPair, classifySet } from '../../src/dsp/modeC';
 import { DEFAULT_ONSET_PARAMS, detectStrums } from '../../src/dsp/onset';
 import { estimateRtt } from '../../src/dsp/rtt';
-import { selectTakeEvent } from '../../src/dsp/take';
+import { energyOnset, selectTakeEvent } from '../../src/dsp/take';
 import { analyzeTiming } from '../../src/dsp/timing';
 import { analyzeTuning } from '../../src/dsp/tuner';
 import type {
@@ -152,8 +152,13 @@ function evaluateA(c: ModeACase, t: Thresholds): OutcomeA {
   const r = renderModeA(c, t);
   const v = voicingById(c.voicingId);
   // The app analyses the first onset of the take (selectTakeEvent); the true onset is never used to choose.
+  // With no flux onset at all, the pluck flow falls back to the energy onset (armed for the whole take).
   const take = selectTakeEvent(detectStrums(r.signal, c.sampleRate), c.sampleRate);
-  const event = take.ok ? take.event : null;
+  const fallback =
+    !take.ok && take.reason === 'NO_ONSET'
+      ? energyOnset(r.signal, c.sampleRate, Math.round(0.25 * c.sampleRate), r.signal.length)
+      : null;
+  const event = take.ok ? take.event : fallback !== null ? { sample: fallback } : null;
   const base = {
     mode: 'A' as const,
     id: c.id,
