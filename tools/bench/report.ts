@@ -43,15 +43,22 @@ function existingGuitarSetSection(): string | null {
   return start >= 0 && end > start ? text.slice(start, end + GS_END.length) : null;
 }
 
-function existingLog(): string[] {
-  if (!existsSync(REPORT)) return [];
-  const text = readFileSync(REPORT, 'utf8');
+/** One test-split run: "- <ISO time> · detector <v> · split <s> · <verdict>". */
+export const LOG_LINE = /^- \d{4}-\d{2}-\d{2}T[\d:.]+Z · detector \S+ · split \S+ · .+$/;
+
+/** Previous run lines (anything else that ended up after the header, e.g. a stray section, is dropped). */
+export function parseLog(text: string): string[] {
   const idx = text.indexOf(LOG_HEADER);
   if (idx < 0) return [];
   return text
     .slice(idx + LOG_HEADER.length)
     .split('\n')
-    .filter((l) => l.startsWith('- '));
+    .filter((l) => LOG_LINE.test(l));
+}
+
+function existingLog(): string[] {
+  if (!existsSync(REPORT)) return [];
+  return parseLog(readFileSync(REPORT, 'utf8'));
 }
 
 /** Replaces the generated part of BENCHMARK.md and appends one line to the test-run log. */

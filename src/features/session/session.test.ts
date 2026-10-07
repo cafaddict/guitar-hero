@@ -10,10 +10,12 @@ import {
   completeItem,
   isFinished,
   itemRemainingSec,
+  markRecorded,
   pause,
   practiceMs,
   previousItem,
   resume,
+  sessionKeyCommand,
   skipItem,
   startSession,
 } from './sessionModel';
@@ -88,6 +90,49 @@ describe('pluginParamsFor', () => {
       }
     }
   });
+
+  it('pain ≥ 5 halves the E1/E2 runs themselves, not only the planned time (§7.3-7)', async () => {
+    const { generateRoutine } = await import('../../domain/routine');
+    const { CURRICULUM } = await import('../../content/curriculum');
+    const { PRACTICE_SONGS } = await import('../../content/songs');
+    const { contentContextFor } = await import('../../exercises/contentContext');
+    const input = {
+      stage: 3,
+      curriculum: CURRICULUM,
+      songs: PRACTICE_SONGS,
+      gVoicing: 'G-2f' as const,
+      skills: new Map(),
+      now: Date.UTC(2026, 9, 8),
+      lastPracticeAt: Date.UTC(2026, 9, 7),
+      firstPracticeAt: Date.UTC(2026, 8, 1),
+      sessionMinutes: 20,
+      confirmedOverCap: false,
+      dueReviews: [],
+      changesDoneToday: 0,
+      prescribedDrills: [],
+      seed: 3,
+    };
+    const content = contentContextFor({ stage: 3, gVoicing: 'G-2f' });
+    const runMs = (
+      lastSelfReport: { pain: number; dangerFlags: []; difficulty: number; note: string } | null,
+    ) =>
+      generateRoutine({ ...input, lastSelfReport })
+        .items.filter((i) => i.exerciseType === 'E1' || i.exerciseType === 'E2')
+        .map((i) => {
+          const params = pluginParamsFor(i, exerciseDefinition(i.exerciseType)!, content) as {
+            blockMs?: number;
+            durationMs?: number;
+          };
+          return { planned: i.durationSec * 1000, run: params.blockMs ?? params.durationMs };
+        });
+    const normal = runMs(null);
+    const reduced = runMs({ pain: 6, dangerFlags: [], difficulty: 3, note: '' });
+    expect(normal.length).toBeGreaterThanOrEqual(3);
+    expect(reduced.map((r) => r.planned)).toEqual(
+      normal.map((r) => Math.max(30_000, Math.round(r.planned / 30_000) * 15_000)),
+    );
+    for (const r of [...normal, ...reduced]) expect(r.run).toBe(r.planned);
+  });
 });
 
 describe('session model', () => {
@@ -95,15 +140,40 @@ describe('session model', () => {
 
   it('walks items, records which produced attempts, supports skip and previous', () => {
     let s = startSession(0);
-    s = completeItem(s, items, 100_000, true);
+    s = markRecorded(s, '1');
+    s = completeItem(s, items, 100_000);
     expect(s.index).toBe(1);
     s = previousItem(s, 101_000);
     expect(s.index).toBe(0);
-    s = completeItem(s, items, 102_000, true);
-    s = completeItem(s, items, 132_000, false);
+    s = markRecorded(s, '1');
+    s = completeItem(s, items, 102_000);
+    s = completeItem(s, items, 132_000);
     s = skipItem(s, items, 140_000);
     expect(isFinished(s, items)).toBe(true);
     expect(s).toMatchObject({ done: ['1', '2'], recorded: ['1'], skipped: ['3'] });
+  });
+
+  it('a stored attempt counts even when the item is left by skip or by ending the session', () => {
+    let s = startSession(0);
+    s = markRecorded(s, '1');
+    s = skipItem(s, items, 10_000);
+    s = completeItem(s, items, 40_000);
+    s = markRecorded(s, '3');
+    expect(s.recorded).toEqual(['1', '3']);
+    expect(s.index).toBe(2);
+  });
+
+  it('keys between runs: next/toggle advance after a run or a rest, prev goes back, toggle resumes', () => {
+    const view = { paused: false, isRest: false, runEnded: false, first: false };
+    expect(sessionKeyCommand('next', view)).toBeNull(); // not started: the exercise host starts it
+    expect(sessionKeyCommand('toggle', { ...view, runEnded: true })).toBe('advance');
+    expect(sessionKeyCommand('next', { ...view, isRest: true })).toBe('advance');
+    expect(sessionKeyCommand('prev', view)).toBe('previous');
+    expect(sessionKeyCommand('prev', { ...view, first: true })).toBeNull();
+    expect(sessionKeyCommand('toggle', { ...view, paused: true })).toBe('resume');
+    expect(sessionKeyCommand('prev', { ...view, paused: true })).toBeNull();
+    expect(sessionKeyCommand('manual1', { ...view, runEnded: true })).toBeNull();
+    expect(sessionKeyCommand(null, view)).toBeNull();
   });
 
   it('practice time excludes pauses; the item budget counts down by clock difference', () => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useEngineStatus, useInputLevel, useMicReleasedOnExit } from '../../app/audioHooks';
+import { useEngineStatus, useMicReleasedOnExit } from '../../app/audioHooks';
 import { audioEngine } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
 import { STRING_INDICES, stringNumber } from '../../domain/strings';
@@ -19,11 +19,12 @@ import {
   type TunerTarget,
 } from './tunerModel';
 
+const readLevel = () => audioEngine.latestLevel;
+
 /** Tuner screen (SPEC §9.2). While it is open the microphone only tunes (no judging jobs). */
 export function TunerScreen() {
   const status = useEngineStatus();
   const settings = useSettingsStore((s) => s.settings);
-  const level = useInputLevel();
   const [target, setTarget] = useState<TunerTarget>({ kind: 'auto' });
   const [display, setDisplay] = useState<TunerDisplay | null>(null);
   const [inTune, setInTune] = useState(false);
@@ -115,7 +116,7 @@ export function TunerScreen() {
         </p>
       </section>
       <div className="mt-4">
-        <LevelMeter rms={level?.rms ?? null} clipped={level?.clipped ?? false} label={ko.diagnostics.level} />
+        <LevelMeter read={readLevel} label={ko.diagnostics.level} />
       </div>
       <p className="mt-4 text-sm text-muted">{ko.tuner.judgingOff}</p>
     </Screen>

@@ -80,3 +80,35 @@ export function exam5Songs(skills: ReadonlyMap<string, SkillState>): number {
     (s) => s.subjectKey.startsWith('song:') && (s.metrics.hiddenCompleted?.best ?? 0) >= 1,
   ).length;
 }
+
+/**
+ * Verdict for one exam item from its runs' results (in order). A run stopped before it produced a result
+ * (Esc, finish) leaves a null and does not pass the item.
+ */
+export function evaluateExamItem(
+  item: '1' | '2' | '3' | '4' | '5',
+  results: readonly unknown[],
+  state: { skills: ReadonlyMap<string, SkillState>; gVoicing: 'G-2f' | 'G-3f' },
+): { passed: boolean; detail: Record<string, unknown> } {
+  if (results.some((r) => r === null || r === undefined)) return { passed: false, detail: { aborted: true } };
+  switch (item) {
+    case '1':
+      return { passed: results.length === 1 && exam1Passed(results[0] as TuningResult), detail: {} };
+    case '2': {
+      if (results.length !== 1) return { passed: false, detail: {} };
+      const r = exam2Passed(results[0] as RecallResult, state.skills, state.gVoicing);
+      return { passed: r.passed, detail: { clean: r.clean } };
+    }
+    case '3':
+      return { passed: exam3Passed(results as OneMinuteResult[]), detail: {} };
+    case '4':
+      return {
+        passed: results.length === 2 && exam4Passed(results[0] as StrumResult, results[1] as StrumResult),
+        detail: {},
+      };
+    case '5': {
+      const songs = exam5Songs(state.skills);
+      return { passed: songs >= EXAM_SONGS, detail: { songs } };
+    }
+  }
+}

@@ -66,6 +66,9 @@ describe('home model', () => {
       session(NOW - 3600_000, 15),
     ];
     expect(weekPracticeMinutes(sessions, NOW)).toBe(35);
+    // A session left open overnight counts its practice time (pauses excluded), not start → report.
+    const overnight = session(NOW - 3600_000, 11 * 60, { practiceMs: 25 * 60_000 });
+    expect(weekPracticeMinutes([overnight], NOW)).toBe(25);
     expect(practicedToday(sessions, NOW)).toBe(true);
     expect(backupReminderDue(null, sessions, NOW)).toBe(true);
     expect(backupReminderDue(NOW - 6 * DAY_MS, sessions, NOW)).toBe(false);

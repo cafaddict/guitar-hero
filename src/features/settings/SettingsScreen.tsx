@@ -17,6 +17,7 @@ import { dayKey } from '../../domain/records';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { Screen } from '../../ui/Screen';
+import { removeAllFiles } from '../recording/opfs';
 
 const linkClass = 'inline-flex min-h-12 items-center rounded-lg bg-surface-2 px-4 font-semibold';
 
@@ -54,6 +55,43 @@ function Toggle({
   );
 }
 
+const SESSION_MINUTES = { min: 5, max: 90 } as const;
+
+/** Number field that lets the user type through out-of-range intermediate values ("1" on the way to "15"). */
+function MinutesInput({
+  label,
+  value,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  onCommit: (minutes: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const valid = (text: string) => {
+    const v = Number(text);
+    return Number.isInteger(v) && v >= SESSION_MINUTES.min && v <= SESSION_MINUTES.max ? v : null;
+  };
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="font-semibold">{label}</span>
+      <input
+        type="number"
+        min={SESSION_MINUTES.min}
+        max={SESSION_MINUTES.max}
+        className="min-h-12 w-32 rounded-lg bg-surface-2 px-3 text-fg"
+        value={draft ?? String(value)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          const v = valid(e.target.value);
+          if (v !== null) onCommit(v);
+        }}
+        onBlur={() => setDraft(null)}
+      />
+    </label>
+  );
+}
+
 function BackupSection() {
   const [lastBackup, setLastBackup] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -70,12 +108,19 @@ function BackupSection() {
 
   const exportNow = async () => {
     const now = Date.now();
+    // Stored first so the file carries its own backup time; restored if the export fails (no silent reminder).
+    const previous = (await repo.getMeta<number>(LAST_BACKUP_KEY)) ?? null;
     await repo.setMeta(LAST_BACKUP_KEY, now);
-    const envelope = await exportAll(repo.db, now);
-    const name = exportFileName(now);
-    download(name, JSON.stringify(envelope));
-    setLastBackup(now);
-    setMessage(ko.settingsScreen.exported(name));
+    try {
+      const envelope = await exportAll(repo.db, now);
+      const name = exportFileName(now);
+      download(name, JSON.stringify(envelope));
+      setLastBackup(now);
+      setMessage(ko.settingsScreen.exported(name));
+    } catch {
+      await repo.setMeta(LAST_BACKUP_KEY, previous);
+      setMessage(ko.settingsScreen.exportError);
+    }
   };
 
   const pick = async (f: File) => {
@@ -255,6 +300,7 @@ function ResetSection() {
   const load = useSettingsStore((s) => s.load);
   const reset = async () => {
     await repo.resetAll();
+    await removeAllFiles();
     await load();
     setStep(0);
     setDone(true);
@@ -369,20 +415,11 @@ export function SettingsScreen() {
             onChange={(micDisabled) => set({ micDisabled })}
             testId="setting-mic-disabled"
           />
-          <label className="flex flex-col gap-1">
-            <span className="font-semibold">{ko.settingsScreen.sessionMinutes}</span>
-            <input
-              type="number"
-              min={5}
-              max={90}
-              className="min-h-12 w-32 rounded-lg bg-surface-2 px-3 text-fg"
-              value={settings.sessionMinutes}
-              onChange={(e) => {
-                const v = Math.round(Number(e.target.value));
-                if (v >= 5 && v <= 90) set({ sessionMinutes: v });
-              }}
-            />
-          </label>
+          <MinutesInput
+            label={ko.settingsScreen.sessionMinutes}
+            value={settings.sessionMinutes}
+            onCommit={(v) => set({ sessionMinutes: v })}
+          />
         </section>
         <KeysSection />
         <BackupSection />

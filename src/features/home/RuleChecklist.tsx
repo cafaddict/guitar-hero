@@ -32,6 +32,7 @@ export function RuleChecklist({ rules }: { rules: readonly RuleEvaluation[] }) {
         <li key={ruleText(r)} className="flex flex-col gap-1">
           <span className={r.met ? 'text-ok' : ''}>
             <span aria-hidden="true">{r.met ? '✓ ' : '○ '}</span>
+            <span className="sr-only">{r.met ? ko.rules.met : ko.rules.notMet} </span>
             {ruleText(r)}
           </span>
           {!r.met && (

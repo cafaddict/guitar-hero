@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { OneMinuteResult, RecallResult, StrumResult } from '../../domain/exerciseResults';
 import type { SkillState } from '../../domain/records';
-import { exam1Passed, exam2Passed, exam3Passed, exam4Passed, exam5Songs, examPairs } from './examModel';
+import {
+  evaluateExamItem,
+  exam1Passed,
+  exam2Passed,
+  exam3Passed,
+  exam4Passed,
+  exam5Songs,
+  examPairs,
+} from './examModel';
 
 const skill = (key: string, metric: string, recent: number[]): [string, SkillState] => [
   key,
@@ -108,5 +116,14 @@ describe('graduation exam rules (SPEC §7.6)', () => {
       skill('song:s03', 'completed', [1]),
     ]);
     expect(exam5Songs(skills)).toBe(1);
+  });
+
+  it('an aborted run (null result) fails the item instead of throwing', () => {
+    const state = { skills: new Map<string, SkillState>(), gVoicing: 'G-3f' as const };
+    for (const item of ['1', '2', '3', '4'] as const)
+      expect(evaluateExamItem(item, [null], state)).toEqual({ passed: false, detail: { aborted: true } });
+    // Item 4: the shown run finished, the hidden run was stopped.
+    expect(evaluateExamItem('4', [{ hitRate: 1 }, null], state).passed).toBe(false);
+    expect(evaluateExamItem('5', [], state)).toEqual({ passed: false, detail: { songs: 0 } });
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { actionForKey, isEditableTarget } from './keys';
+import { actionForKey, isEditableTarget, isNativeActivation } from './keys';
 
 const key = (k: string, code = '') => ({ key: k, code });
 
@@ -38,5 +38,16 @@ describe('actionForKey (SPEC §12.3)', () => {
       false,
     );
     expect(isEditableTarget(null)).toBe(false);
+  });
+
+  it('leaves Enter/Space on a focused button to the button itself (no double action)', () => {
+    const el = (tagName: string, role: string | null = null) =>
+      ({ tagName, getAttribute: () => role }) as unknown as EventTarget;
+    expect(isNativeActivation({ key: 'Enter', target: el('BUTTON') })).toBe(true);
+    expect(isNativeActivation({ key: ' ', target: el('A') })).toBe(true);
+    expect(isNativeActivation({ key: 'Enter', target: el('DIV', 'button') })).toBe(true);
+    expect(isNativeActivation({ key: 'PageDown', target: el('BUTTON') })).toBe(false);
+    expect(isNativeActivation({ key: 'Enter', target: el('BODY') })).toBe(false);
+    expect(isNativeActivation({ key: 'Enter', target: null })).toBe(false);
   });
 });

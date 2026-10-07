@@ -4,6 +4,7 @@
  * minutes, and supports skip / previous / pause. The exercise runs themselves are hosted elsewhere.
  */
 import type { RoutineItem } from '../../content/schemas';
+import type { KeyAction } from '../../data/settings';
 import { BREAK_AFTER_MS } from '../../domain/safety';
 
 export interface SessionState {
@@ -55,21 +56,17 @@ function moveTo(state: SessionState, index: number, now: number): SessionState {
   return { ...state, index, itemStartedAtMs: practiceMs(state, now) };
 }
 
-/** The current item ended; `recorded` = an Attempt was stored for it. */
-export function completeItem(
-  state: SessionState,
-  items: readonly RoutineItem[],
-  now: number,
-  recorded: boolean,
-): SessionState {
+/** An Attempt was stored for this item — counted as soon as it is saved, whichever way the user leaves it. */
+export function markRecorded(state: SessionState, itemId: string): SessionState {
+  return state.recorded.includes(itemId) ? state : { ...state, recorded: [...state.recorded, itemId] };
+}
+
+/** The current item ended (run finished, rest over): move to the next one. */
+export function completeItem(state: SessionState, items: readonly RoutineItem[], now: number): SessionState {
   const item = items[state.index];
   if (!item) return state;
-  const next = {
-    ...state,
-    done: state.done.includes(item.id) ? state.done : [...state.done, item.id],
-    recorded: recorded && !state.recorded.includes(item.id) ? [...state.recorded, item.id] : state.recorded,
-  };
-  return moveTo(next, state.index + 1, now);
+  const done = state.done.includes(item.id) ? state.done : [...state.done, item.id];
+  return moveTo({ ...state, done }, state.index + 1, now);
 }
 
 export function skipItem(state: SessionState, items: readonly RoutineItem[], now: number): SessionState {
@@ -101,4 +98,20 @@ export function breakDue(state: SessionState, now: number): boolean {
 export function acknowledgeBreak(state: SessionState, now: number): SessionState {
   const elapsed = practiceMs(state, now);
   return { ...state, breakShownAtMs: elapsed - (elapsed % BREAK_AFTER_MS) };
+}
+
+export type SessionKeyCommand = 'advance' | 'previous' | 'resume';
+
+/**
+ * Keyboard / pedal between runs (§12.3), so a routine can be walked without touching the screen. While a run is
+ * in progress its own keys apply instead; starting an item is the exercise host's toggle/next.
+ */
+export function sessionKeyCommand(
+  action: KeyAction | null,
+  view: { paused: boolean; isRest: boolean; runEnded: boolean; first: boolean },
+): SessionKeyCommand | null {
+  if (view.paused) return action === 'toggle' || action === 'next' ? 'resume' : null;
+  if (action === 'prev') return view.first ? null : 'previous';
+  if (action === 'next' || action === 'toggle') return view.isRest || view.runEnded ? 'advance' : null;
+  return null;
 }

@@ -37,6 +37,14 @@ export interface Session {
   completedItems: number;
   selfReport: SelfReport | null;
   stage: number;
+  /** Practice time without pauses (§8.5 clock differences); absent on sessions stored before it existed. */
+  practiceMs?: number;
+}
+
+/** Practice time of a finished session: the paused-excluded time when stored, else start → end. */
+export function sessionPracticeMs(session: Session): number {
+  if (session.endedAt === null) return 0;
+  return session.practiceMs ?? session.endedAt - session.startedAt;
 }
 
 export interface Attempt {

@@ -1,6 +1,6 @@
 /** React bindings for the audio engine and metronome (subscriptions are released on unmount). */
 import { useEffect, useState } from 'react';
-import type { EngineStatus, LevelReading } from '../audio/engine';
+import type { EngineStatus } from '../audio/engine';
 import { audioEngine } from './services';
 
 export function useEngineStatus(): EngineStatus {
@@ -10,12 +10,6 @@ export function useEngineStatus(): EngineStatus {
     return audioEngine.status.on(setStatus);
   }, []);
   return status;
-}
-
-export function useInputLevel(): LevelReading | null {
-  const [level, setLevel] = useState<LevelReading | null>(audioEngine.latestLevel);
-  useEffect(() => audioEngine.level.on(setLevel), []);
-  return level;
 }
 
 /** Microphone screens turn the microphone off when the user leaves (battery, privacy indicator). */

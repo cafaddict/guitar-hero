@@ -1,7 +1,8 @@
 /**
  * Routine items (domain/routine.ts) describe what to practise in routine vocabulary (direction 'A>D', pair
- * 'A|D', durationSec …). This maps them onto each plugin's params, filling the rest from the plugin defaults;
- * the plugin schema validates the result and drops keys it does not know.
+ * 'A|D' …). This maps them onto each plugin's params, filling the rest from the plugin defaults; the plugin
+ * schema validates the result and drops keys it does not know. `item.durationSec` is the only source of an
+ * item's length, so routine transforms (e.g. the pain ≥ 5 halving, §7.3-7) reach the run itself.
  */
 import type { RoutineItem } from '../../content/schemas';
 import { songById } from '../../content/songs';
@@ -22,11 +23,11 @@ export function pluginParamsFor(
   const merged: Record<string, unknown> = { ...defaults, ...p };
   switch (item.exerciseType) {
     case 'E1':
-      merged.blockMs = clampMs(item.durationSec, 60_000, 180_000);
+      merged.blockMs = clampMs(item.durationSec, 30_000, 180_000);
       break;
     case 'E2': {
       const [from, to] = parseDirected(String(p.direction));
-      Object.assign(merged, { from, to, durationMs: clampMs(Number(p.durationSec ?? 60), 30_000, 120_000) });
+      Object.assign(merged, { from, to, durationMs: clampMs(item.durationSec, 30_000, 120_000) });
       break;
     }
     case 'E4': {

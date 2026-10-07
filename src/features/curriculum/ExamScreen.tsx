@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { repo } from '../../app/services';
 import { loadStoredState } from '../../app/storedState';
 import { BEGINNER_CHORD_CLASSES } from '../../content/voicings';
-import type { OneMinuteResult, RecallResult, StrumResult, TuningResult } from '../../domain/exerciseResults';
 import { newId } from '../../domain/ids';
 import { dayKey } from '../../domain/records';
 import { contentContextFor } from '../../exercises/contentContext';
@@ -13,16 +12,7 @@ import { Button } from '../../ui/Button';
 import { Screen } from '../../ui/Screen';
 import type { StoredState } from '../home/homeModel';
 import { EXAM_ITEMS } from '../home/homeModel';
-import {
-  EXAM_PATTERN,
-  EXAM_SONGS,
-  exam1Passed,
-  exam2Passed,
-  exam3Passed,
-  exam4Passed,
-  exam5Songs,
-  examPairs,
-} from './examModel';
+import { EXAM_PATTERN, evaluateExamItem, exam5Songs, examPairs } from './examModel';
 
 type ExamItem = (typeof EXAM_ITEMS)[number];
 interface Step {
@@ -64,32 +54,6 @@ function stepsFor(item: ExamItem, seed: number): Step[] {
   }
 }
 
-function evaluate(
-  item: ExamItem,
-  results: readonly unknown[],
-  state: StoredState,
-): { passed: boolean; detail: Record<string, unknown> } {
-  switch (item) {
-    case '1':
-      return { passed: exam1Passed(results[0] as TuningResult), detail: {} };
-    case '2': {
-      const r = exam2Passed(results[0] as RecallResult, state.skills, state.progression.gVoicing);
-      return { passed: r.passed, detail: { clean: r.clean } };
-    }
-    case '3':
-      return { passed: exam3Passed(results as OneMinuteResult[]), detail: {} };
-    case '4':
-      return {
-        passed: results.length === 2 && exam4Passed(results[0] as StrumResult, results[1] as StrumResult),
-        detail: {},
-      };
-    case '5': {
-      const songs = exam5Songs(state.skills);
-      return { passed: songs >= EXAM_SONGS, detail: { songs } };
-    }
-  }
-}
-
 /** One exam item: its exercises in sequence, then the verdict (recorded as an EXAM attempt). */
 function ExamRun({
   item,
@@ -105,11 +69,18 @@ function ExamRun({
   const [index, setIndex] = useState(0);
   const [results, setResults] = useState<unknown[]>([]);
   const [verdict, setVerdict] = useState<boolean | null>(null);
+  const recordedRef = useRef(false);
 
   const record = useCallback(
     async (all: unknown[]) => {
+      // One EXAM attempt per run (React StrictMode runs the item-5 effect twice in development).
+      if (recordedRef.current) return;
+      recordedRef.current = true;
       const now = Date.now();
-      const { passed, detail } = evaluate(item, all, state);
+      const { passed, detail } = evaluateExamItem(item, all, {
+        skills: state.skills,
+        gVoicing: state.progression.gVoicing,
+      });
       await repo.recordAttempt({
         id: newId(),
         sessionId: null,

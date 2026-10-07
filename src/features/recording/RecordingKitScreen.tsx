@@ -15,8 +15,8 @@ import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { Screen } from '../../ui/Screen';
 import { MicStatusPanel } from '../mic/MicStatusPanel';
-import { opfsSupported, readFile, saveFile } from './opfs';
-import { RawRecorder } from './rawRecorder';
+import { fileExists, opfsSupported, readFile, saveFile } from './opfs';
+import { IncompleteRecordingError, RawRecorder } from './rawRecorder';
 import { buildLabels, clipFileName, type PlannedClip, recordingPlan, STRUM_GRID } from './recordingPlan';
 
 function clipText(clip: PlannedClip): string {
@@ -66,7 +66,18 @@ export function RecordingKitScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const recorder = useRef<RawRecorder | null>(null);
   const extra = useRef<Record<string, unknown>>({});
+  /** A record() call is between the tap and the recording state (double taps must not start two). */
+  const starting = useRef(false);
   useMicReleasedOnExit();
+
+  /** Any failure (microphone, storage quota, OPFS, lost capture ranges) ends the take with a message. */
+  const fail = (error: unknown) => {
+    recorder.current?.cancel();
+    recorder.current = null;
+    metronome.stop();
+    setActive(null);
+    setMessage(error instanceof IncompleteRecordingError ? ko.recording.gap : ko.recording.failed);
+  };
 
   useEffect(() => {
     void repo
@@ -113,6 +124,18 @@ export function RecordingKitScreen() {
   };
 
   const record = async (clip: PlannedClip) => {
+    if (starting.current) return;
+    starting.current = true;
+    try {
+      await startRecording(clip);
+    } catch (error) {
+      fail(error);
+    } finally {
+      starting.current = false;
+    }
+  };
+
+  const startRecording = async (clip: PlannedClip) => {
     const ok = await audioEngine.startMic({ deviceId: settings?.preferredInputDeviceId ?? null });
     if (!ok) return;
     await captureReady();
@@ -145,31 +168,48 @@ export function RecordingKitScreen() {
     setActive(null);
     recorder.current = null;
     metronome.stop();
-    const samples = await r.stop();
-    if (current.clip.kind === 'one-minute') {
-      setUserCount(0);
-      setPendingCount({ clip: current.clip, samples, extra: extra.current });
-      return;
+    try {
+      const samples = await r.stop();
+      if (current.clip.kind === 'one-minute') {
+        setUserCount(0);
+        setPendingCount({ clip: current.clip, samples, extra: extra.current });
+        return;
+      }
+      await store(current.clip, samples, extra.current);
+    } catch (error) {
+      fail(error);
     }
-    await store(current.clip, samples, extra.current);
   }
 
   const exportAll = async () => {
-    const labels = await audioEngine.deviceLabels().catch(() => ({ input: '', output: '' }));
-    const calibration = await repo.latestCalibration();
-    const sampleRate = recordings[0]?.sampleRate ?? audioEngine.sampleRate;
-    const json = buildLabels(
-      recordings,
-      labels.input || recordings[0]?.device || 'device',
-      sampleRate,
-      calibration ?? null,
-    );
-    const files = await Promise.all(
-      json.clips.map(async (c) => ({ name: c.file, data: await readFile(c.file) })),
-    );
-    files.push({ name: 'labels.json', data: new TextEncoder().encode(JSON.stringify(json, null, 1)) });
-    download(`guitar-hero-recordings-${Date.now()}.zip`, createZip(files), 'application/zip');
-    setMessage(ko.recording.exported);
+    try {
+      // Rows restored from a backup carry no audio (OPFS files are not in the JSON backup): leave them out.
+      const present = (
+        await Promise.all(recordings.map(async (r) => ((await fileExists(r.fileName)) ? r : null)))
+      ).filter((r): r is RecordingMeta => r !== null);
+      if (present.length === 0) {
+        setMessage(ko.recording.noFiles);
+        return;
+      }
+      const labels = await audioEngine.deviceLabels().catch(() => ({ input: '', output: '' }));
+      const calibration = await repo.latestCalibration();
+      const sampleRate = present[0]?.sampleRate ?? audioEngine.sampleRate;
+      const json = buildLabels(
+        present,
+        labels.input || present[0]?.device || 'device',
+        sampleRate,
+        calibration ?? null,
+      );
+      const files = await Promise.all(
+        json.clips.map(async (c) => ({ name: c.file, data: await readFile(c.file) })),
+      );
+      files.push({ name: 'labels.json', data: new TextEncoder().encode(JSON.stringify(json, null, 1)) });
+      download(`guitar-hero-recordings-${Date.now()}.zip`, createZip(files), 'application/zip');
+      const missing = recordings.length - present.length;
+      setMessage(missing > 0 ? ko.recording.exportedWithout(missing) : ko.recording.exported);
+    } catch (error) {
+      fail(error);
+    }
   };
 
   if (!opfsSupported()) {
@@ -226,7 +266,7 @@ export function RecordingKitScreen() {
             onClick={() => {
               const p = pendingCount;
               setPendingCount(null);
-              void store(p.clip, p.samples, { ...p.extra, userCount });
+              void store(p.clip, p.samples, { ...p.extra, userCount }).catch(fail);
             }}
           >
             {ko.recording.save}

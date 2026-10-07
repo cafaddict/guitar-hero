@@ -4,7 +4,7 @@
  */
 import { STRUM_PATTERNS } from '../../content/patterns';
 import { changesPerMinute, oneMinuteResultSchema, strumResultSchema } from '../../domain/exerciseResults';
-import { type Attempt, dayKey, type Session, type SkillState } from '../../domain/records';
+import { type Attempt, dayKey, type Session, type SkillState, sessionPracticeMs } from '../../domain/records';
 import { median } from '../../domain/skills';
 import { weekIndex } from '../../domain/srs';
 import { STRING_INDICES } from '../../domain/strings';
@@ -22,7 +22,7 @@ export function weeklyMinutes(sessions: readonly Session[], now: number, weeks =
   for (let w = current - weeks + 1; w <= current; w++) {
     const minutes = sessions
       .filter((s) => s.endedAt !== null && weekIndex(s.startedAt) === w)
-      .reduce((sum, s) => sum + (s.endedAt! - s.startedAt) / 60_000, 0);
+      .reduce((sum, s) => sum + sessionPracticeMs(s) / 60_000, 0);
     const monday = new Date(now);
     monday.setHours(12, 0, 0, 0);
     monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7) - 7 * (current - w));

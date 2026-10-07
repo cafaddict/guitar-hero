@@ -145,7 +145,7 @@ function changeItem(dir: string, block: RoutineItem['block']): Omit<RoutineItem,
   const [from, to] = parseDirected(dir);
   return {
     exerciseType: 'E2',
-    params: { direction: dir, pair: pairKey(from, to).slice('pair:'.length), durationSec: CHANGE_RUN_SEC },
+    params: { direction: dir, pair: pairKey(from, to).slice('pair:'.length) },
     durationSec: CHANGE_RUN_SEC,
     block,
     subjectKey: pairDirKey(from, to),

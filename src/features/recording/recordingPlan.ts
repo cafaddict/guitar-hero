@@ -77,7 +77,11 @@ export function recordingPlan(chordClasses: readonly string[], gVoicing: 'G-2f' 
       kind: 'one-minute',
       voicingId: null,
       seconds: 30,
-      expected: { direction: `${a}>${b}` },
+      // The voicings actually played (G-2f vs G-3f), so bench:real classifies against the right shapes.
+      expected: {
+        direction: `${a}>${b}`,
+        voicings: [voicingForClass(a, gVoicing), voicingForClass(b, gVoicing)],
+      },
     });
   }
   const gridSeconds = ((1 + STRUM_GRID.bars) * 4 * 60) / STRUM_GRID.bpm + 1.5;

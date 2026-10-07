@@ -22,7 +22,8 @@ import type { ExerciseContext, JudgedEvent, RunnerCommand } from '../types';
 
 export const e1ParamsSchema = z.object({
   voicingId: z.string().min(1),
-  blockMs: z.number().int().min(60_000).max(180_000),
+  // 1–3 min (§11.3); down to 30 s when the routine halves fingertip load after pain ≥ 5 (§7.3-7, D-049).
+  blockMs: z.number().int().min(30_000).max(180_000),
   mode: z.enum(['pluck', 'strum', 'manual']),
   earFirst: z.boolean(),
 });

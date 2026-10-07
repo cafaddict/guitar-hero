@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { actionForKey, isEditableTarget, isNativeActivation } from '../../app/keys';
 import { repo } from '../../app/services';
+import { useSettingsStore } from '../../app/settingsStore';
 import { loadStoredState } from '../../app/storedState';
 import { simulatedRate } from '../../app/testRate';
 import type { RoutineItem } from '../../content/schemas';
@@ -23,10 +25,13 @@ import {
   completeItem,
   isFinished,
   itemRemainingSec,
+  markRecorded,
   pause,
+  practiceMs,
   previousItem,
   resume,
   type SessionState,
+  sessionKeyCommand,
   skipItem,
   startSession,
 } from './sessionModel';
@@ -100,6 +105,7 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
         />
       </label>
       <fieldset className="flex flex-wrap gap-3">
+        <legend className="mb-1 w-full">{ko.session.dangerLegend}</legend>
         {(['sharp', 'numbness', 'joint'] as const).map((flag) => (
           <label key={flag} className="flex min-h-12 items-center gap-2">
             <input
@@ -139,7 +145,11 @@ export function SessionScreen() {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [sessionId] = useState(newId);
   const [state, setState] = useState<SessionState | null>(null);
-  const [current, setCurrent] = useState<{ index: number; recorded: boolean } | null>(null);
+  /** Index of the item whose run has ended (its summary is showing). */
+  const [endedIndex, setEndedIndex] = useState<number | null>(null);
+  /** An exercise run is starting or in progress: navigation would throw it away, so it waits. */
+  const [runActive, setRunActive] = useState(false);
+  const customKeys = useSettingsStore((s) => s.settings?.customKeys);
   const [showBreak, setShowBreak] = useState(false);
   const [ending, setEnding] = useState(false);
   const [, setTick] = useState(0);
@@ -191,17 +201,37 @@ export function SessionScreen() {
   }, [now]);
 
   const items = loaded?.items ?? [];
-  const advance = useCallback(
-    (recorded: boolean) => {
-      setCurrent(null);
-      setState((s) => (s ? completeItem(s, items, now(), recorded) : s));
-    },
-    [items, now],
-  );
+  const go = useCallback((step: (s: SessionState) => SessionState) => {
+    setEndedIndex(null);
+    setState((s) => (s ? step(s) : s));
+  }, []);
+  const advance = useCallback(() => go((s) => completeItem(s, items, now())), [go, items, now]);
+
+  // Keyboard / pedal between runs (§12.3); during a run the exercise's own keys apply.
+  const between = state !== null && !runActive && !ending && !isFinished(state, items);
+  useEffect(() => {
+    if (!between || !state) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target) || isNativeActivation(event)) return;
+      const command = sessionKeyCommand(actionForKey(event, customKeys ?? {}), {
+        paused: state.paused,
+        isRest: items[state.index]?.exerciseType === 'REST',
+        runEnded: endedIndex === state.index,
+        first: state.index === 0,
+      });
+      if (!command) return;
+      event.preventDefault();
+      if (command === 'advance') advance();
+      else if (command === 'previous') go((s) => previousItem(s, now()));
+      else setState(resume(state, now()));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [between, state, items, endedIndex, customKeys, advance, go, now]);
 
   const finishSession = async (report: SelfReport) => {
     if (!state) return;
-    await repo.finishSession(sessionId, Date.now(), state.recorded.length, report);
+    await repo.finishSession(sessionId, Date.now(), state.recorded.length, report, practiceMs(state, now()));
     navigate('/');
   };
 
@@ -226,7 +256,6 @@ export function SessionScreen() {
   const item = items[state.index]!;
   const next = items[state.index + 1];
   const budget = itemRemainingSec(state, items, now());
-  const finishedCurrent = current?.index === state.index;
   const definition = item.exerciseType === 'REST' ? null : exerciseDefinition(item.exerciseType);
 
   return (
@@ -260,7 +289,7 @@ export function SessionScreen() {
           </Button>
         </section>
       ) : item.exerciseType === 'REST' ? (
-        <RestItem key={item.id} item={item} now={now} onDone={() => advance(false)} />
+        <RestItem key={item.id} item={item} now={now} onDone={advance} />
       ) : definition ? (
         <ExerciseHost
           key={item.id}
@@ -269,21 +298,19 @@ export function SessionScreen() {
           sessionId={sessionId}
           reviewOf={item.block === 'review' ? (item.subjectKey ?? null) : null}
           autoFocusStart
-          onFinished={(attempt) => setCurrent({ index: state.index, recorded: attempt !== null })}
+          onActiveChange={setRunActive}
+          onFinished={(attempt) => {
+            setEndedIndex(state.index);
+            if (attempt) setState((s) => (s ? markRecorded(s, item.id) : s));
+          }}
           renderAfter={() => (
-            <Button
-              large
-              autoFocus
-              className="mt-4"
-              onClick={() => advance(current?.recorded ?? finishedCurrent)}
-              data-testid="next-item"
-            >
+            <Button large autoFocus className="mt-4" onClick={advance} data-testid="next-item">
               {ko.session.nextItem}
             </Button>
           )}
         />
       ) : (
-        <Button onClick={() => setState(skipItem(state, items, now()))}>{ko.session.skip}</Button>
+        <Button onClick={() => go((s) => skipItem(s, items, now()))}>{ko.session.skip}</Button>
       )}
       <p className="mt-4 text-sm text-muted">
         {next ? ko.session.next(itemTitle(next)) : ko.session.lastItem}
@@ -291,27 +318,34 @@ export function SessionScreen() {
       <div className="mt-4 flex flex-wrap gap-2 border-t border-surface-2 pt-4">
         <Button
           variant="secondary"
-          disabled={state.index === 0}
-          onClick={() => setState(previousItem(state, now()))}
+          disabled={runActive || state.index === 0}
+          onClick={() => go((s) => previousItem(s, now()))}
         >
           {ko.session.previous}
         </Button>
         <Button
           variant="secondary"
-          onClick={() => setState(skipItem(state, items, now()))}
+          disabled={runActive}
+          onClick={() => go((s) => skipItem(s, items, now()))}
           data-testid="skip-item"
         >
           {ko.session.skip}
         </Button>
         {!state.paused && (
-          <Button variant="secondary" onClick={() => setState(pause(state, now()))}>
+          <Button variant="secondary" disabled={runActive} onClick={() => setState(pause(state, now()))}>
             {ko.session.pause}
           </Button>
         )}
-        <Button variant="secondary" onClick={() => setEnding(true)} data-testid="end-session">
+        <Button
+          variant="secondary"
+          disabled={runActive}
+          onClick={() => setEnding(true)}
+          data-testid="end-session"
+        >
           {ko.session.end}
         </Button>
       </div>
+      {runActive && <p className="mt-2 text-sm text-muted">{ko.session.finishRunFirst}</p>}
     </Screen>
   );
 }

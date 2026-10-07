@@ -35,6 +35,8 @@ interface RangeMessage {
   type: 'range';
   id: number;
   fromSample: number;
+  /** Samples actually still in the capture ring (fewer when the range was evicted before it was read). */
+  copied: number;
   samples: Float32Array;
 }
 interface TunerFrameMessage {
@@ -229,7 +231,7 @@ function processRange(id: number): void {
     case 'raw':
       samples = range.samples;
       transfer = [range.samples.buffer as ArrayBuffer];
-      result = { fromSample: range.fromSample, length: range.samples.length };
+      result = { fromSample: range.fromSample, length: range.samples.length, copied: range.copied };
       break;
   }
   post(

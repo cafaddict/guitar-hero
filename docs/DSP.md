@@ -164,3 +164,22 @@ M2 설정의 GuitarSet dev 지표: Mode A OK 0.884(n=43), **onset F1 0.734**(P 0
 
 - dev: 실제 보이싱 FAIL 0.038(≤ 0.10), verifiable 줄 +1/+2 프렛 교란 시 그 줄 OK 0.000(≤ 0.15). **test(04–05, detector 1.3.1): FAIL 0.064, 교란 OK 0.003** — 둘 다 통과(`docs/BENCHMARK.md` GuitarSet 절).
 - 해석: 실녹음에서도 FAIL은 드물고(대부분 RETRY 쪽), 교란 줄은 "실제 국소 피크만 증거" 규칙(D-028) 덕분에 OK가 되지 않는다. 미달 시 이 절에 원인 분석을 추가한다.
+
+## 14. 실시간 경로 (M4–M5)
+
+벤치마크가 검증한 순수 함수들이 앱에서는 이렇게 이어진다. 판정 파라미터는 위 1–11절과 같고, 아래는 실시간 연결부의 값이다.
+
+| 단계 | 값 | 근거 |
+|---|---|---|
+| 캡처 블록 | 128 샘플(Web Audio 렌더 단위), 4 s 링, 레벨 보고 ~30 Hz | §8.2 |
+| 시간 정렬 | 캡처 샘플 n = 컨텍스트 프레임 `startFrame + n`. 건너뛴 렌더 블록은 0으로 채우고 그 주변 [−20 ms, +80 ms]의 onset은 버림 | D-037 (부하에서 실제 관측) |
+| onset 구간 | [onset − 500 ms, onset + 400 ms]를 worker로 transfer(풀 12개, 반환 재사용) | §8.2, Mode A/B/C 창이 +400 ms 안 |
+| 정밀화 | worker에서 `refineOnset`(1절) 후 판정. 판정 지연 ≈ 400 ms + 처리 수 ms | D-029 |
+| 단일 테이크 | 무장 후 첫 판정 onset. 같은 strum의 coarse onset은 정밀화 onset보다 최대 ~45 ms 늦어 60 ms 여유, 400 ms 안의 다른 coarse onset → MULTIPLE_ONSETS | `src/exercises/take.ts`, `src/dsp/take.ts`와 같은 규칙 |
+| energy fallback | 무장 후 3.5 s 동안 테이크가 없고(최근 onset이 1 s 넘게 지남) → [무장 − 150 ms, 지금] 구간에 `energyOnset`(+12 dB, 25-퍼센타일 기준선) + Mode A | D-031, D-045 |
+| 튜너 | 프레임 85.3 ms(4096 @48k), hop 10.7 ms, 5프레임 ±3 cents 안정 | 8절 |
+| Mode D | 슬롯 = 그리드 원점 + 슬롯 × 60/BPM/박당 슬롯, 판정 = 정밀화 onset − (슬롯 + 캘리브레이션 RTT [+ 개인 선행]) | 7절, D-042 |
+| 클릭 마스킹 | 들리는 최근 8개 클릭의 예상 도착(예약 + RTT)을 worklet에 전달 | 3절 클릭 마스킹, D-033 |
+| RTT | 프로브 8개 × 3 ms, 최대 500 ms 탐색, 연속 2회 3 ms 안 합의 → 평균 | 9절, D-034 |
+
+`detectorVersion`(`src/dsp/version.ts`)은 판정 결과를 바꾸는 DSP 변경마다 올리고, 모든 Attempt에 기록된다. 현재 1.3.1.

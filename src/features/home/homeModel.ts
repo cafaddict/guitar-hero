@@ -14,6 +14,7 @@ import {
   type ReviewItem,
   type Session,
   type SkillState,
+  sessionPracticeMs,
 } from '../../domain/records';
 import type { RoutineInput } from '../../domain/routine';
 import { recentMedian } from '../../domain/skills';
@@ -68,7 +69,7 @@ export function weekPracticeMinutes(sessions: readonly Session[], now: number): 
   const week = weekIndex(now);
   const ms = finished(sessions)
     .filter((s) => weekIndex(s.startedAt) === week)
-    .reduce((sum, s) => sum + ((s.endedAt ?? s.startedAt) - s.startedAt), 0);
+    .reduce((sum, s) => sum + sessionPracticeMs(s), 0);
   return Math.round(ms / 60_000);
 }
 

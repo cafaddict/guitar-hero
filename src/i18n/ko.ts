@@ -140,6 +140,8 @@ export const ko = {
     sessionsInStageAtLeast: (count: number) => `이 단계에서 ${count}세션 이상 연습`,
     examPassed: '초급 1 졸업 시험 통과',
     missing: (items: string) => `남은 것: ${items}`,
+    met: '달성:',
+    notMet: '아직:',
   },
   mic: {
     errors: {
@@ -250,6 +252,7 @@ export const ko = {
     resume: '계속하기',
     paused: '일시정지 중',
     end: '세션 끝내기',
+    finishRunFirst: '연습이 끝나면 이동할 수 있어요. 지금 그만두려면 Esc를 두 번 누르거나 "마치기"를 눌러요.',
     rest: (seconds: number) => `잠깐 쉬어요 · ${seconds}초`,
     restSkip: '바로 다음으로',
     breakReminder: '30분 동안 연습했어요. 잠깐 손을 쉬고 스트레칭해요.',
@@ -258,6 +261,7 @@ export const ko = {
     pain: (n: number) => `손가락·손목 통증 ${n}/10`,
     difficulty: (n: number) => `난이도 ${n}/5`,
     danger: { sharp: '날카로운 통증', numbness: '저림', joint: '관절·손목 통증' },
+    dangerLegend: '이런 증상이 있었나요?',
     note: '메모 (선택)',
     save: '저장하고 끝내기',
     saved: '세션을 저장했어요.',
@@ -341,6 +345,7 @@ export const ko = {
     importDone: '가져왔어요.',
     importError: '파일을 읽지 못했어요. 이 앱에서 내보낸 JSON 파일인지 확인해 주세요.',
     exported: (name: string) => `${name} 파일로 내보냈어요.`,
+    exportError: '내보내지 못했어요. 저장 공간을 확인하고 다시 해 주세요.',
     lastBackup: (date: string | null) => (date ? `마지막 백업: ${date}` : '아직 백업하지 않았어요.'),
     persist: (granted: boolean) =>
       granted
@@ -369,6 +374,12 @@ export const ko = {
     count: '직접 센 횟수',
     exportAll: '모두 내보내기(zip)',
     exported: '내보냈어요.',
+    exportedWithout: (n: number) =>
+      `내보냈어요. 오디오 파일이 없는 기록 ${n}개는 뺐어요(백업에서 가져온 녹음 기록에는 오디오가 없어요).`,
+    noFiles: '내보낼 오디오 파일이 없어요. 백업에서 가져온 녹음 기록에는 오디오가 들어 있지 않아요.',
+    failed:
+      '녹음하거나 저장하지 못했어요. 저장 공간이 부족하거나 브라우저가 막았을 수 있어요. 다시 해 주세요.',
+    gap: '녹음이 중간에 끊겼어요(화면이 꺼졌거나 다른 앱으로 넘어갔을 수 있어요). 이 녹음은 버리고 다시 녹음해 주세요.',
     empty: '아직 녹음이 없어요.',
     unsupported: '이 브라우저는 기기 내 저장(OPFS)을 지원하지 않아요.',
     kinds: {

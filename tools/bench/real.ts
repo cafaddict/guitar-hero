@@ -93,7 +93,9 @@ function evaluateClip(dir: string, labels: RecordingLabels, clip: RecordingLabel
       return { ...base, result: statuses.join(' '), pass };
     }
     case 'one-minute': {
-      const [a, b] = String(clip.expected.direction ?? '').split('>');
+      // Voicing ids as recorded; labels without them name chord classes only (G → the default G-3f).
+      const recorded = z.tuple([z.string(), z.string()]).safeParse(clip.expected.voicings);
+      const [a, b] = recorded.success ? recorded.data : String(clip.expected.direction ?? '').split('>');
       if (!a || !b) return { ...base, result: 'bad direction', pass: null };
       const pair = [voicingById(a === 'G' ? 'G-3f' : a), voicingById(b === 'G' ? 'G-3f' : b)] as const;
       const counter = new ChangeCounter();

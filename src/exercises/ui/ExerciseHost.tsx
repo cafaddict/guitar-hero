@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEngineStatus, useMicReleasedOnExit } from '../../app/audioHooks';
-import { actionForKey, isEditableTarget } from '../../app/keys';
+import { actionForKey, isEditableTarget, isNativeActivation } from '../../app/keys';
 import { audioEngine, captureReady, metronome, repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
 import { simulatedRate } from '../../app/testRate';
@@ -33,6 +33,8 @@ export interface ExerciseHostProps {
   renderAfter?: (attempt: Attempt | null) => React.ReactNode;
   /** Focus the start button (session runner: keyboard-only flow). */
   autoFocusStart?: boolean;
+  /** True from the start tap until the run ended (the session runner locks its navigation meanwhile). */
+  onActiveChange?: (active: boolean) => void;
 }
 
 interface Running {
@@ -151,6 +153,7 @@ export function ExerciseHost({
   onFinished,
   renderAfter,
   autoFocusStart = false,
+  onActiveChange,
 }: ExerciseHostProps) {
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.update);
@@ -161,7 +164,23 @@ export function ExerciseHost({
   const [starting, setStarting] = useState(false);
   const startingRef = useRef(false);
   const finishedRef = useRef(false);
+  const mountedRef = useRef(true);
   useMicReleasedOnExit();
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const active = starting || (running !== null && outcome === null);
+  const onActiveChangeRef = useRef(onActiveChange);
+  onActiveChangeRef.current = onActiveChange;
+  useEffect(() => {
+    onActiveChangeRef.current?.(active);
+    return () => onActiveChangeRef.current?.(false);
+  }, [active]);
 
   useEffect(
     () => () => {
@@ -220,12 +239,29 @@ export function ExerciseHost({
       params,
       recent.map((a) => a.result),
     );
+    // Left while the microphone was starting: no orphan runner (it would hold the engine and metronome).
+    if (!mountedRef.current) return;
     const runner = definition.createRunner(ctx, runParams);
     void wakeLock().enable();
     setRunning({ runner, ctx, startedAt: Date.now(), params: runParams });
     setStarting(false);
     runner.start();
   };
+
+  // Not started yet: Space or next (Enter on the page, PageDown, →, a learned pedal) starts the run (§12.3).
+  const idle = running === null && outcome === null && !starting && !micFailed;
+  useEffect(() => {
+    if (!idle) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target) || isNativeActivation(event)) return;
+      const action = actionForKey(event, settings?.customKeys ?? {});
+      if (action !== 'toggle' && action !== 'next') return;
+      event.preventDefault();
+      void begin(wantsMic);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const withoutMic = async () => {
     await updateSettings({ micDisabled: true });

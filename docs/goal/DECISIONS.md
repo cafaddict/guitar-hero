@@ -303,3 +303,29 @@
 - 보안 헤더(`public/_headers`, `vercel.json`): `default-src 'self'` CSP(스크립트·워커·워클릿 같은 출처만, `eval`·인라인 스크립트 금지, 인라인 `style` 속성만 허용), `Permissions-Policy: microphone=(self)` 등. 실제 헤더 파일을 문서 응답에 붙인 E2E로 워클릿·DSP 워커·메트로놈 워커·차트·합성 재생이 위반 0인지 확인한다. Zod 4는 객체 파서를 `new Function`으로 컴파일하려고 시도해(기능 탐지 자체가 CSP 위반) 앱과 워커 진입점에서 `z.config({ jitless: true })`.
 - 키·페달(§12.3): 기본 키 표 + 학습 모드(아무 키나 → 동작, `settings.customKeys`, 기본 키보다 우선). E2E로 학습한 키가 E2 카운트·확인에 쓰이고 Esc가 확인을 거치는지 본다.
 - 문구 규칙(AC-U5)은 `src/i18n/ko.test.ts`가, 왼손잡이 미러(AC-U6)는 `src/ui/ChordDiagram.test.tsx`가, 테마 적용은 E2E-11(설정에서 테마 선택 → `html[data-theme]`)이 확인한다.
+
+## D-049 M8 하드닝: 최종 리뷰 반영·실시간 표시·문서
+- 최종 리뷰(code-reviewer, M6–M7 범위) 지적을 코드로 확인한 뒤 고쳤다:
+  - (상) 통증 ≥ 5 감량(§7.3-7)이 실제 실행에 닿지 않았다. 루틴은 `item.durationSec`만 줄이는데 E2 매핑은 `params.durationSec`(60 s)를 읽었고, E1은 1분 아래를 다시 1분으로 올렸다. 항목 길이는 이제 `item.durationSec` 하나에서만 온다(루틴 params의 `durationSec` 제거). E1 블록 최솟값은 30 s다. §11.3의 "1–3분"은 평소 범위이고, 안전 규칙이 있을 때는 안전 규칙이 이긴다. 루틴 생성 → `pluginParamsFor`를 잇는 테스트를 넣었다.
+  - (중상) 가져오기 "합치기"가 `progression`·`meta`를 빠뜨렸다. 그래서 새 기기에서 합치면 Stage 0으로 돌아갔다. 이제 두 테이블도 §13.3 그대로 같은 키가 없을 때만 넣는다. 이미 있는 키는 건너뛴다. 그 기기의 진도를 백업으로 덮어쓰려면 "바꾸기"를 쓴다.
+  - (중) 세션 완료 항목 수가 "다음 항목"을 눌렀을 때만 셌다. 이제 Attempt가 저장되는 순간 센다(`markRecorded`). 실행 중에는 이전·건너뛰기·일시정지·종료를 막고 안내한다. 실행을 그만두려면 Esc 두 번이나 "마치기"를 쓴다. 이 버튼들이 실행을 말없이 버리던 문제다.
+  - (중) 세션 러너에 §12.3 키가 없었다. 실행이 아닐 때 Space와 다음 키(PageDown, →, 학습한 페달)는 항목을 시작한다(`ExerciseHost` 대기 상태). 실행이 끝났거나 휴식 중이면 다음 항목으로 넘어간다. PageUp과 ←는 이전 항목, 일시정지 중에는 재개다. 포커스된 버튼의 Enter·Space는 버튼 자체에 맡긴다(`isNativeActivation`, 두 번 실행 방지). 마이크가 켜지는 동안 화면을 떠나면 러너를 만들지 않는다.
+  - (중) 시험 항목을 중단하면(결과 null) 판정이 예외로 죽었다. 이제 `evaluateExamItem`(순수, `examModel.ts`)이 null을 불통과로 본다. 개발 모드(StrictMode)에서 항목 5가 두 번 기록되던 것도 막았다.
+  - (중) 녹음 키트:
+    - OPFS 지원 판정에 `createWritable`을 더했다.
+    - 녹음·저장·내보내기 실패를 모두 메시지로 보여 준다.
+    - 녹음 버튼 연타를 막았다.
+    - 오디오 없는 기록(백업에서 가져온 메타)은 zip에서 빼고 몇 개를 뺐는지 알린다. 데이터 초기화 때 OPFS 파일도 지운다. 지우기는 최선 노력이라, 파일 시스템을 쓸 수 없어도 초기화는 끝난다(Playwright WebKit에서는 `getDirectory`가 UnknownError로 거부되어 첫 verify의 E2E-08이 실패했다).
+    - 캡처 링에서 밀려난 구간이나 오지 않은 구간이 있으면(`copied` < 길이) 그 녹음을 저장하지 않는다(`IncompleteRecordingError`). 빈 구멍이 있는 fixture가 올바른 라벨을 달고 남는 것을 막기 위해서다.
+  - (중하) 주간 연습 시간이 시작부터 끝까지의 벽시계 시간이었다. 이제 세션에 일시정지를 뺀 `practiceMs`를 저장하고 그 값으로 센다. 예전 세션은 시작부터 끝까지의 시간을 쓴다.
+  - (하)
+    - 연습 항목이 0개인 세션은 최소 체류 세션 수에 넣지 않는다.
+    - 백업 실패 시 `lastBackupAt`을 되돌린다.
+    - 세션 길이 입력란에서 중간 값을 쓸 수 있게 했다.
+    - 진급 기준 달성 여부를 스크린 리더 텍스트로 알린다. 위험 증상 묶음에 legend를 달았다.
+    - 1분 체인지 녹음 라벨에 실제 보이싱 id를 넣는다(G-2f 사용자).
+    - 다른 스테이지 상세는 그 스테이지의 세션 수로 평가한다.
+  - 리뷰 지적 중 바꾸지 않은 것: 졸업 시험을 Stage 7 전에도 열 수 있다. §7.6은 "항목별로 통과 기록이 남는다"고만 하고, 진급 규칙 `examPassed`는 Stage 7에서만 평가된다. 일찍 통과한 항목은 실제로 그 기준을 넘었다는 기록이다. 화면을 떠나 끝나지 않은 세션(`endedAt: null`)은 어떤 집계에도 들어가지 않으므로 그대로 둔다.
+- 레벨 미터(§5.1 60 fps 시각 요소)는 React state 대신 rAF + canvas로 그린다. 수치 텍스트와 `<meter>`는 250 ms마다 ref로만 갱신한다.
+- `docs/BENCHMARK.md`의 test-run log 절은 정해진 형식의 줄만 이어받는다(`parseLog`). 예전에 섞여 들어간 GuitarSet 절 조각은 다음 bench:dsp 실행에서 빠진다.
+- 문서를 마무리했다: README(최종), `docs/ARCHITECTURE.md`, `docs/DSP.md` §14(실시간 경로 값), `docs/BACKLOG.md`(v2, DEFERRED 없음), `docs/MANUAL_VALIDATION.md`(실기기 체크리스트 + 결과 양식), `docs/goal/FINAL_REPORT.md`.

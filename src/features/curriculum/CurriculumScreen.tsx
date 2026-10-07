@@ -64,8 +64,19 @@ export function StageScreen() {
     void loadStoredState(Date.now()).then(setState);
   }, []);
   if (!def) return <Screen title={ko.curriculum.title}>{null}</Screen>;
+  // Another stage's minimum stay counts that stage's own sessions, not the current stage's.
+  const sessionsInStage = (s: StoredState) =>
+    def.stage === s.progression.stage
+      ? s.progression.sessionsInStage
+      : s.sessions.filter((x) => x.endedAt !== null && x.completedItems > 0 && x.stage === def.stage).length;
   const evaluation = state
-    ? stageChecklist({ ...state, progression: { ...state.progression, stage: def.stage } }, Date.now())
+    ? stageChecklist(
+        {
+          ...state,
+          progression: { ...state.progression, stage: def.stage, sessionsInStage: sessionsInStage(state) },
+        },
+        Date.now(),
+      )
     : null;
   return (
     <Screen title={ko.home.stage(def.stage, def.name)}>

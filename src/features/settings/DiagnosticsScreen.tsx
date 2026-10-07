@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { useEngineStatus, useInputLevel, useMicReleasedOnExit } from '../../app/audioHooks';
+import { useEngineStatus, useMicReleasedOnExit } from '../../app/audioHooks';
 import { audioEngine, CAPTURE_DIAGNOSTICS_KEY, repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
 import type { CaptureDiagnostics } from '../../audio/devices';
@@ -11,6 +11,10 @@ import { Button } from '../../ui/Button';
 import { LevelMeter } from '../../ui/LevelMeter';
 import { Screen } from '../../ui/Screen';
 import { CaptureWarnings, MicStatusPanel } from '../mic/MicStatusPanel';
+
+const readLevel = () => audioEngine.latestLevel;
+const formatLevel = (db: number | null) =>
+  `${ko.diagnostics.level}: ${db === null ? '—' : ko.common.dbfs(db)}`;
 
 const SETTING_KEYS = [
   'echoCancellation',
@@ -30,7 +34,6 @@ function formatSetting(value: boolean | number | string | null): string {
 /** Settings > diagnostics (SPEC §8.1): live level, getSettings, devices, latest calibration. */
 export function DiagnosticsScreen() {
   const status = useEngineStatus();
-  const level = useInputLevel();
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.update);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -62,7 +65,6 @@ export function DiagnosticsScreen() {
   };
 
   const diagnostics = audioEngine.diagnostics ?? stored;
-  const levelDb = level ? 20 * Math.log10(Math.max(level.rms, 1e-9)) : null;
   return (
     <Screen title={ko.diagnostics.title}>
       <p>
@@ -74,10 +76,12 @@ export function DiagnosticsScreen() {
       </Button>
       <MicStatusPanel status={status} onRetry={() => void start()} />
       <div className="mt-4">
-        <p data-testid="level-db">
-          {ko.diagnostics.level}: {levelDb === null ? '—' : ko.common.dbfs(levelDb)}
-        </p>
-        <LevelMeter rms={level?.rms ?? null} clipped={level?.clipped ?? false} label={ko.diagnostics.level} />
+        <LevelMeter
+          read={readLevel}
+          label={ko.diagnostics.level}
+          format={formatLevel}
+          textTestId="level-db"
+        />
         {running && (
           <p className="mt-1 text-sm text-muted" data-testid="diag-gaps">
             {ko.diagnostics.gaps(

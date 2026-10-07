@@ -5,14 +5,13 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **M8 (하드닝·최종 검증)** 시작 — M0–M7 완료
+- 현재 마일스톤: **M8 (하드닝·최종 검증)** 완료 → M8 커밋 후 HEAD에서 최종 `npm ci && npm run verify`(§16.2)
 - 마일스톤 끝 리뷰 서브에이전트: M2·M5·M8 (M4는 해당 없음)
 - 마지막 갱신: 2026-10-08
-- 누적 턴(대략): 2
+- 누적 턴(대략): 3
 - 턴 상한: **1000** (사용자 지시, D-011). §16.1 축소는 턴 800 이후에만.
 - 다음 할 일:
-  2. M8: 리뷰 서브에이전트(code-reviewer) → 지적 반영; README·ARCHITECTURE·DSP·BENCHMARK·MANUAL_VALIDATION·BACKLOG 완성
-  3. M8: FINAL_REPORT, 최종 `npm ci && npm run verify`(백그라운드), vault 노트, §18.2 최종 출력
+  1. HEAD(M8 커밋)에서 `npm ci && npm run verify`(백그라운드) → 통과하면 vault 노트 → §18.2 최종 출력(이후 파일 수정·커밋 없음)
 - 막힌 점: 없음
 
 ## 마일스톤
@@ -26,19 +25,19 @@
 | M4 | 오디오 엔진·캘리브레이션 | DONE | 45f5cd6 | verify PASS(750 tests, E2E 6/6), 렌더 끊김 시계 정렬 수정(D-037), D-032–D-037 |
 | M5 | 연습 플러그인 | DONE | f911cd5 | 13종, verify PASS(1002 tests, E2E 13/13), 리뷰 반영(D-045), D-038–D-045 |
 | M6 | 커리큘럼·루틴·진도 | DONE | 130edec | verify PASS(1082 tests, E2E 20/20), D-046, D-047 |
-| M7 | PWA·반응형·접근성·배포 준비 | DONE | (M7 커밋) | verify PASS(1113 tests, E2E 32/32), D-048 |
-| M8 | 하드닝·최종 검증 | TODO | | |
+| M7 | PWA·반응형·접근성·배포 준비 | DONE | 1482c94 | verify PASS(1113 tests, E2E 32/32), D-048 |
+| M8 | 하드닝·최종 검증 | DONE | (M8 커밋, §18.2 출력) | 최종 리뷰 반영(D-049), verify PASS(1125 tests, E2E 35/35), 문서·FINAL_REPORT |
 
 ## Acceptance Criteria
 
 | AC | 요약 | 상태 | 증거 |
 |---|---|---|---|
-| AC-P1 | 브랜치·커밋·main 불변·push 없음·clean | TODO | |
-| AC-P2 | `npm ci && npm run verify` exit 0 | DOING | M7: `npm run verify` RESULT: PASS(8단계 전부 PASS, 1113 tests, E2E 32/32·4 projects) — 최종 `npm ci && npm run verify`는 M8 |
-| AC-P3 | 라이선스 검사 통과 | DONE | `npm run licenses` (`tools/licenses.ts`): 78 prod packages 표 출력, 전부 허용. `tools/licenses.test.ts` (GPL/LGPL/AGPL/BlueOak 거부). svguitar 제거(D-013) |
-| AC-P4 | 무결성 테스트 통과 | DOING | M2: `tests/integrity/source-rules.test.ts`(§14.6-1,3,4,5,6 + 패턴 자기검사), `thresholds-contract.test.ts`(§14.6-2) 전부 통과 — 최종 확인 M8 |
-| AC-P5 | TS strict·noExplicitAny·린트 경고 0 | DOING | `tsconfig.base.json`(strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes), `biome.json` noExplicitAny=error, `lint` = `biome check --error-on-warnings` — 최종 확인은 M8 |
-| AC-P6 | SPEC.md·thresholds.json SHA-256 일치 | TODO | |
+| AC-P1 | 브랜치·커밋·main 불변·push 없음·clean | DONE | `feat/practice-app-v1`에 M0–M8 커밋(`git log --oneline main..HEAD`), `git rev-parse --short main` = 9e7eda6(불변), `git remote -v` 비어 있음·`git branch -vv`에 upstream 없음, M8 커밋 후 `git status --short` 비어 있음 — 최종 확인 출력은 §18.2 |
+| AC-P2 | `npm ci && npm run verify` exit 0 | DONE | M8 커밋 직전 `npm run verify` RESULT: PASS(§14.7 8단계 전부 PASS, 1125 tests, E2E 35/35·4 projects, `bench-results/verify-summary.txt`, `docs/goal/FINAL_REPORT.md` §2); HEAD에서 `npm ci && npm run verify` 최종 실행 결과는 §18.2 출력 |
+| AC-P3 | 라이선스 검사 통과 | DONE | `npm run licenses` (`tools/licenses.ts`): prod packages 표 출력(M8 verify: 49 packages), 전부 허용. `tools/licenses.test.ts` (GPL/LGPL/AGPL/BlueOak 거부). svguitar 제거(D-013) |
+| AC-P4 | 무결성 테스트 통과 | DONE | `tests/integrity/source-rules.test.ts`(§14.6-1,3,4,5,6 + 패턴 자기검사), `thresholds-contract.test.ts`(§14.6-2) — M8 verify의 test 단계에서 전부 통과 |
+| AC-P5 | TS strict·noExplicitAny·린트 경고 0 | DONE | `tsconfig.base.json`(strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes), `biome.json` noExplicitAny=error, `lint` = `biome check --error-on-warnings` — M8 verify typecheck·lint 단계 PASS |
+| AC-P6 | SPEC.md·thresholds.json SHA-256 일치 | DONE | `shasum -a 256`: SPEC.md `3f7c3ffd1f32ef3251f2960c3d992383d63578a1c2454b83baec152ade4da597`, thresholds.json `a318e01bb7fe8dee690d73192bcd4170976ab513112d96a907d2430a9d4f8e81` = goal 조건문 값(두 파일 커밋 이후 수정 없음) — §18.2 출력 |
 | AC-D1 | 시드 보이싱 25개 검증 | DONE | `src/content/voicings.test.ts` — 25개 id 목록, zod `voicingSchema`, tonal 구성음 부분집합·루트·3음(파워/sus 제외), 손가락 물리 타당성(동일 손가락=동일 프렛+바레, 프렛 단조) 전부 통과 |
 | AC-D2 | partial 충돌 맵·커버리지 리포트 | DONE | `src/domain/voicing.ts` `partialCollisionMap` + `DEFAULT_COLLISION_PARAMS`(§6.3 고정값 테스트), `src/domain/voicing.test.ts` "open C: 5th string verifiable, 2nd not", 커버리지 리포트 `src/domain/coverage.ts` `beginnerCoverageReport`(bench:dsp가 BENCHMARK.md에 출력 예정) |
 | AC-D3 | 커리큘럼 데이터·진급 규칙 데이터화·연습곡 8곡 | DONE | `src/content/curriculum.ts`(Stage 0–7 진행, 8–11 locked), 규칙 데이터 `unlockRuleSchema`(종류만, 스테이지별 if 없음), 연습곡 10곡 `src/content/songs.ts`; `src/content/curriculum.test.ts`(스테이지 코드 제약·focus 쌍·패턴 검증) |
@@ -76,7 +75,7 @@
 | AC-R4 | 안전 규칙 | DONE | `src/domain/safety.ts` + `src/domain/safety.test.ts`: 4주 20분 상한+확인, 30분 휴식, 통증 ≥5 감량, 위험 통증 휴식일, E7 시작 프렛 하향; 문구 `ko.safety.*`(의학적 조언 아님 포함) |
 | AC-R5 | 홈·세션 러너·커리큘럼·진도·E2E-07 | DONE | 홈 `features/home/HomeScreen.tsx` + `homeModel.ts`(+test: 같은 날 같은 루틴, 주간 분·오늘·백업 리마인더, 약한 쌍, 체크리스트), 세션 `features/session/SessionScreen.tsx` + `sessionModel.ts`·`routineParams.ts`(+test: 이동·일시정지·휴식 알림, Stage 0–7 모든 루틴 항목 → 플러그인 params 검증), 커리큘럼 `features/curriculum/CurriculumScreen.tsx`(0–11, 8–11 잠금 미리보기, 상세 + 기준 진행), 진도 `features/progress/ProgressScreen.tsx` + `progressModel.ts`(+test); **E2E-07** `tests/e2e/session.mic.spec.ts`(마이크 없이 Stage 0 루틴 6항목을 키보드만으로 → 세션 1·Attempt N·자가 평가 저장·홈 "오늘 연습" 갱신); D-046 |
 | AC-U1 | 화면 전부·i18n | DONE | §12.1 화면: 홈, 세션 러너, 연습(`/practice/:type`), 커리큘럼(+상세·졸업 시험), 코드 라이브러리(+상세: 기대 음·확인 가능 줄·들어 보기·E1), 튜너, 메트로놈, 진도, 설정(장치·캘리브레이션·테마·왼손잡이·엄격도·시각 전용·키·페달 학습·백업·녹음 키트·진단(getSettings·RTT·sampleRate·detectorVersion)·초기화 2단계); 모든 한국어 문자열 `src/i18n/ko.ts`(무결성 테스트 `tests/integrity/source-rules.test.ts` "no Hangul outside comments" 전 파일 통과) |
-| AC-U2 | 키·페달·첫 스트럼 자동 시작 | DONE | `src/app/keys.ts` + `keys.test.ts`(§12.3 전체 매핑, 학습 키 우선, 입력란 제외), 설정 키·페달 학습 모드(`SettingsScreen.tsx` KeysSection), E2E `tests/e2e/keys.spec.ts`(학습한 "b"로 E2 카운트·확인, Esc 확인 대화상자, 3 projects); 첫 스트럼 자동 시작: E2(E2E-05), E5·E6·S armed(러너 테스트, D-045) |
+| AC-U2 | 키·페달·첫 스트럼 자동 시작 | DONE | `src/app/keys.ts` + `keys.test.ts`(§12.3 전체 매핑, 학습 키 우선, 입력란 제외), 설정 키·페달 학습 모드(`SettingsScreen.tsx` KeysSection), E2E `tests/e2e/keys.spec.ts`(학습한 "b"로 E2 카운트·확인, Esc 확인 대화상자, 3 projects); 첫 스트럼 자동 시작: E2(E2E-05), E5·E6·S armed(러너 테스트, D-045); 세션 러너 실행 사이 키(PageDown/→ 시작·다음 항목, PageUp/← 이전, 실행 중 이동 잠금) `sessionModel.sessionKeyCommand` + `session.test.ts`, `keys.test.ts` `isNativeActivation`, E2E `tests/e2e/keys.spec.ts` "page-turner keys walk the session…"(3 projects), D-049 |
 | AC-U3 | 반응형 E2E-10 | DONE | `tests/e2e/layout.spec.ts`: 주요 화면 18개 × 4 뷰포트(1440×900, 1180×820, 820×1180, 390×844) 가로 스크롤 0, 연습 화면 주요 버튼 ≥ 64×64 px, 스크린샷 `test-results/screens/<project>/` — 3 projects 통과; D-048 |
 | AC-U4 | 접근성 E2E-11·aria-live | DONE | `tests/e2e/a11y.spec.ts`: 18개 화면 × 다크·라이트·고대비 axe serious/critical 0(3 projects); 판정 결과 `aria-live="polite"` 영역(E1·E2·E5·Q·온보딩), 색 + 아이콘·텍스트 병행, 다이어그램 텍스트 설명(`ChordDiagram.test.tsx`), 진도 차트 텍스트 대응물 |
 | AC-U5 | 판정 문구 규칙 테스트 | DONE | `src/i18n/ko.test.ts`: FAIL = 무엇 + 어떻게(모든 힌트 조합), RETRY 원인별 서로 다른 문구 7종, "틀렸습니다" 없음, "내 귀가 먼저" 안내(온보딩·설정); E2E-03 실제 화면 문구 |
@@ -88,11 +87,14 @@
 | AC-W1 | PWA 오프라인 E2E-09·prompt | DONE | `vite.config.ts` VitePWA `registerType: 'prompt'`(앱 셸·시드·아이콘 precache), `src/app/pwa.tsx`(홈에서만 업데이트 토스트), 아이콘 `tools/icons/generate.ts` → `public/`; **E2E-09** `tests/e2e/offline.spec.ts`(설치 후 오프라인 새로고침 → 앱 셸·코드 라이브러리·상세 동작, Chromium — WebKit 하네스 한계 D-048) |
 | AC-W2 | `_headers`·`vercel.json`·`VITE_BASE`·`dev:https` | DONE | `public/_headers`, `vercel.json`(같은 헤더, E2E가 동일성 확인), CSP 실동작 E2E `tests/e2e/csp.mic.spec.ts`(워클릿·DSP 워커·티커 워커·차트·합성 재생 위반 0, Zod jitless), `VITE_BASE`(`vite.config.ts` base), `npm run dev:https`(basicSsl) |
 | AC-W3 | `docs/DEPLOY.md` | DONE | `docs/DEPLOY.md`: Cloudflare Pages·Netlify·Vercel·GitHub Pages 단계, HTTPS가 필요한 이유, iPad/iPhone 홈 화면 추가, `dev:https` LAN 테스트(자체 서명 경고 통과), 업데이트 방식 |
-| AC-F1 | README·ARCHITECTURE·DSP·BENCHMARK·BACKLOG | TODO | |
-| AC-F2 | MANUAL_VALIDATION.md | TODO | |
-| AC-F3 | FINAL_REPORT.md | TODO | |
+| AC-F1 | README·ARCHITECTURE·DSP·BENCHMARK·BACKLOG | DONE | `README.md`(소개·요구 사항·스크립트·iPad에서 쓰는 법·데이터와 백업·아키텍처 요약), `docs/ARCHITECTURE.md`(계층·오디오 경로·플러그인·데이터·커리큘럼·품질 장치·빌드), `docs/DSP.md`(§1–13 판정기 파라미터와 근거·튜닝 기록, §14 실시간 경로 값), `docs/BENCHMARK.md`(`bench:dsp`·`bench:guitarset` 생성), `docs/BACKLOG.md`(v2, DEFERRED 없음) |
+| AC-F2 | MANUAL_VALIDATION.md | DONE | `docs/MANUAL_VALIDATION.md`: 기기(MacBook Chrome·Safari, iPad Safari 홈 화면 앱, iPhone Safari), 캘리브레이션, 튜너 vs 다른 튜너, E1 일부러 뮤트·다른 음·x줄, E2 자동 vs 직접 센 값, E5 스트럼 타이밍(소리·시각 전용), 녹음 키트 → `bench:real`, PWA·Wake Lock·페달·백업, 결과 기록 양식 |
+| AC-F3 | FINAL_REPORT.md | DONE | `docs/goal/FINAL_REPORT.md`(§18.1 1–8절: 요약, verify 요약표, 합성·GuitarSet 지표표, AC 표, 마일스톤 커밋, 결정 요약, 알려진 한계, 다음 할 일) |
 
 ## 턴 로그 (최근 것이 위, 한 줄씩)
+
+- 턴 3: M8 — 최종 리뷰(code-reviewer) 지적 확인·수정(D-049: 통증 감량 실행 반영, 합치기 progression/meta, 세션 완료 수·실행 중 이동 잠금·페달 키, 시험 중단, 녹음 키트 실패·구멍, 연습 시간), 레벨 미터 rAF+canvas, 문서·FINAL_REPORT, verify PASS.
+- 턴 2: M4–M7 완료(오디오 엔진·캘리브레이션, 연습 13종, 커리큘럼·루틴·진도, PWA·반응형·접근성·배포 준비).
 
 - 턴 1(계속): M3 완료 — GuitarSet 파이프라인, onset 재튜닝(합성+GuitarSet dev), Mode A 강건화, bench:real; GuitarSet test 하드 4/4.
 - 턴 1(계속): M2 완료 — 리뷰(code-reviewer) 결함 6건 수정(D-028), test split 전 지표 통과. GuitarSet 다운로드(curl) 완료.

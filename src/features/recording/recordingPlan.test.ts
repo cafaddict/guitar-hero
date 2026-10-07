@@ -11,7 +11,12 @@ describe('recording kit plan', () => {
     const muted = plan.find((p) => p.id === 'C-muted')!;
     expect([1, 2, 3, 4, 5]).toContain(muted.expected.mutedStringIdx);
     expect(plan.find((p) => p.id === 'C-x')!.expected).toEqual({ ringingIdx: 0 });
-    expect(plan.find((p) => p.kind === 'one-minute')!.expected).toEqual({ direction: 'D>C' });
+    expect(plan.find((p) => p.kind === 'one-minute')!.expected).toEqual({
+      direction: 'D>C',
+      voicings: ['D', 'C'],
+    });
+    const withG = recordingPlan(['C', 'G'], 'G-2f').find((p) => p.kind === 'one-minute')!;
+    expect(withG.expected).toEqual({ direction: 'C>G', voicings: ['C', 'G-2f'] });
     expect(plan.at(-1)!.kind).toBe('strum-grid');
   });
 

@@ -53,3 +53,14 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement;
   return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
 }
+
+/**
+ * Enter/Space on a focused button or link already activates it natively; key handlers that also map those keys
+ * must leave them alone or the action would run twice.
+ */
+export function isNativeActivation(event: { key: string; target: EventTarget | null }): boolean {
+  if (event.key !== 'Enter' && event.key !== ' ') return false;
+  const target = event.target as HTMLElement | null;
+  if (!target || typeof target.tagName !== 'string') return false;
+  return target.tagName === 'BUTTON' || target.tagName === 'A' || target.getAttribute('role') === 'button';
+}
