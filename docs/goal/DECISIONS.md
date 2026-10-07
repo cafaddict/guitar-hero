@@ -119,3 +119,42 @@
 
 ## D-023 코칭 힌트 보완 규칙
 - SPEC §6.7 표 외에 두 경우를 보수적으로 추가: (1) 개방현 MUTED인데 인접 줄에 손가락이 없음 → "손바닥이나 손가락이 닿지 않게"; (2) 개방현 기대인데 더 낮은 음 → "튜닝을 다시 확인". 인접 손가락이 양쪽에 있으면 저음 쪽(idx−1) 손가락을 먼저 지목한다(손가락 살이 고음 쪽 줄에 닿는 경우가 흔함).
+
+## D-024 Mode B: 누설 인지 바닥 + 시간 모양 뮤트 판정 (dev 튜닝, SPEC §10.6 의미 유지)
+- 맥락: 초기 구현(잡음 대비 SNR, T_PRESENT 12 / T_ABSENT 4 dB)은 dev split에서 깨끗한 스트럼 FAIL 95%. 원인 분석(`tools/bench/debug/modeB-*.ts`): (1) bin별 잡음은 광대역 SNR보다 ~40 dB 낮아, 강한 이웃 partial의 Hann 사이드로브(−31 dB)만으로도 "증거 20–50 dB"가 나와 x 줄·기대 밖 음 오탐; (2) 뮤트 줄은 창 [+40, +210]의 앞부분에 아직 에너지가 있어 절대 증거로는 울리는 약한 줄(이득 지터 ±6 dB)과 겹침.
+| 선택지 | 결과(dev) |
+|---|---|
+| 절대 임계값만 조정 | 뮤트·오탐 분포가 겹쳐 불가 |
+| 누설 모델 + 후기 창 절대 증거 | 울리는 줄도 창이 짧아져 4–14 dB 떨어져 분리 실패 |
+| **누설 모델 + 같은 길이 초기/후기 창의 decay·상대 레벨** | 뮤트 검출 0.92, 깨끗 FAIL 1.5 % |
+- 결정: §10 해설의 "salience ≥ T_PRESENT → OK, ≤ T_ABSENT → MUTED"를 "증거 ≥ T_PRESENT 그리고 지속 → OK, 시간 모양이 뮤트 → MUTED"로 구체화(3상태·줄 지목·베타 의미는 같음). 기대 밖 음 탐색은 잘못된 프렛 가설(±1·±2 반음)로 좁히고 임계값을 dev 분포로 정했다. 세부 수치는 `docs/DSP.md` §5.
+- 트레이드오프: 신호 모델(정상 sustain vs −30 dB/120 ms)에 기대므로 실녹음에서 decay가 빠른 줄(나일론, 낡은 줄)은 RETRY가 늘 수 있다 → GuitarSet 소프트 지표로 확인(M3).
+
+## D-025 Mode C: 직전 잡음 대신 국소 스펙트럼 포락선("peakiness")
+- 맥락: 1분 체인지 시퀀스에서는 onset 직전 0.5 s에 이전 코드가 울린다. 이를 잡음으로 쓰면 같은 코드 재스트럼의 증거가 0이 되어 margin이 무작위가 되고(과대·과소 집계), 반향이 있으면 체인지 도착도 보류됐다(dev |오차| ≤ 1 비율 0.68).
+- 결정: 각 partial의 증거를 같은 창의 국소 포락선(±1/3 옥타브 30-퍼센타일, 탐침 제외) 대비로 계산하고 h^−0.5 가중 평균. dev 0.975 / MAE 0.07 / 과대 0, 집합 분류 0.996.
+
+## D-026 Onset: 시각 정밀화를 미세 log flux로, broadband·lag dev 튜닝
+- 초기 고역 미분 포락선 임계값 정밀화는 additive 합성(부드러운 attack)에서 40 ms 이르게 잡혀 F1 0.69. 미세 log 스펙트럼 flux(10.7 ms/1 ms hop) 첫 교차 + dev 보정 5 ms로 교체. broadband 상승 +6 → +3 dB, flux lag 2 → 4 프레임에서 dev F1 0.98, 지속음 가짜 onset 0 %.
+- 오프라인 `pickOnsets`는 스트리밍 `OnsetPicker`를 그대로 돌린다(worklet과 벤치마크가 같은 코드).
+
+## D-027 벤치마크 실행 구조
+- worker_threads 워커는 `tools/bench/worker-boot.mjs`에서 `tsx/esm/api`의 `register()`를 호출한 뒤 TS 워커를 import한다(`execArgv: ['--import','tsx']`는 Node 24의 내장 타입 스트리핑이 먼저 잡아 확장자 없는 import를 해석하지 못함).
+- Mode A/B 판정은 벤치마크에서도 **검출된 onset**을 쓰고 [onset−500, onset+400] ms만 넘긴다(앱과 동일). 정답 onset을 주지 않는다.
+- SNR 정의(§14.3-2)는 반향·HPF를 거친 신호의 onset+0..500 ms RMS ÷ HPF를 거친 정상 잡음 RMS. RTT 탐침은 짧은 버스트라 SNR 기준을 버스트 자체 길이로 둔다(20–40 dB 층화).
+- 벤치마크 시퀀스에서 손 뮤트(체인지 직전 15 ms 페이드)를 모델링했다. Mode D 쉼 슬롯 추가 스트럼 12 %, 누락 6 %.
+
+## D-028 M2 리뷰(code-reviewer) 반영
+- 확인된 결함과 조치:
+  1. 채널 모델의 LPF 8 kHz가 잡음 스케일링 **뒤**에 적용돼 실제 SNR이 표기보다 최대 ~4.6 dB 높았다 → LPF를 신호·잡음 각각에 먼저 적용하고 SNR을 잰다. 테스트는 최종 녹음에서 잡음 = 녹음 − 무잡음 녹음으로 SNR을 측정(white/pink × LPF on/off × HPF).
+  2. Mode A/B/집합 분류 벤치마크가 정답 onset에 가장 가까운 검출 이벤트를 골랐다(정답 누설) → 앱과 같은 순수 함수 `src/dsp/take.ts selectTakeEvent`(첫 onset, +400 ms 안에 다른 onset이면 RETRY(MULTIPLE_ONSETS), 없으면 NO_ONSET)를 쓴다. 앱의 E1·Q2 러너도 이 함수를 쓴다.
+  3. 튜너 벤치마크가 정답 onset에서 프레임을 시작했다 → 녹음 처음부터 연속 실행하고 안정까지 시간만 onset 기준으로 잰다. 그 결과 attack이 걸친 프레임이 안정 판정에 끼어 p95 3.34 cents(dev)가 되어, **attack 포함 프레임 거부**(앞 1/4 RMS가 뒤 1/4보다 6 dB 넘게 작으면 무효)를 튜너에 추가 → dev p95 1.85 cents. 실제 튜너에도 맞는 동작이다.
+  4. 무결성 테스트: thresholds.json 키 ↔ 판정 키 **양방향** 일치(perf 포함, 파라미터 키는 명시 목록), SNR 층(Mode B 15 dB는 cleanFailMax에만, 튜너 20 dB 미만 제외) 검사, 시드 겹침 검사에 전 모드 포함, Mode B 조건별 최소 표본을 **판정 층(SNR ≥ 25) 안에서** 보장(조건당 600, SNR 조건 내 균등).
+  5. 소스 스캔: side-effect·동적 `import()`·`require()` 형태, `OfflineAudioContext`, `.js/.mjs` 파일의 `Math.random`, `Math[...]` 계산 접근까지 잡도록 강화하고 패턴 자기 검사 테스트 추가.
+  6. worklet 경로 할당: `FluxAnalyzer`는 프레임 객체 재사용, `OnsetPicker`는 고정 버퍼 삽입 정렬과 사전 할당 후보 객체(반환 객체는 다음 호출까지 유효, 보관 시 복사).
+- 지적 중 의도된 차이로 남긴 것(문서화):
+  - 클릭 마스킹 창은 ±(10 ms + 반 프레임): 후보 시각이 프레임 중심이라 반 프레임 오차를 흡수해야 한다. "클릭 템플릿 일치"는 2–4 kHz 대역 flux 비중 ≥ 0.4 + 1 kHz 미만 flux < 1.5로 근사한다(저역이 오르면 정박 스트럼으로 보고 유지).
+  - Mode D 타이밍 오차 분포는 ±50 ms 안에 매칭된 검출만 쓴다(§14.3-9 "검출 스트럼"의 오차). 그보다 먼 검출은 F1@±25 ms에서 이미 벌점이다.
+  - 판정기의 `performance.now()`는 결과의 `processingMs` 측정에만 쓴다(도메인 시간 로직이 아님, worklet 경로에는 없음).
+  - Mode B는 T_ABSENT를 "스트럼이 충분히 큰가(기준 ≥ T_ABSENT + 15 dB)"에만 쓰고, 줄 MUTED는 decay·relLate 모양으로 판정한다(D-024).
+- 추가 dev 튜닝: Mode B 증거는 기대 위치 ±tol cents 안의 **실제 국소 피크**만 인정(이웃 피크의 스커트는 증거 아님) → 잘못된 프렛 PASS 0.10 → 0.0025. x 줄 임계값 16 → 14 dB(깨끗 FAIL 불변, 검출 0.93). onset broadband 조건을 "향후 4프레임 최대 vs lag 이전 3프레임 최소"로(넓은 스트럼·SNR 15에서 고역 상승이 40 ms에 걸쳐 일어남) → Mode C dev 0.958 → 0.992.

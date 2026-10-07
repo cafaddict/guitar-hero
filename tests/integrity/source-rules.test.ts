@@ -11,21 +11,52 @@ describe('§14.6-1 pure modules (src/dsp, src/domain)', () => {
   const files = [...listFiles('src/dsp', CODE), ...listFiles('src/domain', CODE)].filter(
     (f) => !/\.test\.tsx?$/.test(f),
   );
+  // Static, side-effect, dynamic and require() forms of every banned module.
+  const banned = String.raw`(react(-dom)?(\/[^'"]*)?|dexie(-react-hooks)?|[./]*\/(audio|app|ui|features|data)\/[^'"]*)`;
   const forbiddenImports = [
-    /from\s+['"]react(-dom)?(\/[^'"]*)?['"]/,
-    /from\s+['"]dexie(-react-hooks)?['"]/,
-    /from\s+['"][./]*\/(audio|app|ui|features|data)\//,
+    new RegExp(String.raw`from\s+['"]${banned}['"]`),
+    new RegExp(String.raw`import\s+['"]${banned}['"]`),
+    new RegExp(String.raw`import\s*\(\s*['"]${banned}['"]`),
+    new RegExp(String.raw`require\s*\(\s*['"]${banned}['"]`),
   ];
   const forbiddenGlobals = [
     /\bwindow\./,
     /\bdocument\./,
     /\bnavigator\./,
     /\bindexedDB\b/,
-    /\b(webkit)?AudioContext\b/,
+    /AudioContext\b/,
     /\bAudioWorklet\w*/,
     /\blocalStorage\b/,
     /\brequestAnimationFrame\b/,
   ];
+
+  it('the scan patterns catch every import form and Web Audio global (self-test)', () => {
+    const bad = [
+      "import React from 'react';",
+      "import 'react-dom/client';",
+      "const db = await import('dexie');",
+      "const h = require('dexie-react-hooks');",
+      "import { audioEngine } from '../audio/engine';",
+      "import x from '../../features/exercises/registry';",
+    ];
+    for (const line of bad)
+      expect(
+        forbiddenImports.some((p) => p.test(line)),
+        line,
+      ).toBe(true);
+    expect(forbiddenImports.some((p) => p.test("import { z } from 'zod';"))).toBe(false);
+    for (const g of [
+      'new OfflineAudioContext(1, 1, 48000)',
+      'new webkitAudioContext()',
+      'window.foo',
+      'navigator.mediaDevices',
+    ]) {
+      expect(
+        forbiddenGlobals.some((p) => p.test(g)),
+        g,
+      ).toBe(true);
+    }
+  });
 
   it('has files to scan', () => {
     expect(files.length).toBeGreaterThan(0);
@@ -106,9 +137,14 @@ describe('§14.6-5 test hooks are frozen read-only getters', () => {
 });
 
 describe('§14.6-6 no Math.random in dsp/ and tools/', () => {
-  const files = [...listFiles('src/dsp', CODE), ...listFiles('tools', CODE)];
-  const pattern = new RegExp(`Math\\.${'random'}\\b`);
+  const files = [
+    ...listFiles('src/dsp', /\.(ts|tsx|mts|js|mjs|cjs)$/),
+    ...listFiles('tools', /\.(ts|tsx|mts|js|mjs|cjs)$/),
+  ];
+  const direct = new RegExp(`Math\\.${'random'}\\b`);
+  const computed = /Math\s*\[/;
   it.each(files)('%s does not use Math.random', (file) => {
-    expect(stripComments(readSource(file), { stripStrings: true }), file).not.toMatch(pattern);
+    expect(stripComments(readSource(file), { stripStrings: true }), file).not.toMatch(direct);
+    expect(stripComments(readSource(file)), `${file} computed Math access`).not.toMatch(computed);
   });
 });
