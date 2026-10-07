@@ -7,7 +7,7 @@ import { verifyPluck, verifySilentString } from './modeA';
 import { verifyStrum } from './modeB';
 import { ChangeCounter, classifyPair, classifySet } from './modeC';
 import { DEFAULT_ONSET_PARAMS, detectStrums } from './onset';
-import { estimateRtt, rttProbe, tapRtt } from './rtt';
+import { estimateRtt, rttProbe, tapRtt, tapRttStats } from './rtt';
 import { applyMuteEnvelope, type NoteSpec, renderNote } from './synth/note';
 import { normalizeNote, renderStrum } from './synth/strum';
 import { analyzeTiming, ioiCv, personalOffset, timingWindowMs } from './timing';
@@ -284,6 +284,9 @@ describe('RTT', () => {
   it('tap calibration takes the median offset', () => {
     expect(tapRtt([0, 1, 2, 3, 4], [0.1, 1.12, 2.09, 3.1, 4.11])).toBeCloseTo(100, 6);
     expect(tapRtt([0, 1], [0.1])).toBeNull();
+    const stats = tapRttStats([0, 1, 2, 3, 4], [0.1, 1.12, 2.09, 3.1, 4.11]);
+    expect(stats?.matched).toBe(5);
+    expect(stats?.madMs).toBeCloseTo(10, 6);
   });
 });
 

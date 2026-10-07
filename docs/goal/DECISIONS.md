@@ -183,3 +183,42 @@
 - dev 결과: 합성 Mode A 전 지표 유지, GuitarSet dev 단음 39/39.
 - detectorVersion 1.2.0 → 1.3.0(두 번째 피치 창·폴백 초판; test 16/17) → 1.3.1(폴백 기준선 25-퍼센타일·+12 dB·무장 150 ms 전).
 - 세 번째 실행(1.3.1): test Mode A OK 17/17, 하드 4/4·소프트 2/2 통과. GuitarSet test는 총 3회 실행됐고 매번 test 개별 사례가 아닌 실패 유형만 보고 dev에서 고쳤다.
+
+## D-032 M4 오디오 엔진 구조: 플랫폼 주입 + worklet→worker 직결 MessageChannel
+- `AudioEngine`(src/audio/engine.ts)은 브라우저 API(AudioContext 생성, getUserMedia, enumerateDevices, worklet 모듈 로드·노드 생성, Worker 생성)를 `EnginePlatform`으로 주입받는다. 실제 바인딩은 `browserPlatform.ts`, 앱 단일 인스턴스는 `appEngine.ts`/`app/services.ts`. 근거: 권한 거부·장치 분리·OS 중단(interrupted)·getSettings 진단을 Node 단위 테스트(가짜 객체)로 검증하기 위해(AC-A1). Vite 전용 `?worker&url` import는 엔진 파일 밖에 둬 Vitest가 엔진을 직접 import할 수 있다.
+- 데이터 경로: 마이크 → worklet(CaptureCore) —MessageChannel→ DSP worker(정밀화+판정) → main. 세그먼트(onset −500/+400 ms), 튜너 프레임, 요청 구간은 worklet이 풀에서 꺼낸 Float32Array를 **transfer**하고 worker가 `returnBuffer`로 되돌려준다(풀이 비면 1회 경고 후 할당). main은 큰 버퍼를 거치지 않는다.
+- 캡처 샘플 n ↔ 컨텍스트 시각: worklet이 첫 블록에서 `currentFrame`을 `ready{startFrame}`으로 알린다 → t = (startFrame + n)/fs. 메트로놈 예약 시각·RTT 프로브·클릭 마스크가 모두 이 한 시계를 쓴다.
+- 판정 작업(job)은 worker에 상태로 둔다(`setJob`): onsets / pluck(Mode A) / template(캘리브레이션) / strum(Mode B) / pair·set(Mode C). 튜너는 별도 on/off. 구간 분석(noise, rtt, raw)과 Mode D `analyzeTiming`은 id로 짝을 맞추는 요청/응답이다. 모든 응답에 `detectorVersion`·`processingMs`.
+- 요청은 zod 판별 유니온으로 검증한다. zod 출력의 `nameKo?: string | undefined`가 `exactOptionalPropertyTypes`의 `ChordVoicing`과 맞지 않아, 보이싱은 transform으로 undefined 키를 지운다(단언 캐스트 없음).
+
+## D-033 메트로놈: 앵커 기반 예약, 템포 변경·카운트인 규칙, 타이머 2종
+- 클릭 시각 = 현재 템포 구간의 앵커(시각, 박 번호) + (박 − 앵커 박)·박 길이 (+ 서브디비전). 더하기 누적이 아니므로 10분 지터 시뮬레이션에서 오차 < 1e-9 s(`metronome.test.ts`). 늦게 깬 타이머도 그리드 시각 그대로 예약하고, 0.05 s 넘게 지난 클릭은 **소리만** 생략한다(1초 멈춤 뒤 클릭 폭주 방지, 그리드·판정용 목록에는 남김).
+- 템포 변경은 "아직 예약하지 않은 다음 박"부터 적용(이미 예약된 클릭은 움직이지 않음). 카운트인 중 변경은 0마디부터 적용(그리드 원점 = 0마디 1박이 미리 정해져 판정 기준이 흔들리지 않게).
+- 6/8은 8분음표 6개를 박으로 세고 4번째에 2차 악센트. 음소거 마디는 (play, mute) 주기, 카운트인은 항상 들림. 시각 전용 모드는 소리만 끄고 그리드·펄스는 그대로.
+- 타이머: Worker 안 setInterval 25 ms + lookahead 0.1 s가 기본, Worker가 없으면 main setInterval 200 ms + lookahead 0.25 s(SPEC §8.4 두 값).
+- 클릭 마스크: 들리는 최근 8개 클릭의 예상 도착 시각(예약 + RTT)을 worklet에 넘긴다.
+
+## D-034 캘리브레이션 마법사 규칙 (SPEC §9.1 해석)
+- 튜닝: 줄 모드 튜너의 안정 판정(5프레임 ±3 cents)이 나면 |δ| ≤ 15 cents 통과, 100 cents 넘게 벗어나면 "다른 음"(앞 줄 잔향 등)으로 보고 무시. 통과 후 0.6 s 쉬고 다음 줄.
+- 샘플레이트 sanity: 각 줄의 **첫 안정 측정**(다른 음 제외)과 기대 주파수의 비율이 3줄 이상에서 서로 ±0.5% 안으로 균일하고 그 중앙값이 ±1% 밖이면 `SAMPLE_RATE_SUSPECT` 경고(흩어진 오차는 단순 조율 상태로 본다).
+- 템플릿: 줄마다 Mode A가 OK로 판정한 튕김 3회 → harmonic 상대 크기(h=1..8, [+30, +130 ms]) 중앙값, decay 비율 중앙값. OK가 아닌 튕김은 "다시" 안내만 하고 세지 않는다.
+- RTT: loopback 측정이 연속 2회 성공하고 차이 ≤ 3 ms면 평균을 저장(MAD는 둘 중 큰 값). 실패 2회 또는 3회 안에 합의 실패 → 탭 보정(카운트인 4 + 클릭 8개 @80 BPM, onset과 클릭의 중앙 오프셋, `tapRttStats`). 출력 장치 라벨이 블루투스로 보이면 바로 탭 보정. 측정 못 하면 값을 만들지 않는다(마법사를 끝낼 수 없고 "나중에 하기"만 가능).
+- 소음: 2초 구간 전체 dBFS + 1/3옥타브(63 Hz–8 kHz) 대역별 100 ms 프레임 전력의 중앙값. −45 dBFS 초과면 경고 후 계속.
+- 경고 코드(`NOISY`, `PROCESSING_ON`, `BLUETOOTH_INPUT`, `BLUETOOTH_OUTPUT`, `SAMPLE_RATE_SUSPECT`, `RTT_TAP`)를 `Calibration.warnings`에 저장하고 문구는 i18n에서 렌더.
+- getSettings 진단은 마이크가 켜질 때마다 `meta.captureDiagnostics`에 저장하고(세션 진단), 캘리브레이션에는 `trackSettings`로 함께 저장한다. 진단 화면은 실시간 값이 없으면 저장된 값을 보여 준다.
+- 첫 실행: 홈이 페이지 로드당 1회 `/onboarding`으로 보낸다. "나중에 하기"는 홈에 남고 홈 카드에서 다시 시작할 수 있다. "마이크 없이 쓰기"는 `micDisabled = true`.
+
+## D-035 E2E 가짜 마이크 보강과 E2E-01 단언
+- `MediaStreamAudioDestinationNode` 트랙의 label이 "MediaStreamAudioDestinationNode"라서 하네스가 트랙 label을 가짜 장치 이름으로 덮는다(enumerateDevices와 일치).
+- E2E-01의 "같은 조건 2회 측정 차이 ≤ 3 ms"는 마법사의 RTT 측정을 **두 번**(처음 + "다시 측정") 실행해 두 결과를 비교한다. 추가로 모든 원시 loopback 시도가 [지연, 지연 + 30 ms] 안이어야 하고 방식은 loopback이어야 한다. 저장된 δ는 fixture 디튠과 ±3 cents 안이어야 한다(D-037 참조).
+- tsx(esbuild keepNames)로 실행하는 도구가 `addInitScript(fn)`을 쓰면 페이지에 `__name` 헬퍼가 필요하다(`tools/devcheck/audio-dev.ts`). Playwright 테스트 러너에서는 불필요.
+
+## D-036 AC-A5 증거: dev 서버 점검 도구 + worklet 모듈 Node 테스트
+- `npx tsx tools/devcheck/audio-dev.ts`(`npm run check:audio-dev`): Vite dev 서버에서 TS worklet(src/dsp import), DSP module worker, 메트로놈 ticker worker가 모두 로드·동작하는지 Chromium + 가짜 마이크로 확인. verify에는 넣지 않는다(빌드 산출물 기준 E2E가 verify에서 돈다).
+- `src/audio/captureProcessor.test.ts`: 실제 worklet 모듈을 worklet 전역을 흉내 낸 Node에서 실행 — 세그먼트 창·지연 조건, 튜너 프레임·구간 샘플 정확성, 20초 동안 풀 고갈 경고 0(=워밍업 후 블록 처리 무할당), 블록 평균 처리 시간 ≤ 0.3 ms(측정 ≈ 0.04 ms, 튜너 켬).
+
+## D-037 렌더 끊김(process 누락) 시 캡처 시계 정렬 + E2E-01 RTT 반복성 단언
+- 발견: 첫 M4 verify에서 E2E-01이 실패(원시 RTT 140.67 → 132.67 → 132.67 ms). worklet에 진단을 넣고 병렬 부하에서 재현하니 브라우저가 `process()`를 몇 블록(예: 512 frames) 건너뛰는 일이 실제로 있었고, 그 뒤 "캡처 샘플 n = 컨텍스트 프레임 startFrame + n" 매핑이 영구히 그만큼 어긋났다(RTT·그리드·onset 시각 전부 수 ms 이동). 앱 결함.
+- 수정: worklet이 매 블록 `currentFrame − (startFrame + 처리한 샘플)`을 확인하고, 모자란 프레임은 `CaptureCore.fillGap()`으로 0을 채워 정렬을 유지한다. 구멍에서 신호로 돌아오는 점프는 strum이 아니므로 [구멍 −20 ms, 구멍 끝 +80 ms]의 onset을 버린다. main에는 `gap{frames}`를 보내 진단 화면에 "오디오 끊김 n회"로 보인다. 회귀 테스트: `captureProcessor.test.ts`(블록 4개 누락 후 onset·구간 샘플 위치 정확, 복귀 점프 미보고), `engine.test.ts`(끊김 집계).
+- 남은 변동: 끊김이 없어도 가짜 loopback 경로(MediaStreamDestination → MediaStream → MediaStreamSource) 내부 FIFO 지연이 부하에서 3–7 ms 바뀌는 일이 있었다(예: 137.33 → 132.67 → 132.67, gapFrames 0). 실제 마이크 입력도 같은 MediaStream FIFO를 지나므로 제품에서도 생길 수 있는 변동이고, 마법사의 "연속 2회 3 ms 안 합의" 규칙이 이것을 흡수한다.
+- 그래서 처음에 SPEC보다 엄격하게 둔 "첫 두 시도가 곧바로 합의" 단언(앱이 아니라 브라우저 FIFO를 검사)을 SPEC 문구 그대로의 단언으로 바꿨다: 마법사 RTT 측정 2회(처음 + "다시 측정")의 결과 차이 ≤ 3 ms, 두 결과 모두 [120, 150] ms, **모든 원시 시도**도 [120, 150] ms, 방식 loopback. 바꾼 뒤 전체 E2E를 병렬 4 workers로 `--repeat-each=3`, `--repeat-each=4` 두 번 돌려 42/42 통과.

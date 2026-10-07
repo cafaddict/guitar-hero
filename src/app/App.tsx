@@ -1,18 +1,76 @@
-import { createHashRouter, RouterProvider } from 'react-router';
+import { useEffect } from 'react';
+import { createHashRouter, NavLink, Outlet, RouterProvider } from 'react-router';
+import { HomeScreen } from '../features/home/HomeScreen';
+import { MetronomeScreen } from '../features/metronome/MetronomeScreen';
+import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { DiagnosticsScreen } from '../features/settings/DiagnosticsScreen';
+import { TunerScreen } from '../features/tuner/TunerScreen';
 import { ko } from '../i18n/ko';
+import { useSettingsStore } from './settingsStore';
 
-function HomePlaceholder() {
+const NAV = [
+  { to: '/', label: ko.nav.home },
+  { to: '/tuner', label: ko.nav.tuner },
+  { to: '/metronome', label: ko.nav.metronome },
+  { to: '/settings/diagnostics', label: ko.nav.diagnostics },
+] as const;
+
+function AppLayout() {
+  const settings = useSettingsStore((s) => s.settings);
+  const load = useSettingsStore((s) => s.load);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings?.theme ?? 'dark';
+  }, [settings?.theme]);
+  if (!settings) return null;
   return (
-    <main id="main" className="p-4">
-      <h1 className="text-2xl font-bold">{ko.app.title}</h1>
-    </main>
+    <>
+      {/* Hash routing owns the URL fragment, so the skip control moves focus instead of navigating. */}
+      <button
+        type="button"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:rounded focus:bg-accent focus:p-2 focus:text-accent-fg"
+        onClick={() => {
+          const main = document.getElementById('main');
+          main?.setAttribute('tabindex', '-1');
+          main?.focus();
+        }}
+      >
+        {ko.app.skipToContent}
+      </button>
+      <header className="border-b border-surface-2">
+        <nav aria-label={ko.nav.main} className="mx-auto flex max-w-3xl flex-wrap gap-1 p-2">
+          {NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              className={({ isActive }) =>
+                `inline-flex min-h-12 items-center rounded-lg px-3 ${isActive ? 'bg-surface-2 font-semibold' : ''}`
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+      </header>
+      <Outlet />
+    </>
   );
 }
 
 const router = createHashRouter([
-  { path: '/', element: <HomePlaceholder /> },
-  { path: '/settings/diagnostics', element: <DiagnosticsScreen /> },
+  {
+    element: <AppLayout />,
+    children: [
+      { path: '/', element: <HomeScreen /> },
+      { path: '/onboarding', element: <OnboardingScreen /> },
+      { path: '/tuner', element: <TunerScreen /> },
+      { path: '/metronome', element: <MetronomeScreen /> },
+      { path: '/settings/diagnostics', element: <DiagnosticsScreen /> },
+    ],
+  },
 ]);
 
 export function App() {

@@ -43,6 +43,11 @@ export class CaptureCore {
   private readonly picker: OnsetPicker;
   private clickSamples: Float64Array = new Float64Array(0);
   private clickCount = 0;
+  private readonly zeros = new Float32Array(128);
+  private readonly gapGuardBefore: number;
+  private readonly gapGuardAfter: number;
+  private suppressFrom = -1;
+  private suppressUntil = -1;
 
   constructor(
     readonly sampleRate: number,
@@ -56,10 +61,32 @@ export class CaptureCore {
     this.picker = new OnsetPicker(sampleRate, frameLength, params, (sample, win) =>
       this.nearClick(sample, win),
     );
+    this.gapGuardBefore = Math.round(0.02 * sampleRate);
+    this.gapGuardAfter = Math.round(0.08 * sampleRate);
     this.analyzer = new FluxAnalyzer(sampleRate, params, (frame: OnsetFrame, index: number) => {
       const candidate = this.picker.push(frame, index);
-      if (candidate) this.callbacks.onOnset?.(candidate);
+      if (!candidate) return;
+      // The jump from a zero-filled hole back to the signal is not a strum.
+      if (candidate.sample >= this.suppressFrom && candidate.sample <= this.suppressUntil) return;
+      this.callbacks.onOnset?.(candidate);
     });
+  }
+
+  /**
+   * Frames the audio thread never delivered (render glitch: process() was skipped). They are zero-filled so
+   * that sample n keeps meaning "context frame start + n" — otherwise every later onset, RTT and grid
+   * comparison would be shifted by the lost frames. Onsets around the hole are suppressed.
+   */
+  fillGap(samples: number): void {
+    const start = this.totalSamples;
+    let left = samples;
+    while (left > 0) {
+      const n = Math.min(left, this.zeros.length);
+      this.processBlock(n === this.zeros.length ? this.zeros : this.zeros.subarray(0, n));
+      left -= n;
+    }
+    this.suppressFrom = start - this.gapGuardBefore;
+    this.suppressUntil = this.totalSamples + this.gapGuardAfter;
   }
 
   /** Expected click arrival samples (scheduled + RTT) for masking; replaces the previous list. */

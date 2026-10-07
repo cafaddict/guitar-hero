@@ -19,6 +19,7 @@
     "bench:dsp:dev": "tsx tools/bench/run.ts --split dev",
     "bench:dsp": "tsx tools/bench/run.ts --split test",
     "bench:guitarset": "tsx tools/guitarset/bench.ts",
+    "check:audio-dev": "tsx tools/devcheck/audio-dev.ts",
     "bench:real": "tsx tools/bench/real.ts",
     "fixtures:generate": "tsx tools/fixtures/generate.ts",
     "licenses": "tsx tools/licenses.ts",

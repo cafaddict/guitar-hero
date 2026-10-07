@@ -61,6 +61,11 @@ export function installFakeMic(config: FakeMicConfig): void {
     if (config.deny) throw new DOMException('Permission denied', 'NotAllowedError');
     if (!state.dest)
       throw new DOMException('fake mic: AudioContext must exist before getUserMedia', 'InvalidStateError');
+    // A destination track is labelled "MediaStreamAudioDestinationNode"; give it the fake device's label so
+    // the app sees the same name in getSettings diagnostics and enumerateDevices.
+    for (const track of state.dest.stream.getAudioTracks()) {
+      Object.defineProperty(track, 'label', { value: 'MacBook Pro Microphone (fake)', configurable: true });
+    }
     return state.dest.stream;
   };
   mediaDevices.enumerateDevices = async () =>
@@ -97,4 +102,20 @@ export function installFakeMic(config: FakeMicConfig): void {
     },
   };
   win.__fakeMic = api;
+}
+
+/** Plays a generated fixture into the fake mic now (or at a context time) and returns the start time. */
+export async function playFixture(
+  page: import('@playwright/test').Page,
+  name: string,
+  at?: number,
+): Promise<number> {
+  return page.evaluate(
+    ([url, when]) =>
+      (window as unknown as { __fakeMic: FakeMicApi }).__fakeMic.play(
+        url as string,
+        when === null ? {} : { at: when as number },
+      ),
+    [`/fixtures/${name}`, at ?? null] as const,
+  );
 }

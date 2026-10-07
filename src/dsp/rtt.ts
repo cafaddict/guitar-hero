@@ -109,12 +109,12 @@ export function estimateRtt(
   return { ok: true, rttMs, madMs, detections: perBurst.length, perBurstMs: perBurst, processingMs };
 }
 
-/** Tap calibration: median offset (ms) of detected strums from the click times (after the RTT-free grid). */
-export function tapRtt(
+/** Tap calibration: matches each click with the nearest strum in [−100, +maxOffsetMs] ms. */
+export function tapRttStats(
   clickTimesS: readonly number[],
   strumTimesS: readonly number[],
   maxOffsetMs = 400,
-): number | null {
+): { rttMs: number; madMs: number; matched: number } | null {
   const offsets: number[] = [];
   for (const c of clickTimesS) {
     const after = strumTimesS.filter((t) => t >= c - 0.1 && t - c <= maxOffsetMs / 1000);
@@ -122,5 +122,16 @@ export function tapRtt(
     const nearest = after.reduce((a, b) => (Math.abs(a - c) < Math.abs(b - c) ? a : b));
     offsets.push((nearest - c) * 1000);
   }
-  return offsets.length >= 4 ? median(offsets) : null;
+  if (offsets.length < 4) return null;
+  const rttMs = median(offsets);
+  return { rttMs, madMs: median(offsets.map((x) => Math.abs(x - rttMs))), matched: offsets.length };
+}
+
+/** Tap calibration RTT: median offset (ms) of detected strums from the click times. */
+export function tapRtt(
+  clickTimesS: readonly number[],
+  strumTimesS: readonly number[],
+  maxOffsetMs = 400,
+): number | null {
+  return tapRttStats(clickTimesS, strumTimesS, maxOffsetMs)?.rttMs ?? null;
 }

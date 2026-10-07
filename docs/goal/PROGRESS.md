@@ -5,14 +5,15 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **M4 (오디오 엔진·캘리브레이션)** 시작 — M0–M3 완료
-- 마지막 갱신: 2026-10-08 (M3 커밋 직후)
-- 누적 턴(대략): 1
+- 현재 마일스톤: **M5 (연습 플러그인)** 시작 — M0–M4 완료
+- 마일스톤 끝 리뷰 서브에이전트: M2·M5·M8 (M4는 해당 없음)
+- 마지막 갱신: 2026-10-08
+- 누적 턴(대략): 2
 - 턴 상한: **1000** (사용자 지시, D-011). §16.1 축소는 턴 800 이후에만.
 - 다음 할 일:
-  1. M4: AudioEngine(capture worklet = CaptureCore, DSP worker, MessageChannel, 세그먼트 풀), 장치·권한·iOS audioSession, getSettings 진단
-  2. M4: 메트로놈 스케줄러(lookahead, 가짜 시계 10분 지터 테스트), 타이머(시계 차이), Wake Lock, 튜너·메트로놈 화면
-  3. M4: 온보딩/캘리브레이션 마법사(환경·튜닝·템플릿·RTT loopback + tap) + E2E-01
+  1. M5: 플러그인 계약(types·BaseRunner·레지스트리·ExerciseAudio 어댑터) + 연습 화면 라우트 + Attempt 저장
+  2. M5: E1(한 줄씩·스트럼 베타·수동·귀 먼저)/E2(자동 시작·자동/탭/수동·보정) + E2E-02/03/04/05
+  3. M5: E0, E4–E8, Q1–Q4, S, E2E-06/12/13, 리뷰 서브에이전트
 - 막힌 점: 없음
 
 ## 마일스톤
@@ -22,8 +23,8 @@
 | M0 | 부트스트랩·스파이크 | DONE | cc0a7d6 | 스파이크 3종 통과(D-014, D-015) |
 | M1 | 도메인·콘텐츠·데이터 | DONE | d37e9c1 | D-019–D-023 |
 | M2 | DSP 코어·합성기·벤치마크 | DONE | 557f39d | test split 첫 실행 전 지표 통과(8,950 cases, 62 s), 리뷰 반영 D-028 |
-| M3 | 실녹음 벤치마크 | DONE | (M3 커밋) | GuitarSet 하드 4/4·소프트 2/2(test), detector 1.3.1, test 3회 실행(D-029–D-031) |
-| M4 | 오디오 엔진·캘리브레이션 | TODO | | |
+| M3 | 실녹음 벤치마크 | DONE | 9c12306 | GuitarSet 하드 4/4·소프트 2/2(test), detector 1.3.1, test 3회 실행(D-029–D-031) |
+| M4 | 오디오 엔진·캘리브레이션 | DONE | (M4 커밋) | verify PASS(750 tests, E2E 6/6), 렌더 끊김 시계 정렬 수정(D-037), D-032–D-037 |
 | M5 | 연습 플러그인 | TODO | | |
 | M6 | 커리큘럼·루틴·진도 | TODO | | |
 | M7 | PWA·반응형·접근성·배포 준비 | TODO | | |
@@ -34,7 +35,7 @@
 | AC | 요약 | 상태 | 증거 |
 |---|---|---|---|
 | AC-P1 | 브랜치·커밋·main 불변·push 없음·clean | TODO | |
-| AC-P2 | `npm ci && npm run verify` exit 0 | DOING | M0: `npm run verify` exit 0, RESULT: PASS (NOT_YET: bench:dsp, bench:guitarset) — `tools/verify.ts`, `tools/verify.test.ts` |
+| AC-P2 | `npm ci && npm run verify` exit 0 | DOING | M4: `npm run verify` RESULT: PASS(8단계 전부 PASS, 750 tests, E2E 6/6·4 projects) — 최종 `npm ci && npm run verify`는 M8 |
 | AC-P3 | 라이선스 검사 통과 | DONE | `npm run licenses` (`tools/licenses.ts`): 78 prod packages 표 출력, 전부 허용. `tools/licenses.test.ts` (GPL/LGPL/AGPL/BlueOak 거부). svguitar 제거(D-013) |
 | AC-P4 | 무결성 테스트 통과 | DOING | M2: `tests/integrity/source-rules.test.ts`(§14.6-1,3,4,5,6 + 패턴 자기검사), `thresholds-contract.test.ts`(§14.6-2) 전부 통과 — 최종 확인 M8 |
 | AC-P5 | TS strict·noExplicitAny·린트 경고 0 | DOING | `tsconfig.base.json`(strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes), `biome.json` noExplicitAny=error, `lint` = `biome check --error-on-warnings` — 최종 확인은 M8 |
@@ -44,11 +45,11 @@
 | AC-D3 | 커리큘럼 데이터·진급 규칙 데이터화·연습곡 8곡 | DONE | `src/content/curriculum.ts`(Stage 0–7 진행, 8–11 locked), 규칙 데이터 `unlockRuleSchema`(종류만, 스테이지별 if 없음), 연습곡 10곡 `src/content/songs.ts`; `src/content/curriculum.test.ts`(스테이지 코드 제약·focus 쌍·패턴 검증) |
 | AC-D4 | anchors() 테스트 | DONE | `src/domain/voicing.test.ts` "D ↔ A: finger 1 stays on the 3rd string, 2nd fret; finger 3 slides", "G ↔ C has no anchor" |
 | AC-D5 | 코칭 힌트 규칙 테스트 | DONE | `src/domain/coaching.ts` + `src/domain/coaching.test.ts`(§6.7 각 행: MUTED 개방현/누르는 줄, WRONG_NOTE ±1·개방현, UNEXPECTED x줄, WEAK, 반복 실패 3회 팁 순환) + 문구 렌더 `ko.coaching.render` |
-| AC-A1 | 캡처 constraint·진단·장치 오류 처리 | TODO | |
-| AC-A2 | 메트로놈 스케줄러 | TODO | |
-| AC-A3 | 시계 차이 타이머·Wake Lock | TODO | |
-| AC-A4 | 온보딩/캘리브레이션 마법사·E2E-01 | TODO | |
-| AC-A5 | AudioWorklet 번들·무할당 | TODO | |
+| AC-A1 | 캡처 constraint·진단·장치 오류 처리 | DONE | `src/audio/devices.ts`(constraint EC/NS/AGC false·mono·sampleRate 미지정, 오류 분류, 블루투스 라벨, getSettings 진단) + `devices.test.ts`; `src/audio/engine.ts` + `engine.test.ts`(컨텍스트→audioSession play-and-record→getUserMedia 순서, 권한 거부 PERMISSION_DENIED, 장치 없음 NO_DEVICE, 트랙 ended → DEVICE_LOST·해제·재시작, OS interrupted → 탭으로 재개, 판정 중 합성 재생 차단); 진단 저장 `meta.captureDiagnostics`(`app/services.ts`)·표시 `features/settings/DiagnosticsScreen.tsx`, 복구 UI `features/mic/MicStatusPanel.tsx`; E2E-01이 요청 constraint 확인 |
+| AC-A2 | 메트로놈 스케줄러 | DONE | `src/audio/metronome.ts` + `metronome.test.ts`(가짜 시계·0–150 ms 지터·가끔 1 s 정지로 10분: 모든 클릭 그리드 오차 < 1e-9 s, 누락·중복 0, 4개 BPM; 템포 변경 다음 박부터; 카운트인 중 변경 지연; 카운트인·음소거 마디; 시각 전용; 6/8 악센트; 마디·시간 자동 정지; 탭 템포; 사다리), `metronomeRuntime.ts` + test(소리 예약·클릭 마스크 time+RTT·늦은 클릭 소리 생략·종료), Worker 타이머 `ticker/`, 화면 `features/metronome/MetronomeScreen.tsx`(rAF 시각 펄스), D-033 |
+| AC-A3 | 시계 차이 타이머·Wake Lock | DONE | `src/audio/timer.ts` + `timer.test.ts`(불규칙·스로틀 1 s 틱에서 60 s 종료 오차 ≤ 1 틱 주기, 5개 시드; 일시정지 제외; 속도 배율), `src/audio/wakeLock.ts` + `wakeLock.test.ts`(획득, 숨김 후 visible에서 재획득, 해제, 미지원·거부 시 조용히 진행); 메트로놈 실행 중 Wake Lock |
+| AC-A4 | 온보딩/캘리브레이션 마법사·E2E-01 | DONE | `src/features/onboarding/`(`OnboardingScreen.tsx`, `steps.tsx`, `calibrationModel.ts` + `calibrationModel.test.ts`: ±15 cents 판정, 샘플레이트 sanity, 템플릿 중앙값, loopback 2회 합의/탭 대체, 경고, Calibration 생성); 첫 실행 리다이렉트; **E2E-01** `tests/e2e/onboarding.mic.spec.ts` 통과(권한→소음→6줄 튜닝(δ = fixture 디튠 ±3 cents)→템플릿→loopback RTT 2회 측정(처음+다시 측정) 결과 모두 [120, 150] ms·차이 ≤ 3 ms, 모든 원시 시도 [120, 150] ms→IndexedDB Calibration 저장), 전체 E2E 병렬 `--repeat-each=3`·`=4` 42/42; 렌더 끊김 시계 정렬 수정 D-037; D-034, D-035, D-037 |
+| AC-A5 | AudioWorklet 번들·무할당 | DONE | build: E2E(dist-e2e)에서 worklet·worker 동작; dev: `npm run check:audio-dev`(`tools/devcheck/audio-dev.ts`) PASS 3/3(TS worklet·DSP module worker·ticker worker); 무할당·성능: `src/audio/captureProcessor.test.ts`(실제 worklet 모듈, 20 s 풀 고갈 경고 0, 블록 평균 ≈ 0.04 ms ≤ 0.3 ms, 세그먼트·튜너·구간 샘플 정확), 코드: 풀 버퍼 transfer/반환·level 객체 재사용(D-032, D-036); `src/audio/dspWorker.test.ts`(zod 거부, 모든 응답 detectorVersion·processingMs, 버퍼 반환) |
 | AC-S1 | Mode A 합성 지표 | DONE | M2 verify(2026-10-08) `npm run bench:dsp` test split(시드 9000–9999) — `docs/BENCHMARK.md`, `bench-results/dsp-test.json`: okFalseReject 0.000≤0.03, okRetry 0.0047≤0.10, wrongFalseAccept 0≤0.02, mutedFalseAccept 0≤0.05, weakFundOK 1.000≥0.95, mutedDetect 0.998≥0.80, wrongDetect 0.988≥0.90 (`src/dsp/modeA.ts`) |
 | AC-S2 | Mode B 합성 지표 | DONE | M2 verify(2026-10-08) `npm run bench:dsp` test split(시드 9000–9999) — `docs/BENCHMARK.md`, `bench-results/dsp-test.json`: cleanFail 0.0067≤0.03, cleanRetry 0.0825≤0.15, vMutedPass 0≤0.10, vMutedFlag 0.865≥0.85, xUnexpFail 0.910≥0.85, xPass 0.080≤0.10, wrongFretPass 0≤0.10, depMisattr 0.005≤0.05; 베타 라벨은 UI(M5) (`src/dsp/modeB.ts`, D-024/D-028) |
 | AC-S3 | Mode C 합성 지표 | DONE | M2 verify(2026-10-08) `npm run bench:dsp` test split(시드 9000–9999) — `docs/BENCHMARK.md`, `bench-results/dsp-test.json`: |err|≤1 0.983≥0.95, overcount≥2 0≤0.01, MAE 0.067≤0.6, classifySet top-1 0.998≥0.90 (`src/dsp/modeC.ts`, D-025) |
