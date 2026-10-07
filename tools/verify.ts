@@ -9,14 +9,20 @@
  * A step whose entry file does not exist yet is NOT_YET (allowed only before its milestone).
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { DOCS_REPORT } from './bench/reportPath';
 
 export const BLOCKED_EXIT_CODE = 3;
 const ROOT = join(import.meta.dirname, '..');
 const RESULTS_DIR = join(ROOT, 'bench-results');
 const LOG_DIR = join(RESULTS_DIR, 'verify-logs');
 const GUITARSET_MARKER = join(ROOT, 'data', 'guitarset', '.download-blocked');
+/**
+ * The benchmark steps write their report here (a copy of docs/BENCHMARK.md, so the GuitarSet section and the
+ * test-run log carry over) instead of the tracked file: a gate run must leave the work tree clean (D-050).
+ */
+export const GATE_REPORT = join(RESULTS_DIR, 'BENCHMARK.md');
 
 type StepStatus = 'PASS' | 'FAIL' | 'BLOCKED' | 'NOT_YET';
 
@@ -93,7 +99,11 @@ export function formatDuration(ms: number): string {
 
 function runStep(step: StepDef): Promise<{ code: number; output: string }> {
   return new Promise((resolvePromise) => {
-    const child = spawn(step.command, { cwd: ROOT, shell: true, env: { ...process.env, FORCE_COLOR: '0' } });
+    const child = spawn(step.command, {
+      cwd: ROOT,
+      shell: true,
+      env: { ...process.env, FORCE_COLOR: '0', BENCHMARK_REPORT: GATE_REPORT },
+    });
     let output = '';
     const onData = (chunk: Buffer) => {
       const text = chunk.toString();
@@ -141,6 +151,7 @@ export function renderSummary(sha: string, results: readonly StepResult[]): stri
 
 async function main(): Promise<void> {
   mkdirSync(LOG_DIR, { recursive: true });
+  if (existsSync(DOCS_REPORT)) copyFileSync(DOCS_REPORT, GATE_REPORT);
   const results: StepResult[] = [];
   for (const step of STEPS) {
     if (!step.requires.every((file) => existsSync(join(ROOT, file)))) {

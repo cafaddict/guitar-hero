@@ -1,12 +1,12 @@
 /**
- * Writes docs/BENCHMARK.md (generated) from a test-split run, preserving the "test-run log" section.
+ * Writes docs/BENCHMARK.md (generated; see reportPath.ts for the verify gate's copy) from a test-split run,
+ * preserving the "test-run log" section.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { CoverageReport } from '../../src/domain/coverage';
 import type { Breakdown, MetricResult } from './metrics';
+import { benchmarkReportPath } from './reportPath';
 
-const REPORT = join(import.meta.dirname, '..', '..', 'docs', 'BENCHMARK.md');
 const LOG_HEADER = '## test-run log';
 
 export interface ReportPayload {
@@ -35,9 +35,9 @@ const GS_START = '<!-- guitarset:start -->';
 const GS_END = '<!-- guitarset:end -->';
 
 /** The GuitarSet section written by bench:guitarset (kept verbatim across bench:dsp runs). */
-function existingGuitarSetSection(): string | null {
-  if (!existsSync(REPORT)) return null;
-  const text = readFileSync(REPORT, 'utf8');
+function existingGuitarSetSection(report: string): string | null {
+  if (!existsSync(report)) return null;
+  const text = readFileSync(report, 'utf8');
   const start = text.indexOf(GS_START);
   const end = text.indexOf(GS_END);
   return start >= 0 && end > start ? text.slice(start, end + GS_END.length) : null;
@@ -56,13 +56,14 @@ export function parseLog(text: string): string[] {
     .filter((l) => LOG_LINE.test(l));
 }
 
-function existingLog(): string[] {
-  if (!existsSync(REPORT)) return [];
-  return parseLog(readFileSync(REPORT, 'utf8'));
+function existingLog(report: string): string[] {
+  if (!existsSync(report)) return [];
+  return parseLog(readFileSync(report, 'utf8'));
 }
 
 /** Replaces the generated part of BENCHMARK.md and appends one line to the test-run log. */
 export function writeBenchmarkReport(p: ReportPayload): void {
+  const report = benchmarkReportPath();
   const failed = p.metrics.filter((m) => !m.pass);
   const lines: string[] = [];
   lines.push('# BENCHMARK — 합성 DSP 벤치마크 (생성 파일)');
@@ -120,9 +121,9 @@ export function writeBenchmarkReport(p: ReportPayload): void {
     lines.push('</details>');
     lines.push('');
   }
-  const guitarset = existingGuitarSetSection();
+  const guitarset = existingGuitarSetSection(report);
   if (guitarset) lines.push(guitarset, '');
-  const log = existingLog();
+  const log = existingLog(report);
   log.push(
     `- ${p.createdAt} · detector ${p.detectorVersion} · split ${p.split} · ${failed.length === 0 ? 'PASS (all thresholds met)' : `FAIL (${failed.map((m) => `${m.area}.${m.key}`).join(', ')})`}`,
   );
@@ -130,5 +131,5 @@ export function writeBenchmarkReport(p: ReportPayload): void {
   lines.push('');
   lines.push(...log);
   lines.push('');
-  writeFileSync(REPORT, lines.join('\n'));
+  writeFileSync(report, lines.join('\n'));
 }

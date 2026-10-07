@@ -34,7 +34,7 @@
 | `npm run fixtures:generate` | E2E용 WAV fixture 결정적 생성 |
 | `npm run test:e2e` | Playwright E2E(가짜 마이크·실제 getUserMedia·iPad/iPhone WebKit) |
 | `npm run licenses` | 프로덕션 의존성 라이선스 검사(GPL/AGPL 금지) |
-| `npm run verify` | 전체 품질 게이트 + 요약표(`bench-results/verify-summary.txt`) |
+| `npm run verify` | 전체 품질 게이트 + 요약표(`bench-results/verify-summary.txt`). 게이트의 벤치 보고서는 `bench-results/BENCHMARK.md`에 쓰고, `docs/BENCHMARK.md`는 `bench:dsp`·`bench:guitarset`를 직접 실행할 때 갱신된다 |
 | `npm run check:audio-dev` | dev 서버에서 AudioWorklet·DSP worker·메트로놈 worker 로드 점검 |
 | `npx tsx tools/icons/generate.ts` | 앱 아이콘(SVG·PNG) 다시 만들기 |
 

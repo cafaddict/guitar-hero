@@ -12,27 +12,32 @@
 
 ## 2. verify 요약표 (§14.7)
 
-M8 커밋 직전의 작업 트리(HEAD 1482c94 + M8 변경)에서 실행한 `npm run verify` 결과다(`bench-results/verify-summary.txt`). M8 커밋 HEAD에서 실행하는 최종 `npm ci && npm run verify` 결과는 마지막 출력(§18.2)에 있다.
+마지막 M8 커밋 직전의 작업 트리(HEAD 81628a2 + D-050 변경)에서 실행한 `npm run verify` 결과다(`bench-results/verify-summary.txt`). 마지막 M8 커밋 HEAD에서 실행하는 최종 `npm ci && npm run verify` 결과는 마지막 출력(§18.2)에 있다.
 
 ```
-VERIFY SUMMARY (guitar-hero @ 1482c94)
+VERIFY SUMMARY (guitar-hero @ 81628a2)
 step              status    time
 licenses          PASS      0s     (49 prod packages, all allowed)
 typecheck         PASS      1s
 lint              PASS      0s
-test              PASS      3s     (1125/1125 tests)
-bench:dsp         PASS      1m41s  (all thresholds met)
-bench:guitarset   PASS      26s    (hard 4/4, soft 2/2)
+test              PASS      2s     (1131/1131 tests)
+bench:dsp         PASS      1m24s  (all thresholds met)
+bench:guitarset   PASS      24s    (hard 4/4, soft 2/2)
 build             PASS      2s
 test:e2e          PASS      1m29s  (35/35 tests, 4 projects)
 RESULT: PASS
 ```
 
-- 같은 M8 작업 중 첫 verify는 `test:e2e` 33/35로 실패했다. 원인은 데이터 초기화에 넣은 OPFS 파일 삭제였다. Playwright WebKit에서 `getDirectory`가 거부되어 E2E-08이 멈췄다. 삭제를 최선 노력으로 바꾼 뒤 위 결과로 통과했다(D-049).
+- M8 중 verify는 세 번 돌았다.
+  - 첫 번째는 `test:e2e` 33/35로 실패했다. 데이터 초기화에 넣은 OPFS 파일 삭제가 Playwright WebKit에서 `getDirectory` 거부로 E2E-08을 멈췄다. 삭제를 최선 노력으로 바꿨다(D-049).
+  - 두 번째는 PASS였다(1125 tests, E2E 35/35).
+  - 세 번째가 위 표다. 그 사이 verify가 벤치 보고서를 `bench-results/BENCHMARK.md` 사본에 쓰도록 바꿨다. 최종 verify 뒤에도 작업 트리가 깨끗해야 하기 때문이다(D-050).
 
 ## 3. 지표표
 
 ### 3.1 합성 벤치마크 (`npm run bench:dsp`, test split)
+
+아래 표는 커밋된 기록용 보고서 `docs/BENCHMARK.md`(M8 두 번째 verify의 실행)에서 옮겼다. 그 뒤 게이트 실행의 값은 `bench-results/BENCHMARK.md`에 있다. 판정기 코드가 같으므로 성능(perf) 행의 ms 값만 실행마다 조금씩 다르다.
 
 - 실행: 2026-10-07T20:13:07.863Z · split **test** · detectorVersion **1.3.1** · 8950 cases · 101 s
 
@@ -107,7 +112,7 @@ RESULT: PASS
 | AC | 요약 | 상태 | 증거 |
 |---|---|---|---|
 | AC-P1 | 브랜치·커밋·main 불변·push 없음·clean | DONE | `feat/practice-app-v1`에 M0–M8 커밋(`git log --oneline main..HEAD`), `git rev-parse --short main` = 9e7eda6(불변), `git remote -v` 비어 있음·`git branch -vv`에 upstream 없음, M8 커밋 후 `git status --short` 비어 있음 — 최종 확인 출력은 §18.2 |
-| AC-P2 | `npm ci && npm run verify` exit 0 | DONE | M8 커밋 직전 `npm run verify` RESULT: PASS(§14.7 8단계 전부 PASS, 1125 tests, E2E 35/35·4 projects, `bench-results/verify-summary.txt`, `docs/goal/FINAL_REPORT.md` §2); HEAD에서 `npm ci && npm run verify` 최종 실행 결과는 §18.2 출력 |
+| AC-P2 | `npm ci && npm run verify` exit 0 | DONE | 마지막 M8 커밋 직전 `npm run verify` RESULT: PASS(§14.7 8단계 전부 PASS, 1131 tests, E2E 35/35·4 projects, `bench-results/verify-summary.txt`, `docs/goal/FINAL_REPORT.md` §2); HEAD에서 `npm ci && npm run verify` 최종 실행 결과는 §18.2 출력 |
 | AC-P3 | 라이선스 검사 통과 | DONE | `npm run licenses` (`tools/licenses.ts`): prod packages 표 출력(M8 verify: 49 packages), 전부 허용. `tools/licenses.test.ts` (GPL/LGPL/AGPL/BlueOak 거부). svguitar 제거(D-013) |
 | AC-P4 | 무결성 테스트 통과 | DONE | `tests/integrity/source-rules.test.ts`(§14.6-1,3,4,5,6 + 패턴 자기검사), `thresholds-contract.test.ts`(§14.6-2) — M8 verify의 test 단계에서 전부 통과 |
 | AC-P5 | TS strict·noExplicitAny·린트 경고 0 | DONE | `tsconfig.base.json`(strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes), `biome.json` noExplicitAny=error, `lint` = `biome check --error-on-warnings` — M8 verify typecheck·lint 단계 PASS |
@@ -179,7 +184,7 @@ cc0a7d6 M0: bootstrap scaffold, quality tooling and audio spikes
 9432bcd wip(M0): import research and goal docs
 ```
 
-M8 커밋(이 보고서를 담은 커밋, `M8: hardening, final review fixes and documentation`)이 위 목록 맨 위에 더해진다. 최종 목록은 §18.2 출력에 있다.
+이 보고서를 담은 두 번째 M8 커밋(`M8: verify gate leaves the work tree clean`, D-050)이 위 목록 맨 위에 더해진다. 최종 목록은 §18.2 출력에 있다.
 
 ## 6. 주요 결정 요약
 

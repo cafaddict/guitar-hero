@@ -1,14 +1,14 @@
 /**
- * Writes the GuitarSet section of docs/BENCHMARK.md between markers (bench:dsp preserves it).
+ * Writes the GuitarSet section of docs/BENCHMARK.md between markers (bench:dsp preserves it). The verify gate
+ * writes into its copy instead (tools/bench/reportPath.ts).
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { benchmarkReportPath } from '../bench/reportPath';
 import type { GuitarSetMetric } from './bench';
 import type { ClipOutcome } from './evaluate';
 
 export const GUITARSET_START = '<!-- guitarset:start -->';
 export const GUITARSET_END = '<!-- guitarset:end -->';
-const REPORT = join(import.meta.dirname, '..', '..', 'docs', 'BENCHMARK.md');
 
 const fmt = (v: number) => (Number.isFinite(v) ? v.toFixed(4) : String(v));
 
@@ -74,12 +74,13 @@ export function writeGuitarSetSection(
   outcomes: readonly ClipOutcome[],
 ): void {
   const section = renderGuitarSetSection(p, outcomes);
-  const text = existsSync(REPORT) ? readFileSync(REPORT, 'utf8') : '# BENCHMARK\n';
+  const report = benchmarkReportPath();
+  const text = existsSync(report) ? readFileSync(report, 'utf8') : '# BENCHMARK\n';
   const start = text.indexOf(GUITARSET_START);
   const end = text.indexOf(GUITARSET_END);
   const next =
     start >= 0 && end > start
       ? `${text.slice(0, start)}${section}${text.slice(end + GUITARSET_END.length)}`
       : `${text.trimEnd()}\n\n${section}\n`;
-  writeFileSync(REPORT, next);
+  writeFileSync(report, next);
 }

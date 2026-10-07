@@ -26,14 +26,14 @@
 | M5 | 연습 플러그인 | DONE | f911cd5 | 13종, verify PASS(1002 tests, E2E 13/13), 리뷰 반영(D-045), D-038–D-045 |
 | M6 | 커리큘럼·루틴·진도 | DONE | 130edec | verify PASS(1082 tests, E2E 20/20), D-046, D-047 |
 | M7 | PWA·반응형·접근성·배포 준비 | DONE | 1482c94 | verify PASS(1113 tests, E2E 32/32), D-048 |
-| M8 | 하드닝·최종 검증 | DONE | (M8 커밋, §18.2 출력) | 최종 리뷰 반영(D-049), verify PASS(1125 tests, E2E 35/35), 문서·FINAL_REPORT |
+| M8 | 하드닝·최종 검증 | DONE | 81628a2 + 마지막 M8 커밋(§18.2 출력) | 최종 리뷰 반영(D-049), verify 게이트는 추적 파일을 바꾸지 않음(D-050), verify PASS(1131 tests, E2E 35/35), 문서·FINAL_REPORT |
 
 ## Acceptance Criteria
 
 | AC | 요약 | 상태 | 증거 |
 |---|---|---|---|
 | AC-P1 | 브랜치·커밋·main 불변·push 없음·clean | DONE | `feat/practice-app-v1`에 M0–M8 커밋(`git log --oneline main..HEAD`), `git rev-parse --short main` = 9e7eda6(불변), `git remote -v` 비어 있음·`git branch -vv`에 upstream 없음, M8 커밋 후 `git status --short` 비어 있음 — 최종 확인 출력은 §18.2 |
-| AC-P2 | `npm ci && npm run verify` exit 0 | DONE | M8 커밋 직전 `npm run verify` RESULT: PASS(§14.7 8단계 전부 PASS, 1125 tests, E2E 35/35·4 projects, `bench-results/verify-summary.txt`, `docs/goal/FINAL_REPORT.md` §2); HEAD에서 `npm ci && npm run verify` 최종 실행 결과는 §18.2 출력 |
+| AC-P2 | `npm ci && npm run verify` exit 0 | DONE | 마지막 M8 커밋 직전 `npm run verify` RESULT: PASS(§14.7 8단계 전부 PASS, 1131 tests, E2E 35/35·4 projects, `bench-results/verify-summary.txt`, `docs/goal/FINAL_REPORT.md` §2); HEAD에서 `npm ci && npm run verify` 최종 실행 결과는 §18.2 출력 |
 | AC-P3 | 라이선스 검사 통과 | DONE | `npm run licenses` (`tools/licenses.ts`): prod packages 표 출력(M8 verify: 49 packages), 전부 허용. `tools/licenses.test.ts` (GPL/LGPL/AGPL/BlueOak 거부). svguitar 제거(D-013) |
 | AC-P4 | 무결성 테스트 통과 | DONE | `tests/integrity/source-rules.test.ts`(§14.6-1,3,4,5,6 + 패턴 자기검사), `thresholds-contract.test.ts`(§14.6-2) — M8 verify의 test 단계에서 전부 통과 |
 | AC-P5 | TS strict·noExplicitAny·린트 경고 0 | DONE | `tsconfig.base.json`(strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes), `biome.json` noExplicitAny=error, `lint` = `biome check --error-on-warnings` — M8 verify typecheck·lint 단계 PASS |
@@ -93,7 +93,7 @@
 
 ## 턴 로그 (최근 것이 위, 한 줄씩)
 
-- 턴 3: M8 — 최종 리뷰(code-reviewer) 지적 확인·수정(D-049: 통증 감량 실행 반영, 합치기 progression/meta, 세션 완료 수·실행 중 이동 잠금·페달 키, 시험 중단, 녹음 키트 실패·구멍, 연습 시간), 레벨 미터 rAF+canvas, 문서·FINAL_REPORT, verify PASS.
+- 턴 3: M8 — 최종 리뷰(code-reviewer) 지적 확인·수정(D-049: 통증 감량 실행 반영, 합치기 progression/meta, 세션 완료 수·실행 중 이동 잠금·페달 키, 시험 중단, 녹음 키트 실패·구멍, 연습 시간), 레벨 미터 rAF+canvas, 문서·FINAL_REPORT, verify 게이트 보고서 사본(D-050), verify PASS.
 - 턴 2: M4–M7 완료(오디오 엔진·캘리브레이션, 연습 13종, 커리큘럼·루틴·진도, PWA·반응형·접근성·배포 준비).
 
 - 턴 1(계속): M3 완료 — GuitarSet 파이프라인, onset 재튜닝(합성+GuitarSet dev), Mode A 강건화, bench:real; GuitarSet test 하드 4/4.

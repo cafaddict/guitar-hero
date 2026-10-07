@@ -329,3 +329,16 @@
 - 레벨 미터(§5.1 60 fps 시각 요소)는 React state 대신 rAF + canvas로 그린다. 수치 텍스트와 `<meter>`는 250 ms마다 ref로만 갱신한다.
 - `docs/BENCHMARK.md`의 test-run log 절은 정해진 형식의 줄만 이어받는다(`parseLog`). 예전에 섞여 들어간 GuitarSet 절 조각은 다음 bench:dsp 실행에서 빠진다.
 - 문서를 마무리했다: README(최종), `docs/ARCHITECTURE.md`, `docs/DSP.md` §14(실시간 경로 값), `docs/BACKLOG.md`(v2, DEFERRED 없음), `docs/MANUAL_VALIDATION.md`(실기기 체크리스트 + 결과 양식), `docs/goal/FINAL_REPORT.md`.
+
+## D-050 verify 게이트는 추적 파일을 바꾸지 않는다(벤치 보고서는 bench-results 사본에)
+- 문제: `bench:dsp`·`bench:guitarset`는 실행할 때마다 `docs/BENCHMARK.md`를 다시 쓴다(실행 시각, 성능 값, test-run log 한 줄). 그래서 M8 커밋 뒤의 최종 `npm ci && npm run verify`도 이 추적 파일을 바꾸게 된다. 그런데 §16.2-3은 최종 verify 뒤에 파일 수정과 커밋을 금지하고, §18.2·AC-P1은 `git status --short`가 비어 있기를 요구한다. 세 조건을 함께 지킬 수 없다.
+- 대안:
+
+| 대안 | 깨끗한 트리 | 최종 뒤 수정 없음 | 모든 test 실행 기록 |
+|---|---|---|---|
+| verify가 `docs/BENCHMARK.md`를 그대로 씀 | 아니오 | 예 | 예(커밋 안 된 변경) |
+| 최종 verify 뒤 `git checkout -- docs/BENCHMARK.md` | 예 | 아니오 | 아니오(그 실행 기록이 사라짐) |
+| **verify는 벤치 보고서를 `bench-results/BENCHMARK.md` 사본에 씀** | 예 | 예 | 예(게이트 실행은 사본의 log에 남음) |
+
+- 결정: 세 번째 대안. verify는 시작할 때 `docs/BENCHMARK.md`를 `bench-results/BENCHMARK.md`로 복사한다(GuitarSet 절과 test-run log 이력이 이어진다). 그다음 벤치 단계에 `BENCHMARK_REPORT`를 넘겨 그 사본에 쓰게 한다(`tools/bench/reportPath.ts`). `npm run bench:dsp`나 `bench:guitarset`를 직접 실행하면 지금처럼 `docs/BENCHMARK.md`(기록용 보고서)를 갱신한다. 임계값 판정과 exit code는 바뀌지 않는다. 바뀌는 것은 보고서 파일 위치뿐이다.
+- 커밋된 `docs/BENCHMARK.md`는 M8 커밋 직전 verify의 실행 결과다(detector 1.3.1, test split 전부 통과, GuitarSet 하드 4/4·소프트 2/2). 최종 게이트 실행의 보고서와 log는 `bench-results/BENCHMARK.md`에 있다.
