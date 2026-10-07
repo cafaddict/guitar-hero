@@ -165,7 +165,7 @@ export function MetronomeScreen() {
   return (
     <Screen title={ko.metronome.title}>
       <section className="rounded-lg bg-surface p-4">
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           {[-5, -1].map((d) => (
             <Button
               key={d}
@@ -177,7 +177,7 @@ export function MetronomeScreen() {
               {d}
             </Button>
           ))}
-          <p className="min-w-28 text-center">
+          <p className="order-first w-full min-w-28 text-center sm:order-none sm:w-auto">
             <span className="block text-5xl font-bold tabular-nums" data-testid="metronome-bpm">
               {config.bpm}
             </span>

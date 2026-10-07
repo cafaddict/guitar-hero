@@ -293,3 +293,13 @@
 - 설정: 테마·왼손잡이·엄격도·시각 전용·x줄 확인·세션 길이·마이크 없이, 상시 "마이크 판정은 보조 수단" 안내, 키·페달(기본 키 표 + 학습 모드: 아무 키나 눌러 동작에 연결, `customKeys`), 백업(내보내기 → `lastBackupAt` 기록, 가져오기 미리보기 → 합치기 또는 2단계 확인 바꾸기), 데이터 초기화 2단계 확인. 시작 시 `navigator.storage.persist()` 요청, 결과 표시 + iPad 홈 화면 추가 안내.
 - 녹음 키트(§13.4): 캡처 링이 4초라 2초 'raw' 구간을 미리 연달아 요청해 이어 붙인다(`RawRecorder`, 샘플 연속성 테스트). 오디오는 OPFS에 16-bit WAV, 메타는 Dexie `recordings`. 내보내기는 의존성 없는 store 방식 zip(`src/data/zip.ts`, 독립 리더로 왕복 테스트) + `labels.json`(`tools/bench/real.ts`의 스키마로 검증). 메트로놈 클립은 그리드 시작(녹음 기준)과 RTT를 같이 기록.
 - E2E-08은 내보내기 → 2단계 초기화 → 가져오기(미리보기 + 2단계 바꾸기) 뒤 11개 테이블 건수와 진도 화면 텍스트(세션·히트맵·패턴)가 같은지 본다.
+
+## D-048 M7 PWA·반응형·접근성·배포 준비
+- 아이콘: 하나의 도형 목록(코드 다이어그램)에서 SVG와 PNG(192·512·maskable 512·apple-touch 180)를 만든다(`tools/icons/generate.ts`, 의존성 없음: 해석적 도형 + 4×4 슈퍼샘플링 + node:zlib PNG). maskable은 내용을 80 % 안전 영역으로 축소.
+- 서비스 워커는 `registerType: 'prompt'` + 앱 셸에서 등록(`app/pwa.tsx`). 새 버전은 저절로 새로고침하지 않고 **홈 화면에서만** "새 버전이 있어요" 토스트를 띄운다(연습 중 강제 새로고침 금지).
+- E2E-09(오프라인)은 Chromium에서만 돈다: Playwright WebKit은 오프라인 컨텍스트에서 서비스 워커를 거치는 새로고침이 "WebKit encountered an internal error"로 실패한다(하네스 한계, 실제 Safari의 Workbox navigateFallback과 무관). SPEC §14.5에 따라 `.skip`이 아니라 `playwright.config.ts`의 WebKit 프로젝트 `testIgnore`로 뺐다.
+- E2E-10: 주요 화면 18개(연습 화면은 실행 상태) × 4 뷰포트(1440×900, 1180×820, 820×1180, 390×844)에서 `scrollWidth ≤ innerWidth`, 연습 화면의 큰 버튼(min-h-16)이 64×64 px 이상, 전체 화면 스크린샷 저장(`test-results/screens/`). iPhone 메트로놈 BPM 줄이 12 px 넘쳐서 좁은 화면에서는 BPM 숫자를 윗줄로 보낸다.
+- E2E-11: 같은 18개 화면 × 테마 3개(다크·라이트·고대비)에서 axe(wcag2a/aa, 21a/aa) serious·critical 0. 진도 차트는 텍스트 대응물이 있으므로 그림을 보조 기술에서 숨기고 Recharts 키보드 접근 레이어를 껐다(aria-hidden 안의 포커스 요소 위반 해결).
+- 보안 헤더(`public/_headers`, `vercel.json`): `default-src 'self'` CSP(스크립트·워커·워클릿 같은 출처만, `eval`·인라인 스크립트 금지, 인라인 `style` 속성만 허용), `Permissions-Policy: microphone=(self)` 등. 실제 헤더 파일을 문서 응답에 붙인 E2E로 워클릿·DSP 워커·메트로놈 워커·차트·합성 재생이 위반 0인지 확인한다. Zod 4는 객체 파서를 `new Function`으로 컴파일하려고 시도해(기능 탐지 자체가 CSP 위반) 앱과 워커 진입점에서 `z.config({ jitless: true })`.
+- 키·페달(§12.3): 기본 키 표 + 학습 모드(아무 키나 → 동작, `settings.customKeys`, 기본 키보다 우선). E2E로 학습한 키가 E2 카운트·확인에 쓰이고 Esc가 확인을 거치는지 본다.
+- 문구 규칙(AC-U5)은 `src/i18n/ko.test.ts`가, 왼손잡이 미러(AC-U6)는 `src/ui/ChordDiagram.test.tsx`가, 테마 적용은 E2E-11(설정에서 테마 선택 → `html[data-theme]`)이 확인한다.

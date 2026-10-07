@@ -55,6 +55,12 @@ export const ko = {
     ms: (ms: number) => `${ms.toFixed(1)} ms`,
     dbfs: (db: number) => `${db.toFixed(1)} dBFS`,
   },
+  pwa: {
+    updateReady: '새 버전이 있어요. 연습을 마친 뒤 업데이트하세요.',
+    update: '지금 업데이트',
+    later: '나중에',
+    offlineReady: '이제 인터넷 없이도 쓸 수 있어요.',
+  },
   home: {
     firstRun: '처음이라면 마이크와 튜닝부터 맞춰요.',
     startOnboarding: '처음 설정 시작',
@@ -68,6 +74,7 @@ export const ko = {
     checklist: '진급 체크리스트',
     weakPairs: '약한 체인지 Top 3',
     notPracticed: '아직 안 함',
+    noPairs: '코드를 두 개 배우면 체인지 쌍이 생겨요.',
     perMinute: (v: number) => `분당 ${v.toFixed(0)}회`,
     week: (minutes: number) => `이번 주 ${minutes}분`,
     streak: (weeks: number) => `주간 스트릭 ${weeks}주`,

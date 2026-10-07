@@ -67,6 +67,7 @@ test("E2E-07: today's routine end to end with the keyboard only (manual items, t
   expect(planned).toBeGreaterThan(3);
 
   await page.goto('/#/session?timeScale=0.25');
+  await expect(page.getByTestId('session-header')).toBeVisible(); // the routine loads asynchronously
   const played: string[] = [];
   while (await page.getByTestId('session-header').isVisible()) played.push(await playItem(page));
 

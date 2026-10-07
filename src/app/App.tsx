@@ -14,6 +14,7 @@ import { DiagnosticsScreen } from '../features/settings/DiagnosticsScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { TunerScreen } from '../features/tuner/TunerScreen';
 import { ko } from '../i18n/ko';
+import { PwaRegistration } from './pwa';
 import { useSettingsStore } from './settingsStore';
 
 const NAV = [
@@ -66,6 +67,7 @@ function AppLayout() {
           ))}
         </nav>
       </header>
+      <PwaRegistration />
       <Outlet />
     </>
   );

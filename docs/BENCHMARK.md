@@ -2,7 +2,7 @@
 
 > `npm run bench:dsp`(test split)가 생성한다. 손으로 고치지 않는다. GuitarSet 결과는 `npm run bench:guitarset`가 아래 별도 절에 쓴다.
 
-- 실행: 2026-10-07T19:23:14.090Z · split **test** · detectorVersion **1.3.1** · 8950 cases · 90 s
+- 실행: 2026-10-07T19:42:09.547Z · split **test** · detectorVersion **1.3.1** · 8950 cases · 84 s
 - 결과: **ALL THRESHOLDS MET** (임계값: `docs/goal/thresholds.json`)
 
 ## 지표 요약
@@ -40,9 +40,9 @@
 | tuner | timeToStableMsP95Max | 125.3 | 300.0 | PASS | 1000 |
 | rtt | absErrP95MsMax | 0.0278 | 2.000 | PASS | 200 |
 | rtt | silentFailureReportRateMin | 1.000 | 1.000 | PASS | 60 |
-| perf | verifyStrumMedianMsMax | 9.444 | 20.000 | PASS | 1 |
-| perf | verifyPluckMedianMsMax | 2.273 | 10.000 | PASS | 1 |
-| perf | workletBlockAvgMsMax | 0.0363 | 0.3000 | PASS | 1 |
+| perf | verifyStrumMedianMsMax | 9.373 | 20.000 | PASS | 1 |
+| perf | verifyPluckMedianMsMax | 2.262 | 10.000 | PASS | 1 |
+| perf | workletBlockAvgMsMax | 0.0362 | 0.3000 | PASS | 1 |
 | coverage | modeBVerifiableRatioAtLeastDefaultRule | 0.4565 | 0.4565 | PASS | 9 |
 
 ## 스트럼 모드 검증 가능 줄 커버리지 (Stage 0–7, §6.3 기본 규칙)
@@ -2335,7 +2335,7 @@
 <!-- guitarset:start -->
 ## GuitarSet 실녹음 벤치마크 (`npm run bench:guitarset`, 생성)
 
-- 실행: 2026-10-07T19:23:39.553Z · detector **1.3.1** · 360 clips · 데이터: Zenodo 3371780 (GuitarSet 1.1.0, **CC BY 4.0**, Xi et al. 2018) — `audio_mono-mic` + `annotation`
+- 실행: 2026-10-07T19:42:33.440Z · detector **1.3.1** · 360 clips · 데이터: Zenodo 3371780 (GuitarSet 1.1.0, **CC BY 4.0**, Xi et al. 2018) — `audio_mono-mic` + `annotation`
 - 판정은 **test 플레이어(04, 05)**, 튜닝은 dev 플레이어(00–03)만 썼다.
 - Funk comp 클립은 주석 없는 뮤트 "칙" 소리가 많아 onset F1에서 제외했다(SPEC §14.4).
 - **한계**: GuitarSet 마이크는 스튜디오 콘덴서(근접, 조용한 방)라 휴대폰·노트북 내장 마이크보다 깨끗하다. 실기기 성능은 `bench:real`(녹음 키트)로 확인해야 한다.
@@ -2389,3 +2389,4 @@
 - 2026-10-07T18:07:03.770Z · detector 1.3.1 · split test · PASS (all thresholds met)
 - 2026-10-07T18:57:31.772Z · detector 1.3.1 · split test · PASS (all thresholds met)
 - 2026-10-07T19:23:14.090Z · detector 1.3.1 · split test · PASS (all thresholds met)
+- 2026-10-07T19:42:09.547Z · detector 1.3.1 · split test · PASS (all thresholds met)

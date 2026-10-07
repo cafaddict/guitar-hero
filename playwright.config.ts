@@ -7,6 +7,11 @@ const fakeCaptureWav = join(import.meta.dirname, 'tests', 'fixtures', 'generated
 
 /** Specs that need the injected fake-mic harness or Chromium-only features. */
 const CHROMIUM_ONLY = [/\.mic\.spec\.ts$/, /fake-capture\.spec\.ts$/, /prod-build\.spec\.ts$/];
+/**
+ * Playwright's WebKit cannot navigate through a service worker while the context is offline ("WebKit
+ * encountered an internal error" on reload, D-048), so the offline PWA check runs on Chromium only.
+ */
+const WEBKIT_IGNORE = [...CHROMIUM_ONLY, /offline\.spec\.ts$/];
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -65,12 +70,12 @@ export default defineConfig({
     },
     {
       name: 'webkit-ipad',
-      testIgnore: CHROMIUM_ONLY,
+      testIgnore: WEBKIT_IGNORE,
       use: { ...devices['iPad Pro 11 landscape'], viewport: { width: 1180, height: 820 } },
     },
     {
       name: 'webkit-iphone',
-      testIgnore: CHROMIUM_ONLY,
+      testIgnore: WEBKIT_IGNORE,
       use: { ...devices['iPhone 14'], viewport: { width: 390, height: 844 } },
     },
   ],

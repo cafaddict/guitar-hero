@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
-      includeAssets: ['icon.svg', 'icon-maskable.svg'],
+      includeAssets: ['icon.svg', 'icon-maskable.svg', 'apple-touch-icon.png'],
       manifest: {
         name: '기타 연습',
         short_name: '기타',

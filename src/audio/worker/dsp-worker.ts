@@ -2,6 +2,7 @@
  * DSP worker (SPEC §8.3): a thin adapter that runs the pure src/dsp functions on segments sent directly by
  * the capture worklet and posts judgements to the main thread.
  */
+import '../../app/zodConfig';
 import { STANDARD_TUNING } from '../../domain/theory';
 import { verifyPluck, verifySilentString } from '../../dsp/modeA';
 import { verifyStrum } from '../../dsp/modeB';

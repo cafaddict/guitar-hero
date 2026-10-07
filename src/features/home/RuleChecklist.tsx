@@ -21,6 +21,9 @@ export function ruleText(evaluation: RuleEvaluation): string {
   }
 }
 
+/** Rules whose `missing` entries are meaningful to show (pairs, chord classes); others only name the subject. */
+const LISTS_MISSING = new Set(['unlockedPairsAtLeast', 'recallUnlocked']);
+
 /** Stage criteria with progress; met rules carry a check mark and text (not colour alone). */
 export function RuleChecklist({ rules }: { rules: readonly RuleEvaluation[] }) {
   return (
@@ -39,7 +42,7 @@ export function RuleChecklist({ rules }: { rules: readonly RuleEvaluation[] }) {
               />
             </span>
           )}
-          {!r.met && r.missing.length > 0 && r.missing.length <= 8 && (
+          {!r.met && LISTS_MISSING.has(r.rule.kind) && r.missing.length > 0 && r.missing.length <= 8 && (
             <span className="text-xs text-muted">{ko.rules.missing(r.missing.join(', '))}</span>
           )}
         </li>

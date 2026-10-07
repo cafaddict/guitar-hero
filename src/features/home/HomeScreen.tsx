@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router';
+import { UpdateToast } from '../../app/pwa';
 import { repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
 import { loadStoredState } from '../../app/storedState';
@@ -140,6 +141,7 @@ export function HomeScreen() {
 
   return (
     <Screen title={ko.app.title}>
+      <UpdateToast />
       {needsOnboarding && (
         <section className="mb-4 rounded-lg bg-surface p-4">
           <p>{ko.home.firstRun}</p>
@@ -193,6 +195,9 @@ export function HomeScreen() {
           </section>
           <section className="rounded-lg bg-surface p-4">
             <h2 className="text-lg font-bold">{ko.home.weakPairs}</h2>
+            {weakPairs(data.skills, data.curriculum, data.progression.stage).length === 0 && (
+              <p className="mt-1 text-sm text-muted">{ko.home.noPairs}</p>
+            )}
             <ul className="mt-1">
               {weakPairs(data.skills, data.curriculum, data.progression.stage).map((p) => (
                 <li key={p.pairId} className="flex justify-between">

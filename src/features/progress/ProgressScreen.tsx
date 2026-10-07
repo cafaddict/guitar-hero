@@ -42,7 +42,10 @@ function Card({ title, children, testId }: { title: string; children: React.Reac
   );
 }
 
-/** Progress dashboard (SPEC §12.1). Every chart has a text equivalent (table/list) for screen readers. */
+/**
+ * Progress dashboard (SPEC §12.1). Every chart has a text equivalent (table/list/sr-only text) for screen
+ * readers, so the drawings are hidden from assistive tech and kept out of the tab order.
+ */
 export function ProgressScreen() {
   const [state, setState] = useState<StoredState | null>(null);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
@@ -73,7 +76,7 @@ export function ProgressScreen() {
         <Card title={ko.progressScreen.weekly} testId="progress-weekly">
           <div className="h-48" aria-hidden="true">
             <ResponsiveContainer>
-              <BarChart data={weeks}>
+              <BarChart data={weeks} accessibilityLayer={false}>
                 <CartesianGrid stroke="var(--surface-2)" />
                 <XAxis dataKey="label" {...axis} />
                 <YAxis {...axis} />
@@ -103,7 +106,7 @@ export function ProgressScreen() {
               </select>
               <div className="h-48" aria-hidden="true">
                 <ResponsiveContainer>
-                  <ComposedChart data={trend.map((p, i) => ({ ...p, n: i + 1 }))}>
+                  <ComposedChart data={trend.map((p, i) => ({ ...p, n: i + 1 }))} accessibilityLayer={false}>
                     <CartesianGrid stroke="var(--surface-2)" />
                     <XAxis dataKey="n" {...axis} />
                     <YAxis {...axis} />
@@ -175,7 +178,7 @@ export function ProgressScreen() {
           ) : (
             <div className="h-48" aria-hidden="true">
               <ResponsiveContainer>
-                <LineChart data={timing}>
+                <LineChart data={timing} accessibilityLayer={false}>
                   <CartesianGrid stroke="var(--surface-2)" />
                   <XAxis dataKey="day" {...axis} />
                   <YAxis {...axis} />

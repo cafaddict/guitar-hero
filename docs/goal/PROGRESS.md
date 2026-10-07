@@ -5,14 +5,14 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **M7 (PWA·반응형·접근성·배포 준비)** 시작 — M0–M6 완료
+- 현재 마일스톤: **M8 (하드닝·최종 검증)** 시작 — M0–M7 완료
 - 마일스톤 끝 리뷰 서브에이전트: M2·M5·M8 (M4는 해당 없음)
 - 마지막 갱신: 2026-10-08
 - 누적 턴(대략): 2
 - 턴 상한: **1000** (사용자 지시, D-011). §16.1 축소는 턴 800 이후에만.
 - 다음 할 일:
-  2. M7: PWA(오프라인 셸·아이콘·업데이트 안내), 레이아웃 다듬기(4 뷰포트, 버튼 ≥64 px), 키·페달 E2E(U2), 테마·왼손잡이 미러(U6), axe(E2E-11), E2E-09/10/14
-  3. M7: `_headers`, `vercel.json`, `docs/DEPLOY.md`
+  2. M8: 리뷰 서브에이전트(code-reviewer) → 지적 반영; README·ARCHITECTURE·DSP·BENCHMARK·MANUAL_VALIDATION·BACKLOG 완성
+  3. M8: FINAL_REPORT, 최종 `npm ci && npm run verify`(백그라운드), vault 노트, §18.2 최종 출력
 - 막힌 점: 없음
 
 ## 마일스톤
@@ -25,8 +25,8 @@
 | M3 | 실녹음 벤치마크 | DONE | 9c12306 | GuitarSet 하드 4/4·소프트 2/2(test), detector 1.3.1, test 3회 실행(D-029–D-031) |
 | M4 | 오디오 엔진·캘리브레이션 | DONE | 45f5cd6 | verify PASS(750 tests, E2E 6/6), 렌더 끊김 시계 정렬 수정(D-037), D-032–D-037 |
 | M5 | 연습 플러그인 | DONE | f911cd5 | 13종, verify PASS(1002 tests, E2E 13/13), 리뷰 반영(D-045), D-038–D-045 |
-| M6 | 커리큘럼·루틴·진도 | DONE | (M6 커밋) | verify PASS(1082 tests, E2E 20/20), D-046, D-047 |
-| M7 | PWA·반응형·접근성·배포 준비 | TODO | | |
+| M6 | 커리큘럼·루틴·진도 | DONE | 130edec | verify PASS(1082 tests, E2E 20/20), D-046, D-047 |
+| M7 | PWA·반응형·접근성·배포 준비 | DONE | (M7 커밋) | verify PASS(1113 tests, E2E 32/32), D-048 |
 | M8 | 하드닝·최종 검증 | TODO | | |
 
 ## Acceptance Criteria
@@ -34,7 +34,7 @@
 | AC | 요약 | 상태 | 증거 |
 |---|---|---|---|
 | AC-P1 | 브랜치·커밋·main 불변·push 없음·clean | TODO | |
-| AC-P2 | `npm ci && npm run verify` exit 0 | DOING | M6: `npm run verify` RESULT: PASS(8단계 전부 PASS, 1082 tests, E2E 20/20·4 projects) — 최종 `npm ci && npm run verify`는 M8 |
+| AC-P2 | `npm ci && npm run verify` exit 0 | DOING | M7: `npm run verify` RESULT: PASS(8단계 전부 PASS, 1113 tests, E2E 32/32·4 projects) — 최종 `npm ci && npm run verify`는 M8 |
 | AC-P3 | 라이선스 검사 통과 | DONE | `npm run licenses` (`tools/licenses.ts`): 78 prod packages 표 출력, 전부 허용. `tools/licenses.test.ts` (GPL/LGPL/AGPL/BlueOak 거부). svguitar 제거(D-013) |
 | AC-P4 | 무결성 테스트 통과 | DOING | M2: `tests/integrity/source-rules.test.ts`(§14.6-1,3,4,5,6 + 패턴 자기검사), `thresholds-contract.test.ts`(§14.6-2) 전부 통과 — 최종 확인 M8 |
 | AC-P5 | TS strict·noExplicitAny·린트 경고 0 | DOING | `tsconfig.base.json`(strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes), `biome.json` noExplicitAny=error, `lint` = `biome check --error-on-warnings` — 최종 확인은 M8 |
@@ -76,18 +76,18 @@
 | AC-R4 | 안전 규칙 | DONE | `src/domain/safety.ts` + `src/domain/safety.test.ts`: 4주 20분 상한+확인, 30분 휴식, 통증 ≥5 감량, 위험 통증 휴식일, E7 시작 프렛 하향; 문구 `ko.safety.*`(의학적 조언 아님 포함) |
 | AC-R5 | 홈·세션 러너·커리큘럼·진도·E2E-07 | DONE | 홈 `features/home/HomeScreen.tsx` + `homeModel.ts`(+test: 같은 날 같은 루틴, 주간 분·오늘·백업 리마인더, 약한 쌍, 체크리스트), 세션 `features/session/SessionScreen.tsx` + `sessionModel.ts`·`routineParams.ts`(+test: 이동·일시정지·휴식 알림, Stage 0–7 모든 루틴 항목 → 플러그인 params 검증), 커리큘럼 `features/curriculum/CurriculumScreen.tsx`(0–11, 8–11 잠금 미리보기, 상세 + 기준 진행), 진도 `features/progress/ProgressScreen.tsx` + `progressModel.ts`(+test); **E2E-07** `tests/e2e/session.mic.spec.ts`(마이크 없이 Stage 0 루틴 6항목을 키보드만으로 → 세션 1·Attempt N·자가 평가 저장·홈 "오늘 연습" 갱신); D-046 |
 | AC-U1 | 화면 전부·i18n | DONE | §12.1 화면: 홈, 세션 러너, 연습(`/practice/:type`), 커리큘럼(+상세·졸업 시험), 코드 라이브러리(+상세: 기대 음·확인 가능 줄·들어 보기·E1), 튜너, 메트로놈, 진도, 설정(장치·캘리브레이션·테마·왼손잡이·엄격도·시각 전용·키·페달 학습·백업·녹음 키트·진단(getSettings·RTT·sampleRate·detectorVersion)·초기화 2단계); 모든 한국어 문자열 `src/i18n/ko.ts`(무결성 테스트 `tests/integrity/source-rules.test.ts` "no Hangul outside comments" 전 파일 통과) |
-| AC-U2 | 키·페달·첫 스트럼 자동 시작 | TODO | |
-| AC-U3 | 반응형 E2E-10 | TODO | |
-| AC-U4 | 접근성 E2E-11 | TODO | |
-| AC-U5 | 판정 문구 규칙 | TODO | |
-| AC-U6 | 테마·왼손잡이 | TODO | |
+| AC-U2 | 키·페달·첫 스트럼 자동 시작 | DONE | `src/app/keys.ts` + `keys.test.ts`(§12.3 전체 매핑, 학습 키 우선, 입력란 제외), 설정 키·페달 학습 모드(`SettingsScreen.tsx` KeysSection), E2E `tests/e2e/keys.spec.ts`(학습한 "b"로 E2 카운트·확인, Esc 확인 대화상자, 3 projects); 첫 스트럼 자동 시작: E2(E2E-05), E5·E6·S armed(러너 테스트, D-045) |
+| AC-U3 | 반응형 E2E-10 | DONE | `tests/e2e/layout.spec.ts`: 주요 화면 18개 × 4 뷰포트(1440×900, 1180×820, 820×1180, 390×844) 가로 스크롤 0, 연습 화면 주요 버튼 ≥ 64×64 px, 스크린샷 `test-results/screens/<project>/` — 3 projects 통과; D-048 |
+| AC-U4 | 접근성 E2E-11·aria-live | DONE | `tests/e2e/a11y.spec.ts`: 18개 화면 × 다크·라이트·고대비 axe serious/critical 0(3 projects); 판정 결과 `aria-live="polite"` 영역(E1·E2·E5·Q·온보딩), 색 + 아이콘·텍스트 병행, 다이어그램 텍스트 설명(`ChordDiagram.test.tsx`), 진도 차트 텍스트 대응물 |
+| AC-U5 | 판정 문구 규칙 테스트 | DONE | `src/i18n/ko.test.ts`: FAIL = 무엇 + 어떻게(모든 힌트 조합), RETRY 원인별 서로 다른 문구 7종, "틀렸습니다" 없음, "내 귀가 먼저" 안내(온보딩·설정); E2E-03 실제 화면 문구 |
+| AC-U6 | 테마·왼손잡이 미러 | DONE | 테마 토큰 `src/app/styles.css`(다크 기본·라이트·고대비), 설정에서 선택 → `html[data-theme]`(E2E-11이 세 테마 모두 적용·검사), 왼손잡이 미러 `src/ui/ChordDiagram.tsx` + `ChordDiagram.test.tsx`(6번 줄 좌↔우) |
 | AC-T1 | Dexie·append-only·rebuildDerived | DONE | `src/data/db.ts`(§13.2 스키마) + `src/data/repo.ts`(append-only, 수정/삭제 API 없음) + `src/data/repo.test.ts` "rebuildDerived() equals the incrementally maintained metrics, skills and reviews" |
 | AC-T2 | export/import 왕복 | DONE | `src/data/exportImport.ts`(zod 봉투, 마이그레이션 골격 `MIGRATIONS`/`migrate`, 미리보기 counts, merge/replace) + `src/data/repo.test.ts` "round-trips every table into an empty database (deep-equal)", 잘못된 파일·상위 버전 거부 |
 | AC-T3 | persist·7일 백업 리마인더 | DONE | `src/app/persist.ts`(시작 시 `navigator.storage.persist()`, 설정에 결과 표시), 리마인더 `homeModel.backupReminderDue`(+test: 마지막 백업/첫 세션 후 7일) → 홈 배너, 내보내기 시 `meta.lastBackupAt`; E2E-08 `tests/e2e/backup.spec.ts`(내보내기→초기화→가져오기 후 11개 테이블 건수·진도 화면 동일, 3 projects) |
 | AC-T4 | 녹음 키트·bench:real | DONE | `src/features/recording/`(안내 순서 클립: 코드별 깨끗한 스트럼·한 줄씩·일부러 뮤트·x줄 울림, 30초 체인지+직접 센 수, 메트로놈 8마디+그리드 시작·RTT; `RawRecorder` 2초 구간 연결(+test: 연속성·길이), OPFS 16-bit WAV, Dexie 메타), `labels.json` = `tools/bench/real.ts` `labelsSchema`(+test), zip `src/data/zip.ts`(+test: 독립 리더 왕복·CRC32); `npm run bench:real`(파일 없으면 "no fixtures"로 성공, M3); D-047 |
-| AC-W1 | PWA 오프라인 E2E-09 | TODO | |
-| AC-W2 | 헤더·vercel.json·VITE_BASE·dev:https | TODO | |
-| AC-W3 | DEPLOY.md | TODO | |
+| AC-W1 | PWA 오프라인 E2E-09·prompt | DONE | `vite.config.ts` VitePWA `registerType: 'prompt'`(앱 셸·시드·아이콘 precache), `src/app/pwa.tsx`(홈에서만 업데이트 토스트), 아이콘 `tools/icons/generate.ts` → `public/`; **E2E-09** `tests/e2e/offline.spec.ts`(설치 후 오프라인 새로고침 → 앱 셸·코드 라이브러리·상세 동작, Chromium — WebKit 하네스 한계 D-048) |
+| AC-W2 | `_headers`·`vercel.json`·`VITE_BASE`·`dev:https` | DONE | `public/_headers`, `vercel.json`(같은 헤더, E2E가 동일성 확인), CSP 실동작 E2E `tests/e2e/csp.mic.spec.ts`(워클릿·DSP 워커·티커 워커·차트·합성 재생 위반 0, Zod jitless), `VITE_BASE`(`vite.config.ts` base), `npm run dev:https`(basicSsl) |
+| AC-W3 | `docs/DEPLOY.md` | DONE | `docs/DEPLOY.md`: Cloudflare Pages·Netlify·Vercel·GitHub Pages 단계, HTTPS가 필요한 이유, iPad/iPhone 홈 화면 추가, `dev:https` LAN 테스트(자체 서명 경고 통과), 업데이트 방식 |
 | AC-F1 | README·ARCHITECTURE·DSP·BENCHMARK·BACKLOG | TODO | |
 | AC-F2 | MANUAL_VALIDATION.md | TODO | |
 | AC-F3 | FINAL_REPORT.md | TODO | |
