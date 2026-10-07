@@ -209,4 +209,21 @@ describe('dsp worker', () => {
     expect(timing.detectorVersion).toBe(DETECTOR_VERSION);
     expect(timing.processingMs).toBeGreaterThan(0);
   });
+
+  it('runs the Mode A energy fallback over a captured range', () => {
+    const range = new Float32Array(Math.round(2 * FS));
+    const pluck = pluckSegment(midiToHz(50), 8);
+    // Very soft pluck (the flux detector may miss it) 0.6 s into the range.
+    for (let i = 0; i < Math.round(0.4 * FS); i++)
+      range[Math.round(0.6 * FS) + i] = 0.05 * pluck[Math.round(0.5 * FS) + i]!;
+    send({ type: 'analyzeRange', id: 11, request: { kind: 'pluck', expectedF0: midiToHz(50) } });
+    fromCapture({ type: 'range', id: 11, fromSample: 0, samples: range });
+    const out = lastOf('rangeResult')!;
+    const result = out.result as { onsetOffset: number; pluck: { status: string } };
+    expect(Math.abs(result.onsetOffset - 0.6 * FS)).toBeLessThan(0.01 * FS);
+    expect(result.pluck.status).toBe('OK');
+    send({ type: 'analyzeRange', id: 12, request: { kind: 'pluck', expectedF0: midiToHz(50) } });
+    fromCapture({ type: 'range', id: 12, fromSample: 0, samples: new Float32Array(FS) });
+    expect(lastOf('rangeResult')!.result).toBeNull();
+  });
 });

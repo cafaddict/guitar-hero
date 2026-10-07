@@ -4,11 +4,13 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { voicingById } from '../../src/content/voicings';
 import { deriveSeed } from '../../src/domain/prng';
 import { stringNumber } from '../../src/domain/strings';
 import { midiToHz, STANDARD_TUNING } from '../../src/domain/theory';
-import { type NoteSpec, randomTimbre, renderNote } from '../../src/dsp/synth/note';
-import { normalizeNote } from '../../src/dsp/synth/strum';
+import { expectedNotes } from '../../src/domain/voicing';
+import { applyMuteEnvelope, type NoteSpec, randomTimbre, renderNote } from '../../src/dsp/synth/note';
+import { normalizeNote, renderStrum } from '../../src/dsp/synth/strum';
 import { encodeWav } from '../../src/dsp/wav';
 
 const OUT_DIR = join(import.meta.dirname, '..', '..', 'tests', 'fixtures', 'generated');
@@ -22,6 +24,149 @@ function sine(freq: number, seconds: number, sampleRate: number, amplitude: numb
   for (let i = 0; i < out.length; i++) out[i] = amplitude * Math.sin((2 * Math.PI * freq * i) / sampleRate);
   return out;
 }
+
+function noteSpec(f0: number, seed: number, durationS: number, muted = false): NoteSpec {
+  return {
+    model: 'karplus-strong',
+    f0,
+    sampleRate: FS,
+    durationS,
+    inharmonicityB: 1e-4,
+    muted,
+    // Muted strings: −30 dB within 120 ms (the benchmark's Mode A muted condition).
+    mutedDecayDb: -30,
+    mutedDecayMs: 120,
+    fundamentalDb: 0,
+    ...randomTimbre(seed),
+    t60S: 3,
+    seed,
+  };
+}
+
+function peakNormalize(x: Float32Array, peak = 0.5): Float32Array {
+  let max = 0;
+  for (let i = 0; i < x.length; i++) max = Math.max(max, Math.abs(x[i]!));
+  const g = peak / Math.max(max, 1e-9);
+  for (let i = 0; i < x.length; i++) x[i] = x[i]! * g;
+  return x;
+}
+
+/** One pluck at 0.1 s; muted notes keep the level of a ringing one (normalized before the mute envelope). */
+function singlePluck(f0: number, seed: number, muted: boolean, totalS = 1.6): Float32Array {
+  const spec = noteSpec(f0, seed, totalS - 0.1, muted);
+  const note = renderNote({ ...spec, muted: false });
+  normalizeNote(note, FS);
+  if (muted) applyMuteEnvelope(note, spec);
+  const out = new Float32Array(Math.round(totalS * FS));
+  out.set(note.subarray(0, out.length - Math.round(0.1 * FS)), Math.round(0.1 * FS));
+  return out;
+}
+
+/** E1 fixtures for the C chord (x32010): every played string, the 2nd string muted, and a strum with the
+ * x (6th) string ringing. Levels are scaled together so a muted string is not just a quiet one. */
+function chordFixtures(): Record<string, Float32Array> {
+  const c = voicingById('C');
+  const out: Record<string, Float32Array> = {};
+  const plucks: Record<string, Float32Array> = {};
+  for (const n of expectedNotes(c, STANDARD_TUNING)) {
+    plucks[`c-pluck-${stringNumber(n.idx)}.wav`] = singlePluck(n.f0, 2000 + n.idx, false);
+    if (n.idx === 4) plucks['c-pluck-2-muted.wav'] = singlePluck(n.f0, 2000 + n.idx, true);
+  }
+  let max = 0;
+  for (const x of Object.values(plucks))
+    for (let i = 0; i < x.length; i++) max = Math.max(max, Math.abs(x[i]!));
+  for (const [name, x] of Object.entries(plucks)) {
+    for (let i = 0; i < x.length; i++) x[i] = (x[i]! * 0.5) / max;
+    out[name] = x;
+  }
+  const ringing = [
+    { idx: 0, midi: STANDARD_TUNING.openMidi[0]! },
+    ...expectedNotes(c, STANDARD_TUNING).map((n) => ({
+      idx: n.idx,
+      midi: Math.round(69 + 12 * Math.log2(n.f0 / 440)),
+    })),
+  ];
+  const strum = renderStrum({
+    strings: ringing.map(({ idx, midi }) => ({
+      idx,
+      note: noteSpec(midiToHz(midi), 3000 + idx, 2.2),
+      gainDb: 0,
+    })),
+    direction: 'down',
+    spreadMs: 20,
+    sampleRate: FS,
+  });
+  const strumOut = new Float32Array(Math.round(2.5 * FS));
+  strumOut.set(strum.signal.subarray(0, strumOut.length - Math.round(0.1 * FS)), Math.round(0.1 * FS));
+  out['c-strum-6-ringing.wav'] = peakNormalize(strumOut);
+  return out;
+}
+
+/** Down strum of a voicing (all played strings), `durationS` long. */
+function strumOf(
+  voicingId: string,
+  seed: number,
+  durationS: number,
+  direction: 'down' | 'up' = 'down',
+): Float32Array {
+  const v = voicingById(voicingId);
+  return renderStrum({
+    strings: expectedNotes(v, STANDARD_TUNING).map((n) => ({
+      idx: n.idx,
+      note: noteSpec(n.f0, seed * 10 + n.idx, durationS),
+      gainDb: 0,
+    })),
+    direction,
+    spreadMs: 18,
+    sampleRate: FS,
+  }).signal;
+}
+
+/** Strums placed at `times` (s); each one is cut by the next (the hand damps when changing). */
+function strumSequence(chords: readonly string[], times: readonly number[], totalS: number): Float32Array {
+  const out = new Float32Array(Math.round(totalS * FS));
+  times.forEach((t, k) => {
+    const next = times[k + 1] ?? totalS;
+    const strum = strumOf(chords[k % chords.length]!, 4000 + k, Math.min(1.5, next - t));
+    const start = Math.round(t * FS);
+    for (let i = 0; i < strum.length && start + i < out.length; i++)
+      out[start + i] = out[start + i]! + strum[i]!;
+  });
+  return peakNormalize(out);
+}
+
+/** E2E-06: P3 (D - D U - U D U) at 80 BPM, 8 bars of C; the first slot at 0.2 s into the file. */
+export const E5_FIXTURE = { patternId: 'P3', bpm: 80, bars: 8, chord: 'C', leadS: 0.2 } as const;
+
+function patternFixture(): Float32Array {
+  const slots = ['D', '-', 'D', 'U', '-', 'U', 'D', 'U'] as const;
+  const slotS = 60 / E5_FIXTURE.bpm / 2;
+  const times: number[] = [];
+  const directions: ('down' | 'up')[] = [];
+  for (let bar = 0; bar < E5_FIXTURE.bars; bar++)
+    slots.forEach((s, i) => {
+      if (s === '-') return;
+      times.push(E5_FIXTURE.leadS + (bar * slots.length + i) * slotS);
+      directions.push(s === 'D' ? 'down' : 'up');
+    });
+  const totalS = times.at(-1)! + 1.2;
+  const out = new Float32Array(Math.round(totalS * FS));
+  times.forEach((t, k) => {
+    const next = times[k + 1] ?? totalS;
+    const strum = strumOf(E5_FIXTURE.chord, 5000 + k, Math.min(1, next - t), directions[k]);
+    const start = Math.round(t * FS);
+    for (let i = 0; i < strum.length && start + i < out.length; i++)
+      out[start + i] = out[start + i]! + strum[i]!;
+  });
+  return peakNormalize(out);
+}
+
+/** E2E-05: A↔D every 1.0 s from 0.5 s, 15 strums = 14 changes (fits the 15 s of a 60 s minute at 0.25×). */
+export const E2_FIXTURE = {
+  chords: ['A', 'D'],
+  times: Array.from({ length: 15 }, (_, k) => 0.5 + k),
+  changes: 14,
+} as const;
 
 function openStringNote(idx: number, seed: number, durationS: number): Float32Array {
   const f0 = midiToHz(STANDARD_TUNING.openMidi[idx]!) * 2 ** (OPEN_STRING_DETUNE_CENTS[idx]! / 1200);
@@ -73,6 +218,13 @@ function main(): void {
     writeFileSync(join(OUT_DIR, `open-${n}.wav`), encodeWav(plucks(idx, [0.1], 2.5, 2.4), FS));
     writeFileSync(join(OUT_DIR, `open3-${n}.wav`), encodeWav(plucks(idx, [0.1, 1.0, 1.9], 2.8, 0.9), FS));
   }
+  for (const [name, signal] of Object.entries(chordFixtures()))
+    writeFileSync(join(OUT_DIR, name), encodeWav(signal, FS));
+  writeFileSync(
+    join(OUT_DIR, 'e2-a-d-alternating.wav'),
+    encodeWav(strumSequence(E2_FIXTURE.chords, E2_FIXTURE.times, 16), FS),
+  );
+  writeFileSync(join(OUT_DIR, 'e5-p3-80.wav'), encodeWav(patternFixture(), FS));
   console.log(`fixtures written to ${OUT_DIR}`);
 }
 

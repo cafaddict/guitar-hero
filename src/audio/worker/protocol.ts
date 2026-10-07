@@ -57,6 +57,14 @@ export const rangeRequestSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('rtt'), scheduledSamples: z.array(z.number()) }),
   z.object({ kind: z.literal('noise') }),
   z.object({ kind: z.literal('raw') }),
+  /** Mode A fallback (src/dsp/take.ts energyOnset) when the flux detector found no pluck after arming. */
+  z.object({
+    kind: z.literal('pluck'),
+    expectedF0: z.number().positive(),
+    templateDecayRatio: z.number().optional(),
+    strictness: strictness.default('lenient'),
+    silent: z.boolean().default(false),
+  }),
 ]);
 export type RangeRequest = z.infer<typeof rangeRequestSchema>;
 
@@ -79,6 +87,12 @@ export const mainToWorkerSchema = z.discriminatedUnion('type', [
 export type MainToWorker = z.infer<typeof mainToWorkerSchema>;
 
 /** Result of a 'template' job: the Mode A measurement plus |H_h| / |H_1| for h = 1..8 over [+30, +130 ms]. */
+/** Result of a 'pluck' range request: the fallback onset (offset in the range) and its Mode A judgement. */
+export interface PluckFallbackResult {
+  onsetOffset: number;
+  pluck: PluckResult;
+}
+
 export interface TemplateResult {
   pluck: PluckResult;
   harmonics: number[];

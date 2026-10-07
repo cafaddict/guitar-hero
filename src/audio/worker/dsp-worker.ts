@@ -9,6 +9,7 @@ import { classifyPair, classifySet } from '../../dsp/modeC';
 import { DEFAULT_ONSET_PARAMS, refineOnset } from '../../dsp/onset';
 import { estimateRtt } from '../../dsp/rtt';
 import { magnitudeSpectrum, partialPeak, rms } from '../../dsp/spectrum';
+import { energyOnset } from '../../dsp/take';
 import { analyzeTiming } from '../../dsp/timing';
 import { TunerStability, tunerFrame } from '../../dsp/tuner';
 import { DETECTOR_VERSION } from '../../dsp/version';
@@ -200,6 +201,30 @@ function processRange(id: number): void {
     case 'noise':
       result = analyzeNoise(range.samples);
       break;
+    case 'pluck': {
+      // Same fallback as the benchmarks: first sustained +12 dB rise after the armed point, then Mode A.
+      const fs = sampleRate;
+      const onset = energyOnset(
+        range.samples,
+        fs,
+        Math.round(0.15 * fs),
+        range.samples.length - Math.round(0.4 * fs),
+      );
+      if (onset === null) {
+        result = null;
+        break;
+      }
+      const input = {
+        samples: range.samples,
+        sampleRate: fs,
+        onsetSample: onset,
+        expectedF0: request.expectedF0,
+        templateDecayRatio: request.templateDecayRatio,
+        strictness: request.strictness,
+      };
+      result = { onsetOffset: onset, pluck: request.silent ? verifySilentString(input) : verifyPluck(input) };
+      break;
+    }
     case 'raw':
       samples = range.samples;
       transfer = [range.samples.buffer as ArrayBuffer];

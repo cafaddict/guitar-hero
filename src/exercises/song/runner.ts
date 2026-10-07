@@ -1,0 +1,264 @@
+/**
+ * S practice song (SPEC §11.10): chord chart in a bar grid with the current bar highlighted, count-in,
+ * metronome, tempo choice, section loop, hidden chart, synth "listen". Learn mode (stop and retry; a section
+ * can loop) and perform mode (keep going; with a microphone the beat-1 hit rate is measured). Afterwards the
+ * user reports: played to the end, number of stops, played from memory.
+ */
+import { z } from 'zod';
+import { DEFAULT_METRONOME_CONFIG } from '../../audio/metronome';
+import type { PracticeSong } from '../../content/schemas';
+import { songById } from '../../content/songs';
+import type { SongResult } from '../../domain/exerciseResults';
+import { BaseRunner } from '../baseRunner';
+import { GridRecorder } from '../gridRecorder';
+import type { ExerciseContext, RunnerCommand } from '../types';
+
+export const songParamsSchema = z.object({
+  songId: z.string().min(1),
+  mode: z.enum(['learn', 'perform']),
+  bpm: z.number().int().min(30).max(240),
+  chartHidden: z.boolean(),
+  /** Learn mode: loop this section index (null = whole song once). */
+  loopSection: z.number().int().min(0).nullable(),
+});
+export type SongParams = z.infer<typeof songParamsSchema>;
+
+export interface ChartBar {
+  /** Position in the expanded chart (stable identity of a bar). */
+  position: number;
+  chord: string;
+  section: number;
+}
+
+export interface SongView {
+  song: PracticeSong;
+  chart: ChartBar[];
+  bpm: number;
+  mode: SongParams['mode'];
+  chartHidden: boolean;
+  loopSection: number | null;
+  /** Index into `chart` (looping sections wrap). */
+  bar: number | null;
+  report: { completed: boolean; stops: number; memorized: boolean };
+  analyzing: boolean;
+}
+
+/** Bars with repeats expanded, in playing order. */
+export function expandChart(song: PracticeSong): ChartBar[] {
+  const bars = song.sections.flatMap((s, section) =>
+    Array.from({ length: s.repeat }, () => s.bars.map((chord) => ({ chord, section }))).flat(),
+  );
+  return bars.map((bar, position) => ({ ...bar, position }));
+}
+
+export class SongRunner extends BaseRunner<SongResult, SongView> {
+  private readonly song: PracticeSong;
+  private readonly chart: ChartBar[];
+  private readonly playBars: ChartBar[];
+  private readonly barS: number;
+  private recorder: GridRecorder | null = null;
+  private bar: number | null = null;
+  private readonly report = { completed: false, stops: 0, memorized: false };
+  private beat1HitRate: number | null = null;
+  private analyzing = false;
+  private scoreFailed = false;
+
+  constructor(
+    ctx: ExerciseContext,
+    private readonly params: SongParams,
+    /** Synth renderer for "들어 보기" (chords, bpm, beats per bar) → samples; injected so tests stay fast. */
+    private readonly renderListen: (
+      chords: readonly string[],
+      bpm: number,
+      beatsPerBar: number,
+    ) => Float32Array,
+  ) {
+    super(ctx);
+    this.song = songById(params.songId);
+    this.chart = expandChart(this.song);
+    const loop = params.mode === 'learn' ? params.loopSection : null;
+    this.playBars = loop === null ? this.chart : this.chart.filter((b) => b.section === loop);
+    const beats = this.song.timeSignature === '6/8' ? 2 : 4;
+    this.barS = (beats * 60) / params.bpm;
+  }
+
+  protected view(): SongView {
+    const playIndex = this.bar === null ? null : this.bar % this.playBars.length;
+    const chartIndex = playIndex === null ? null : this.chart.indexOf(this.playBars[playIndex]!);
+    return {
+      song: this.song,
+      chart: this.chart,
+      bpm: this.params.bpm,
+      mode: this.params.mode,
+      chartHidden: this.params.chartHidden,
+      loopSection: this.params.mode === 'learn' ? this.params.loopSection : null,
+      bar: chartIndex,
+      report: { ...this.report },
+      analyzing: this.analyzing,
+    };
+  }
+
+  /** With a microphone the song waits "armed": the first strum (or Space) starts the count-in (SPEC §12.3). */
+  start(): void {
+    const mic = this.ctx.audio;
+    if (mic) {
+      this.own(
+        mic.onCoarseOnset(() => {
+          if (this.phase === 'armed') this.play();
+        }),
+      );
+    }
+    this.setPhase(mic ? 'armed' : 'ready');
+  }
+
+  /** "들어 보기" (key M): synthesized strums of the bars to play (first 8 bars at most). */
+  private listen(): void {
+    const beatsPerBar = this.song.timeSignature === '6/8' ? 2 : 4;
+    this.ctx.output.playSamples(
+      this.renderListen(
+        this.playBars.slice(0, 8).map((b) => b.chord),
+        this.params.bpm,
+        beatsPerBar,
+      ),
+    );
+  }
+
+  private play(): void {
+    this.recorder?.dispose();
+    this.scoreFailed = false;
+    const looping = this.params.mode === 'learn' && this.params.loopSection !== null;
+    const sixEight = this.song.timeSignature === '6/8';
+    this.recorder = new GridRecorder(
+      this.params.mode === 'perform' ? this.ctx : { ...this.ctx, audio: null },
+      {
+        ...DEFAULT_METRONOME_CONFIG,
+        bpm: sixEight ? this.params.bpm * 3 : this.params.bpm,
+        meter: sixEight ? '6/8' : '4/4',
+        countInBars: 1,
+        stopAfterBars: looping ? null : this.playBars.length,
+        visualOnly: this.ctx.settings.visualOnlyMetronome,
+      },
+      () => this.toReview(),
+      (event) => this.recordDsp(event),
+    );
+    this.own(() => this.recorder?.dispose());
+    this.setPhase('countIn');
+    this.recorder.start(() => this.publish());
+  }
+
+  private toReview(): void {
+    this.bar = null;
+    this.recorder?.stop();
+    this.report.completed = this.recorder?.endTime !== null && this.params.loopSection === null;
+    this.setPhase('review');
+  }
+
+  command(cmd: RunnerCommand): void {
+    if (cmd === 'abort') {
+      this.recorder?.stop();
+      if (this.phase !== 'done') this.setPhase('done');
+      return;
+    }
+    const waiting = this.phase === 'ready' || this.phase === 'armed';
+    if (waiting && (cmd === 'toggle' || cmd === 'next')) {
+      this.play();
+      return;
+    }
+    if (waiting && cmd === 'mark') {
+      this.listen();
+      return;
+    }
+    // Learn mode: "stop and try again" — Space in the review starts the song (or loop) over.
+    if (this.phase === 'review' && this.params.mode === 'learn' && cmd === 'toggle') {
+      this.play();
+      return;
+    }
+    if ((this.phase === 'running' || this.phase === 'countIn') && cmd === 'toggle') {
+      // Learn mode: stopping is fine (counted as a stop); perform mode ends the take.
+      if (this.params.mode === 'learn') this.report.stops++;
+      this.toReview();
+      return;
+    }
+    if (this.phase !== 'review') return;
+    if (cmd === 'manual1') this.report.completed = !this.report.completed;
+    else if (cmd === 'manual2') this.report.memorized = !this.report.memorized;
+    else if (cmd === 'inc') this.report.stops++;
+    else if (cmd === 'dec') this.report.stops = Math.max(0, this.report.stops - 1);
+    else if ((cmd === 'next' || (cmd === 'toggle' && this.params.mode === 'perform')) && !this.analyzing) {
+      this.setPhase('done');
+      return;
+    }
+    this.publish();
+  }
+
+  override tick(): void {
+    super.tick();
+    const now = this.ctx.output.now();
+    const grid = this.recorder?.gridStart ?? null;
+    if (grid !== null && (this.phase === 'countIn' || this.phase === 'running')) {
+      if (this.phase === 'countIn' && now >= grid) this.setPhase('running');
+      const bar = now >= grid ? Math.floor((now - grid) / this.barS) : null;
+      if (bar !== this.bar) {
+        this.bar = bar;
+        this.publish();
+      }
+    }
+    const mic = this.ctx.audio;
+    const rec = this.recorder;
+    if (
+      mic &&
+      rec &&
+      grid !== null &&
+      this.params.mode === 'perform' &&
+      this.phase === 'review' &&
+      this.beat1HitRate === null &&
+      !this.analyzing &&
+      !this.scoreFailed &&
+      rec.settled(now)
+    ) {
+      this.analyzing = true;
+      const bars = Math.max(
+        1,
+        Math.min(this.playBars.length, Math.round(((rec.endTime ?? now) - grid) / this.barS)),
+      );
+      void mic
+        .analyzeTiming({
+          slots: Array.from({ length: bars }, (_, b) => ({ time: grid + b * this.barS, expected: true })),
+          strumTimes: rec.strums,
+          rttS: rec.rttS,
+          bpm: this.params.bpm,
+          personalOffsetMs: this.ctx.personalOffsetMs ?? null,
+        })
+        .then((outcome) => {
+          this.recordDsp(outcome);
+          this.beat1HitRate = outcome.result.hitRate;
+          this.analyzing = false;
+          this.publish();
+        })
+        .catch(() => {
+          // Without the beat-1 measurement the self-report is still recorded.
+          this.analyzing = false;
+          this.scoreFailed = true;
+          this.publish();
+        });
+    }
+  }
+
+  /** Recorded once the song was played (at least the count-in started). */
+  hasResult(): boolean {
+    return this.recorder !== null;
+  }
+
+  finish(): SongResult {
+    return {
+      songId: this.song.id,
+      mode: this.params.mode,
+      chartHidden: this.params.chartHidden,
+      bpm: this.params.bpm,
+      completed: this.report.completed,
+      stops: this.report.stops,
+      memorized: this.report.memorized,
+      beat1HitRate: this.beat1HitRate,
+    };
+  }
+}

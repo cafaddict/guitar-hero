@@ -5,15 +5,14 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **M5 (연습 플러그인)** 시작 — M0–M4 완료
+- 현재 마일스톤: **M6 (커리큘럼·루틴·진도)** 시작 — M0–M5 완료
 - 마일스톤 끝 리뷰 서브에이전트: M2·M5·M8 (M4는 해당 없음)
 - 마지막 갱신: 2026-10-08
 - 누적 턴(대략): 2
 - 턴 상한: **1000** (사용자 지시, D-011). §16.1 축소는 턴 800 이후에만.
 - 다음 할 일:
-  1. M5: 플러그인 계약(types·BaseRunner·레지스트리·ExerciseAudio 어댑터) + 연습 화면 라우트 + Attempt 저장
-  2. M5: E1(한 줄씩·스트럼 베타·수동·귀 먼저)/E2(자동 시작·자동/탭/수동·보정) + E2E-02/03/04/05
-  3. M5: E0, E4–E8, Q1–Q4, S, E2E-06/12/13, 리뷰 서브에이전트
+  2. M6: 홈(오늘의 루틴 카드·진급 체크리스트), 세션 러너(ExerciseHost 연결, 휴식 알림, 자가 평가), 커리큘럼·졸업 시험, 진도 대시보드
+  3. M6: 코드 라이브러리(ChordDiagram, 들어 보기, E1 시작), 백업 UI·리마인더·persist, 녹음 키트, E2E-07/08
 - 막힌 점: 없음
 
 ## 마일스톤
@@ -24,8 +23,8 @@
 | M1 | 도메인·콘텐츠·데이터 | DONE | d37e9c1 | D-019–D-023 |
 | M2 | DSP 코어·합성기·벤치마크 | DONE | 557f39d | test split 첫 실행 전 지표 통과(8,950 cases, 62 s), 리뷰 반영 D-028 |
 | M3 | 실녹음 벤치마크 | DONE | 9c12306 | GuitarSet 하드 4/4·소프트 2/2(test), detector 1.3.1, test 3회 실행(D-029–D-031) |
-| M4 | 오디오 엔진·캘리브레이션 | DONE | (M4 커밋) | verify PASS(750 tests, E2E 6/6), 렌더 끊김 시계 정렬 수정(D-037), D-032–D-037 |
-| M5 | 연습 플러그인 | TODO | | |
+| M4 | 오디오 엔진·캘리브레이션 | DONE | 45f5cd6 | verify PASS(750 tests, E2E 6/6), 렌더 끊김 시계 정렬 수정(D-037), D-032–D-037 |
+| M5 | 연습 플러그인 | DONE | (M5 커밋) | 13종, verify PASS(1002 tests, E2E 13/13), 리뷰 반영(D-045), D-038–D-045 |
 | M6 | 커리큘럼·루틴·진도 | TODO | | |
 | M7 | PWA·반응형·접근성·배포 준비 | TODO | | |
 | M8 | 하드닝·최종 검증 | TODO | | |
@@ -35,7 +34,7 @@
 | AC | 요약 | 상태 | 증거 |
 |---|---|---|---|
 | AC-P1 | 브랜치·커밋·main 불변·push 없음·clean | TODO | |
-| AC-P2 | `npm ci && npm run verify` exit 0 | DOING | M4: `npm run verify` RESULT: PASS(8단계 전부 PASS, 750 tests, E2E 6/6·4 projects) — 최종 `npm ci && npm run verify`는 M8 |
+| AC-P2 | `npm ci && npm run verify` exit 0 | DOING | M5: `npm run verify` RESULT: PASS(8단계 전부 PASS, 1002 tests, E2E 13/13·4 projects) — 최종 `npm ci && npm run verify`는 M8 |
 | AC-P3 | 라이선스 검사 통과 | DONE | `npm run licenses` (`tools/licenses.ts`): 78 prod packages 표 출력, 전부 허용. `tools/licenses.test.ts` (GPL/LGPL/AGPL/BlueOak 거부). svguitar 제거(D-013) |
 | AC-P4 | 무결성 테스트 통과 | DOING | M2: `tests/integrity/source-rules.test.ts`(§14.6-1,3,4,5,6 + 패턴 자기검사), `thresholds-contract.test.ts`(§14.6-2) 전부 통과 — 최종 확인 M8 |
 | AC-P5 | TS strict·noExplicitAny·린트 경고 0 | DOING | `tsconfig.base.json`(strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes), `biome.json` noExplicitAny=error, `lint` = `biome check --error-on-warnings` — 최종 확인은 M8 |
@@ -61,16 +60,16 @@
 | AC-G1 | GuitarSet 파이프라인 | DONE | `tools/guitarset/download.ts`(Zenodo 3371780 API MD5 검증, curl, 3회 백오프, 실패 시 `.download-blocked` JSON 마커), `unzip.ts`(+`unzip.test.ts`), `jams.ts`(스트럼/단음/onset 정답 추출, `jams.test.ts`), `evaluate.ts`, `bench.ts`(dev 00–03 / test 04–05, `--dev-only`); 360 clips 다운로드·추출 완료 |
 | AC-G2 | GuitarSet 하드 지표 | DONE | M3 verify `npm run bench:guitarset` test 플레이어(detector 1.3.1): Mode A OK 1.000(17/17)≥0.95, ±1 반음 오수용 0≤0.03, Mode C 2지선다 0.980≥0.90, 스트럼 onset F1@50ms 0.877≥0.85 — `docs/BENCHMARK.md` GuitarSet 절, `bench-results/guitarset.json` |
 | AC-G3 | GuitarSet 소프트 지표 보고·분석 | DONE | 소프트(test): Mode B FAIL 0.064≤0.10, 교란 OK 0.003≤0.15 — 통과. 분석·개선 기록 `docs/DSP.md` §13(onset 재튜닝 표, Mode A 강건화), D-029–D-031 |
-| AC-X1 | 플러그인 레지스트리·오디오 없는 러너 | TODO | |
-| AC-X2 | E1 코드 정밀 체크·E2E-02/03/04 | TODO | |
-| AC-X3 | E2 1분 코드 체인지·E2E-05 | TODO | |
-| AC-X4 | E4 앵커·공중 체인지 | TODO | |
-| AC-X5 | E5 스트러밍 사다리·E2E-06 | TODO | |
-| AC-X6 | E6·E7·E8 | TODO | |
-| AC-X7 | Q1–Q4 | TODO | |
-| AC-X8 | S 연습곡 | TODO | |
+| AC-X1 | 플러그인 레지스트리·오디오 없는 러너 | DONE | `src/exercises/types.ts`·`baseRunner.ts`·`registry.tsx`(definePlugin 타입 지움 + zod 경계)·`catalog.ts`(13종); `src/exercises/registry.test.ts`: 13종 모두 마이크 없이 키 명령만으로 가짜 시계에서 끝까지 실행, 결과 스키마 통과, metrics = extractMetrics, 잘못된 params·남의 러너 거부; 각 러너 단위 테스트(가짜 clock + 스크립트된 판정 이벤트: `src/exercises/*/runner.test.ts`, `quiz/quiz.test.ts`, `take.test.ts`); D-038 |
+| AC-X2 | E1 코드 정밀 체크·E2E-02/03/04 | DONE | `src/exercises/e1/`(한 줄씩 Mode A·x줄 건너뜀/무음 확인·RETRY 재무장·MULTIPLE·4초 무음 시 energy fallback, 스트럼 베타 Mode B, 수동 1/2/3, 귀 먼저 일치율, 코칭 힌트 "무엇 — 어떻게") + `runner.test.ts` 10개; E2E `tests/e2e/e1.mic.spec.ts`: E2E-02(5줄 OK·6번 줄 SKIPPED·Attempt 저장·detectorVersion·processingMs>0), E2E-03(2번 줄 MUTED + "2번 줄이 막혔어요 — 1번 손가락을…"), E2E-04(6번 줄 UNEXPECTED FAIL + 베타 라벨); D-039, D-040 |
+| AC-X3 | E2 1분 코드 체인지·E2E-05 | DONE | `src/exercises/e2/`(armed → 첫 strum 자동 시작/Space, Mode C 상태 머신, 늦은 판정 반영, ↑↓ 보정, 자동/탭/직접 입력, detected·corrected·tap 저장) + `runner.test.ts` 7개; E2E-05 `tests/e2e/e2.mic.spec.ts`(timeScale 0.25: 자동 시작, 자동 카운트 정답 14 ±1, ↑↑↓ → corrected = detected + 1, 둘 다 저장); D-041 |
+| AC-X4 | E4 앵커·공중 체인지 | DONE | `src/exercises/e4/`(`anchors(a, b)`로 앵커/공중 자동 판별, 앵커·슬라이드 안내, 1–2분 타이머 + 10회 중 동시 착지 자가 보고) + `runner.test.ts`(D→A 앵커, G→C 공중, 보고) |
+| AC-X5 | E5 스트러밍 사다리·E2E-06 | DONE | `src/exercises/e5/`(P0–P5 슬롯 그리드, 6/8 메트로놈, 카운트인, Mode D + RTT + 개인 선행 보정, 쉼 슬롯 extra, 사다리 ±5, 시각 큐 숨김, 마이크 없을 때 자가 평가) + `runner.test.ts` 7개; E2E-06 `tests/e2e/e5.mic.spec.ts`(Calibration RTT 60 ms 시드, 그리드+RTT에 맞춘 fixture → 적중률 ≥ 0.9, mean/sd 표시, data-ladder=up·85 BPM); D-042 |
+| AC-X6 | E6·E7·E8 | DONE | E6 `src/exercises/e6/`(마디 첫 박 Mode D, 멈춤 마디, ≥14/16 & 멈춤 0 → 통과) + test 4개; E7 `e7/`(시작 프렛, 상시 "스트레칭이지 통증 운동이 아니에요… 의학적 조언이 아닙니다", 통증 0–10) + test; E8 `e8/`(8분음표 적중률 + ioi_cv ≤ 0.10) + test 3개; 공용 `gridRecorder.ts`; D-042 |
+| AC-X7 | Q1–Q4 | DONE | `src/exercises/quiz/`(공통 객관식 러너, Q1 다이어그램 점·x/o, Q2 3초 회상 Mode C set + 자가 보고, Q3 음이름/튜너로 개방현 튕기기, Q4 합성 메이저/마이너) + `quiz.test.ts` 8개; D-043 |
+| AC-X8 | S 연습곡 | DONE | `src/exercises/song/`(코드 차트·현재 마디 강조, 카운트인·메트로놈, 학습/연주 모드, 부분 반복, 악보 숨김, 합성 "들어 보기", 연주 모드 마디 첫 박 적중률, 완주·멈춤·암기 자가 보고) + `runner.test.ts` 3개; D-043 |
 | AC-X9 | 졸업 시험 | TODO | |
-| AC-X10 | 마이크 거부 대체 흐름·E2E-12/13 | TODO | |
+| AC-X10 | 마이크 거부 대체 흐름·E2E-12/13 | DONE | E2E-12 `tests/e2e/no-mic.mic.spec.ts`(거부 → 온보딩 안내 "마이크 없이 쓰기" → E2 탭 모드 5회 + E1 수동 1/2/3 진행·저장, detectorVersion null); E2E-13 `tests/e2e/fake-capture.spec.ts`(실제 getUserMedia 요청 EC/NS/AGC false, 진단 화면 값 = getSettings); 모든 마이크 연습의 "마이크 없이" 경로(`ExerciseHost`) |
 | AC-R1 | 루틴 생성 규칙 테스트 | DONE | `src/domain/routine.ts` + `src/domain/routine.test.ts`: 규칙 1(20분·4주 상한), 2(순서·곡 마지막 9–10분), 3(쌍 우선순위·하루 6회), 4(연속 금지·interleave), 5(3일 공백 복습), 6(복습 슬롯 ≤3분), 7(통증 감량·휴식), 8(예산), 10(결정성) |
 | AC-R2 | 진급 엔진 테스트 | DONE | `src/domain/progression.ts` + `src/domain/progression.test.ts`: 데이터 규칙 평가(Stage 0/1/7), 조건부 진급(3주 정체), promote 기록, 2주 정체 감지 처방, G-2f→G-3f, 졸업 항목→복습 큐 |
 | AC-R3 | 복습 큐·주간 스트릭 | DONE | `src/domain/srs.ts` + `src/domain/srs.test.ts`: 1→3→7→14→30→90, 실패 시 1단계 후퇴, 곡 7→14→30→90→180→365, 주간 스트릭(주 4일+, 진행 중 주는 끊지 않음) |

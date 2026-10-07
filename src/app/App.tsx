@@ -3,6 +3,7 @@ import { createHashRouter, NavLink, Outlet, RouterProvider } from 'react-router'
 import { HomeScreen } from '../features/home/HomeScreen';
 import { MetronomeScreen } from '../features/metronome/MetronomeScreen';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
+import { PracticeScreen } from '../features/practice/PracticeScreen';
 import { DiagnosticsScreen } from '../features/settings/DiagnosticsScreen';
 import { TunerScreen } from '../features/tuner/TunerScreen';
 import { ko } from '../i18n/ko';
@@ -69,6 +70,7 @@ const router = createHashRouter([
       { path: '/tuner', element: <TunerScreen /> },
       { path: '/metronome', element: <MetronomeScreen /> },
       { path: '/settings/diagnostics', element: <DiagnosticsScreen /> },
+      { path: '/practice/:type', element: <PracticeScreen /> },
     ],
   },
 ]);

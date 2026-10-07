@@ -222,3 +222,58 @@
 - 수정: worklet이 매 블록 `currentFrame − (startFrame + 처리한 샘플)`을 확인하고, 모자란 프레임은 `CaptureCore.fillGap()`으로 0을 채워 정렬을 유지한다. 구멍에서 신호로 돌아오는 점프는 strum이 아니므로 [구멍 −20 ms, 구멍 끝 +80 ms]의 onset을 버린다. main에는 `gap{frames}`를 보내 진단 화면에 "오디오 끊김 n회"로 보인다. 회귀 테스트: `captureProcessor.test.ts`(블록 4개 누락 후 onset·구간 샘플 위치 정확, 복귀 점프 미보고), `engine.test.ts`(끊김 집계).
 - 남은 변동: 끊김이 없어도 가짜 loopback 경로(MediaStreamDestination → MediaStream → MediaStreamSource) 내부 FIFO 지연이 부하에서 3–7 ms 바뀌는 일이 있었다(예: 137.33 → 132.67 → 132.67, gapFrames 0). 실제 마이크 입력도 같은 MediaStream FIFO를 지나므로 제품에서도 생길 수 있는 변동이고, 마법사의 "연속 2회 3 ms 안 합의" 규칙이 이것을 흡수한다.
 - 그래서 처음에 SPEC보다 엄격하게 둔 "첫 두 시도가 곧바로 합의" 단언(앱이 아니라 브라우저 FIFO를 검사)을 SPEC 문구 그대로의 단언으로 바꿨다: 마법사 RTT 측정 2회(처음 + "다시 측정")의 결과 차이 ≤ 3 ms, 두 결과 모두 [120, 150] ms, **모든 원시 시도**도 [120, 150] ms, 방식 loopback. 바꾼 뒤 전체 E2E를 병렬 4 workers로 `--repeat-each=3`, `--repeat-each=4` 두 번 돌려 42/42 통과.
+
+## D-038 M5 플러그인 골격
+- 계약은 SPEC §11.1 그대로(`src/exercises/types.ts`): `ExercisePlugin<P, R, V>` + `ExerciseRunner<R, V>`. `ExerciseContext.audio`(SPEC의 `AudioEngineApi | null`)는 **마이크 쪽**(`ExerciseMic`: job, 판정 이벤트, coarse onset, 튜너, pluck fallback, analyzeTiming)이고, 마이크 없이도 필요한 출력(메트로놈·합성 재생·오디오 시계)은 `ctx.output`으로 분리했다(마이크 없는 E5·Q4·S도 메트로놈/합성은 써야 하므로).
+- `ctx.clock.now()`는 시뮬레이션 ms(`performance.now() × 배율`, 배율은 E2E 빌드의 `?timeScale=`만, `src/app/testRate.ts`). DSP 이벤트 시각은 오디오 시계 초.
+- 레지스트리(`registry.tsx`)는 `definePlugin`이 제네릭을 지우고 경계에서 각 플러그인의 zod로 params·result를 검증한다. 러너→뷰의 정확한 타입은 WeakMap으로 되찾아 캐스트가 없다. 다른 플러그인의 러너를 넘기면 예외.
+- `BaseRunner`: 스냅샷 발행, 시계 차이 타이머(일시정지 포함), 소유 구독 해제, DSP 통계(detectorVersion·평균 processingMs). `ExerciseHost`가 마이크 시작(탭 안에서), rAF tick, 키(§12.3, Esc는 확인), Wake Lock, 끝나면 Attempt 저장(`detectorVersion`은 DSP 이벤트가 있을 때만, `processingMs`는 이벤트 평균).
+- 단독 실행 경로 `/practice/:type?…`: 쿼리 값을 숫자·불리언·쉼표 목록·JSON으로 바꿔 기본 params 위에 덮고 플러그인 스키마로 검증. 라이브러리 "이 코드로 E1"과 E2E가 쓴다.
+- 개인 선행 보정값: 같은 연습의 최근 5개 Attempt의 `meanOffsetMs` 중 3개 이상이면 평균(`personalOffset`).
+
+## D-039 실시간 단일 테이크 선택 (`src/exercises/take.ts`)
+- 벤치마크의 `selectTakeEvent`와 같은 규칙을 실시간으로: 무장(arm) 뒤 첫 판정 onset이 테이크, 400 ms 안에 다른 onset이 있으면 MULTIPLE_ONSETS. 판정 이벤트는 strum보다 ~0.4 s 늦게 오므로 모호성은 먼저 도착하는 worklet coarse onset으로 판단한다(같은 strum의 coarse onset은 정밀화 onset보다 최대 ~45 ms 늦어 60 ms 여유를 둔다).
+- 무장 후 4초 동안 아무 onset도 없으면 worker의 'pluck' 구간 요청(`energyOnset` + Mode A, 벤치마크와 같은 함수)을 한 번 실행한다. 없으면 NO_ONSET 재시도.
+
+## D-040 E1 코드 정밀 체크 흐름
+- 시도: 손가락 놓기(준비됐어요/Space) → (한 줄씩) 연주하는 줄을 저음부터 차례로 Mode A, x 줄은 건너뜀(설정 "x줄 확인"이 켜져 있으면 무음 확인 `silent` 작업) → "전체를 한 번 스트럼해 들어 보고, 손을 떼었다가 다시" 단계. SPEC ④ 마지막 전체 스트럼은 귀로 듣는 단계로 두고 채점하지 않는다(한 줄씩 판정과 스트럼 베타 판정이 섞이지 않게).
+- RETRY(약함·클리핑·모호·여러 번)는 같은 줄을 다시 무장하고 원인별 문구만 보여 준다. 판정된 줄은 코칭 힌트(§6.7)를 받고, FAIL 문구는 "무엇 — 어떻게"로 조합한다.
+- 스트럼 베타: Mode B 결과의 `strings`는 연주하는 줄만 담고, 울린 x 줄은 `unexpected`로 온다 → x 줄 상태 UNEXPECTED. 시도 통과 = 판정 PASS.
+- 귀 먼저: 앱 판정을 숨겨 두었다가 자가 판정(1/2/3) 뒤 공개, 일치율(깨끗 ↔ OK)을 시도마다 기록. 마이크가 없으면 수동 모드(1/2/3).
+- 템플릿 decay 기준은 해당 줄의 개방현 템플릿을 그대로 쓴다(누른 음은 더 빨리 감쇠하므로 관대한 쪽).
+
+## D-041 E2 1분 체인지
+- 마이크가 있으면 "armed": 첫 coarse onset 시각에 타이머 시작(Space도 시작). 첫 A 스트럼은 Mode C 상태 머신 초기 상태와 같아 세지지 않는다. 시간 종료 후 'review' 단계에서 끝 이전 strum의 늦은 판정(≤ 0.6 s)도 반영하고, ↑↓ 보정과 Enter 확인을 받는다.
+- `correctedChanges`는 보정 키를 한 번이라도 눌렀을 때만 기록(+1·−1 순보정 0도 "확인함"으로 기록). 탭 모드는 `detectedChanges = 0`, `tapChanges = n`. 직접 입력 모드는 review에서 ↑↓로 센 값. 마이크가 없으면 자동 → 탭.
+- `changeTimestampsMs`는 시작(coarse onset) 기준 실제 ms(배율 1인 실제 앱에서는 시뮬레이션 ms와 같다).
+
+## D-042 Mode D 연습(E5·E6·E8)의 그리드와 규칙
+- 슬롯 시각 = 그리드 원점(0마디 1박) + 슬롯 × (60/BPM/박당 슬롯). 4/4는 메트로놈이 4분음표, 6/8(P5)은 BPM을 점4분 박으로 보고 메트로놈을 8분음표(×3, 1·4박 악센트)로 친다. 판정 = `analyzeTiming`(worker) + 캘리브레이션 RTT + 개인 선행 보정. 마지막 마디 뒤 0.7 s 기다렸다가 채점(판정 지연).
+- E5 사다리: 적중률 ≥ 90 % & 누락 0 → +5, "지난번도 70 % 미만"(`previousLow` param, 세션 계획이 넘김)에서 다시 70 % 미만 → −5. 쉼 슬롯 strum은 extra. 시각 큐 숨김은 패턴·현재 슬롯 표시를 숨긴다(채점은 동일).
+- E6: 마디 첫 박 슬롯만 기대하고 `analyzeTiming`의 hit = 창 안 마디, 평균 오프셋 = beat1 지연. "멈춤" = RTT를 뺀 strum이 [마디 시작 − 창, 다음 마디 시작 − 창)에 하나도 없는 마디. 통과 = ≥ 14/16(비율) & 멈춤 0.
+- E8: 8분음표 전 슬롯 기대, `ioi_cv`는 정렬한 onset 간격으로. 통과 = 적중률 ≥ 90 % & ioi_cv ≤ 0.10.
+- 마이크 없음: 1/2/3 자가 평가(1 = 놓친 박 없음 → 사다리 판단에 쓰임, `source: 'self'`).
+- 공통 녹음은 상속 대신 합성(`GridRecorder`)으로 E6·E8·S가 공유한다.
+
+## D-043 퀴즈와 연습곡
+- Q1·Q3·Q4는 공통 객관식 러너(1/2/3, 반응 시간, 1.5 s 피드백 후 다음, 중단 시 남은 문제는 오답). seed 0 = 시계로 새 문제(가짜 시계 테스트는 결정적).
+- Q2: 3초 카운트다운, 첫 strum을 해금 코드 전체로 Mode C set 분류, 맞고 ≤ 3 s면 통과. 6초까지 기다리고 없으면 오답(반응 시간 null). 마이크 없으면 자가 보고.
+- Q3: 이름 고르기, 또는 마이크가 있으면 "이 음의 개방현 튕기기"(크로매틱 튜너 안정 판정의 음이름 비교). Q4: 공용 합성기(KS)로 근음 위치 3화음+옥타브 스트럼 재생(판정 중 재생 차단 규칙과 같은 엔진 경로).
+- S: 학습 모드(멈춰도 됨, 멈춤은 횟수로 기록, 한 부분 반복)와 연주 모드(멈추지 않기, 마이크가 있으면 마디 첫 박 적중률). 끝나면 완주·멈춤 수·암기를 자가 보고. "들어 보기"는 첫 8마디를 박마다 다운 스트럼으로 합성(렌더러는 러너에 주입).
+
+## D-044 M5 E2E 근거와 발견한 결함
+- E2E fixture(E1 C 코드 줄별·2번 줄 뮤트·6번 줄 울린 스트럼, E2 A↔D 15회, E5 P3 80 BPM 8마디)는 합성기로 만들고, E2E에 쓰기 전에 같은 DSP로 오프라인 확인했다(줄별 OK/MUTED, 스트럼 FAIL·blamed [6번 줄], 체인지 14, P3 적중 48/48).
+- E2E-12가 실제 결함을 찾음: `/practice/E2`에서 `/practice/E1`로 해시만 바뀌면 같은 화면 컴포넌트가 남아 E2의 저장 결과를 E1 요약으로 렌더(ZodError). 연습 호스트를 (종류 + 쿼리 + 회차) key로 다시 마운트하도록 수정.
+
+## D-045 M5 리뷰(code-reviewer) 반영
+리뷰 서브에이전트(보고만, 파일 수정 없음)의 지적을 모두 확인하고 고쳤다. 확인된 결함과 조치:
+- (상) 프로덕션 번들에 `timeScale` 문자열이 남음(`practiceParams.ts`의 예약 키 집합) → 예약 집합 삭제. 모르는 키는 플러그인 zod가 버린다. 프로덕션 빌드(스크래치 폴더) 문자열 스캔에서 `timeScale`·`__gh_test` 0건 확인.
+- (상) 큰 남은 시간 표시가 멈춤(러너가 사건 때만 발행) → `BaseRunner.tick`이 표시 초가 바뀔 때마다 발행(`baseRunner.test.ts`). Q2 카운트다운도 초 단위로만 발행.
+- (중) 중단·미채점 실행이 0/전체 시간 결과로 저장돼 지표를 오염 → 계약에 `hasResult()` 추가: 시작 전 중단·답 0개·채점 실패면 Attempt를 저장하지 않고 "기록하지 않았어요" 안내. E2·E4는 실제 진행 시간을 기록(중단 시 타이머 정지, E2는 5초 미만 미기록). 퀴즈를 중간에 멈추면 답한 문제 수 기준.
+- (중) `analyzeTiming` 실패 시 review에서 멈춤 → E5·E6·E8·S에 `.catch`(E5·E6·E8은 결과 없이 종료 + 안내, S는 첫 박 지표 없이 자가 보고 진행).
+- (중) E1 한 줄에서 갇힘 → Next = 그 줄 건너뛰기(UNVERIFIABLE), x줄 확인에서 아무 소리도 없으면(fallback도 없음) OK, onset이 있었지만 판정 테이크가 안 나온 채 1초 지나면 fallback 허용. fallback 창은 캡처 링(3.9 s)에 들어가도록 3.5 s.
+- (중) §12.3 첫 스트럼 자동 시작이 E5·E6·S에 없음 → 마이크가 있으면 'armed'(첫 coarse onset 또는 Space가 카운트인 시작), 없으면 'ready'. E2E-06은 Space로 시작.
+- (중) 시작 버튼 연타 시 러너 2개 → `ExerciseHost` 시작 가드 + 버튼 비활성화. 저장 실패 시 다시 시도 UI.
+- (중) 연습곡 학습 모드에서 "멈추고 다시" 불가 → review에서 Space = 처음부터 다시(멈춤 수 누적), Enter = 확인.
+- (하) E2 종료음(액센트 클릭 2번, 판정 차단 규칙과 무관한 `output.cue`), 스트럼 베타 같은 RETRY 2회 → "한 줄씩" 유도(§10.6-6), E5 사다리 +5와 E8 통과는 8마디 이상에서만, E5 `previousLow`는 같은 패턴 최근 결과에서(`withHistory`), Q3는 마이크 선택(튜너로 개방현 튕기기 도달 가능, 문제마다 튜너 재시작), 개인 선행 보정은 E6의 beat1 지연도 사용, 목록형 쿼리 파라미터는 한 원소도 목록으로.
+- 리뷰 에이전트가 레포 안에 남긴 메모리 파일(`.claude/agent-memory/…`)은 프로젝트 산출물이 아니어서 지웠다.

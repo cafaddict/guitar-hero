@@ -1,0 +1,115 @@
+import { patternById } from '../../content/patterns';
+import type { StrumResult } from '../../domain/exerciseResults';
+import { ko } from '../../i18n/ko';
+import { Button } from '../../ui/Button';
+import type { ExerciseContext, ExerciseRunner } from '../types';
+import { ArmedStart } from '../ui/ArmedStart';
+import { BigTimer } from '../ui/BigTimer';
+import { useRunnerSnapshot } from '../ui/hooks';
+import { type E5Params, nextBpmFor, type E5View as View } from './runner';
+
+/** A slot's identity is its position in the bar (patterns repeat 'D'/'U' symbols). */
+const toSlotCell = (slot: 'D' | 'U' | '-', position: number) => ({ slot, position });
+
+export function E5ViewComponent({
+  runner,
+}: {
+  runner: ExerciseRunner<StrumResult, View>;
+  params: E5Params;
+  ctx: ExerciseContext;
+}) {
+  const { view, phase, remainingMs } = useRunnerSnapshot(runner);
+  const chord = view.chords.length > 0 ? view.chords[(view.bar ?? 0) % view.chords.length] : null;
+  return (
+    <div className="flex flex-col gap-4" data-testid="e5-view" data-phase={phase}>
+      <BigTimer remainingMs={remainingMs} />
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-3xl font-bold tabular-nums">{view.bpm} BPM</p>
+        <p className="text-lg" data-testid="e5-bar">
+          {phase === 'countIn'
+            ? ko.exercises.e5.countIn
+            : view.bar !== null
+              ? ko.exercises.e5.bar(view.bar + 1, view.bars)
+              : ''}
+        </p>
+        {chord && <p className="text-3xl font-bold">{chord}</p>}
+      </div>
+      <ol
+        className="grid gap-1"
+        style={{ gridTemplateColumns: `repeat(${view.pattern.slots.length}, minmax(0, 1fr))` }}
+        aria-label={view.pattern.label}
+      >
+        {view.pattern.slots.map(toSlotCell).map(({ slot, position }) => {
+          const active = !view.cuesHidden && view.slot === position;
+          const accent = view.pattern.accents.includes(position);
+          return (
+            <li
+              key={position}
+              className={`flex min-h-16 flex-col items-center justify-center rounded-lg ${active ? 'bg-accent text-accent-fg' : 'bg-surface'} ${accent ? 'font-black' : ''}`}
+            >
+              <span className="text-3xl" aria-hidden="true">
+                {view.cuesHidden ? '' : ko.exercises.e5.direction[slot]}
+              </span>
+              <span className="text-xs">{view.cuesHidden ? '' : ko.exercises.e5.directionLabel[slot]}</span>
+            </li>
+          );
+        })}
+      </ol>
+      {view.cuesHidden && <p className="text-sm text-muted">{ko.exercises.e5.cuesHidden}</p>}
+      <p className="text-sm text-muted">
+        {ko.exercises.e5.modes[view.mode]} · {ko.exercises.e5.keepGoing} {ko.exercises.e5.directionNote}
+      </p>
+      <ArmedStart phase={phase} onStart={() => runner.command('toggle')} />
+      <div aria-live="polite">
+        {view.analyzing && <p>{ko.exercises.e5.analyzing}</p>}
+        {view.analysisFailed && <p className="text-retry">{ko.exercises.e5.analysisFailed}</p>}
+        {view.awaitingSelf && (
+          <div>
+            <p>{ko.exercises.e5.selfPrompt}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
+                <Button key={cmd} large variant="secondary" onClick={() => runner.command(cmd)}>
+                  {k + 1} {ko.exercises.e5.self[cmd]}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function E5Summary({ result }: { result: StrumResult; params: E5Params }) {
+  const next = nextBpmFor(result.bpm, result.ladder);
+  return (
+    <div data-testid="e5-summary">
+      <p className="text-xl font-bold">{patternById(result.patternId).label}</p>
+      <p className="text-3xl font-bold" data-testid="e5-hit-rate" data-value={result.hitRate}>
+        {ko.exercises.e5.hitRate(result.hitRate)}
+      </p>
+      {result.hitRateCorrected !== result.hitRate && (
+        <p>{ko.exercises.e5.corrected(result.hitRateCorrected)}</p>
+      )}
+      <p>{ko.exercises.e5.counts(result.hits, result.misses, result.extras)}</p>
+      {result.meanOffsetMs !== null && (
+        <p data-testid="e5-mean" data-value={result.meanOffsetMs}>
+          {ko.exercises.e5.mean(result.meanOffsetMs)}
+        </p>
+      )}
+      {result.sdOffsetMs !== null && (
+        <p data-testid="e5-sd" data-value={result.sdOffsetMs}>
+          {ko.exercises.e5.sd(result.sdOffsetMs)}
+        </p>
+      )}
+      <p
+        className="mt-2 text-lg font-semibold"
+        data-testid="e5-ladder"
+        data-ladder={result.ladder}
+        data-next-bpm={next}
+      >
+        {ko.exercises.e5.ladder[result.ladder](next)}
+      </p>
+    </div>
+  );
+}
