@@ -1,19 +1,29 @@
 import { useEffect } from 'react';
 import { createHashRouter, NavLink, Outlet, RouterProvider } from 'react-router';
+import { CurriculumScreen, StageScreen } from '../features/curriculum/CurriculumScreen';
+import { ExamScreen } from '../features/curriculum/ExamScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
+import { ChordDetailScreen, LibraryScreen } from '../features/library/LibraryScreen';
 import { MetronomeScreen } from '../features/metronome/MetronomeScreen';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { PracticeScreen } from '../features/practice/PracticeScreen';
+import { ProgressScreen } from '../features/progress/ProgressScreen';
+import { RecordingKitScreen } from '../features/recording/RecordingKitScreen';
+import { SessionScreen } from '../features/session/SessionScreen';
 import { DiagnosticsScreen } from '../features/settings/DiagnosticsScreen';
+import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { TunerScreen } from '../features/tuner/TunerScreen';
 import { ko } from '../i18n/ko';
 import { useSettingsStore } from './settingsStore';
 
 const NAV = [
   { to: '/', label: ko.nav.home },
+  { to: '/curriculum', label: ko.nav.curriculum },
+  { to: '/library', label: ko.nav.library },
   { to: '/tuner', label: ko.nav.tuner },
   { to: '/metronome', label: ko.nav.metronome },
-  { to: '/settings/diagnostics', label: ko.nav.diagnostics },
+  { to: '/progress', label: ko.nav.progress },
+  { to: '/settings', label: ko.nav.settings },
 ] as const;
 
 function AppLayout() {
@@ -69,8 +79,17 @@ const router = createHashRouter([
       { path: '/onboarding', element: <OnboardingScreen /> },
       { path: '/tuner', element: <TunerScreen /> },
       { path: '/metronome', element: <MetronomeScreen /> },
+      { path: '/settings', element: <SettingsScreen /> },
       { path: '/settings/diagnostics', element: <DiagnosticsScreen /> },
+      { path: '/settings/recording', element: <RecordingKitScreen /> },
       { path: '/practice/:type', element: <PracticeScreen /> },
+      { path: '/session', element: <SessionScreen /> },
+      { path: '/curriculum', element: <CurriculumScreen /> },
+      { path: '/curriculum/:stage', element: <StageScreen /> },
+      { path: '/exam', element: <ExamScreen /> },
+      { path: '/progress', element: <ProgressScreen /> },
+      { path: '/library', element: <LibraryScreen /> },
+      { path: '/library/:id', element: <ChordDetailScreen /> },
     ],
   },
 ]);

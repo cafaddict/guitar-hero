@@ -36,6 +36,7 @@ export const ko = {
     progress: '진도',
     settings: '설정',
     diagnostics: '진단',
+    session: '연습',
     onboarding: '처음 설정',
     main: '주 메뉴',
   },
@@ -57,7 +58,81 @@ export const ko = {
   home: {
     firstRun: '처음이라면 마이크와 튜닝부터 맞춰요.',
     startOnboarding: '처음 설정 시작',
-    comingSoon: '오늘의 루틴은 곧 여기에 나와요.',
+    todayRoutine: '오늘의 루틴',
+    totalTime: (minutes: number) => `총 ${minutes}분`,
+    itemMinutes: (minutes: number) => `${minutes}분`,
+    start: '연습 시작',
+    doneToday: '오늘 연습을 마쳤어요. 잘했어요!',
+    again: '한 번 더 하기',
+    stage: (stage: number, name: string) => `Stage ${stage} · ${name}`,
+    checklist: '진급 체크리스트',
+    weakPairs: '약한 체인지 Top 3',
+    notPracticed: '아직 안 함',
+    perMinute: (v: number) => `분당 ${v.toFixed(0)}회`,
+    week: (minutes: number) => `이번 주 ${minutes}분`,
+    streak: (weeks: number) => `주간 스트릭 ${weeks}주`,
+    reviewsDue: (n: number) => `오늘 복습 ${n}개`,
+    backupReminder: '마지막 백업 후 7일이 지났어요. 기록을 잃지 않게 백업해 두세요.',
+    backupNow: '백업하러 가기',
+    longer: '그래도 더 길게 하기',
+    blocks: {
+      tuning: '튜닝',
+      warmup: '워밍업',
+      stageReview: '지난 단계 복습',
+      chord: '코드',
+      changes: '체인지',
+      rest: '휴식',
+      rhythm: '리듬',
+      technique: '기술',
+      review: '복습',
+      song: '연습곡',
+    },
+    restItem: '휴식',
+    notices: {
+      gapReview: (days: number) => `${days}일 만이에요. 지난 단계를 먼저 복습해요.`,
+      capApplied: (minutes: number) => `처음 4주는 하루 ${minutes}분으로 맞췄어요.`,
+      changesCapReached: '오늘 1분 체인지는 충분히 했어요(하루 6회).',
+    },
+    promote: (stage: number) => `진급 조건을 모두 채웠어요! Stage ${stage}(으)로 올라갈까요?`,
+    promoteConditional:
+      '쌍 몇 개가 3주째 제자리예요. 앵커·공중 체인지 드릴을 처방받고 조건부로 진급할 수 있어요.',
+    promoteYes: '진급하기',
+    completedBeginner: '초급 1 수료! 축하해요.',
+  },
+  rules: {
+    countAtLeast: (subject: string, count: number) =>
+      subject === 'tuning:session'
+        ? `튜너로 6줄 튜닝 완료 ${count}회`
+        : subject === 'song:*'
+          ? `연습곡 ${count}곡 완주`
+          : subject.startsWith('strum:P5')
+            ? 'P5(6/8) 패턴 시도 기록'
+            : `${subject} ${count}회`,
+    metricAtLeast: (subject: string, value: number) => {
+      if (subject === 'quiz:diagram') return `다이어그램 퀴즈 ${(value * 100).toFixed(0)}% 이상`;
+      if (subject === 'altpick:any') return `한 줄 교대 피킹 ${value} BPM 통과`;
+      const m = /^strum:(P\d)(?::(\w+))?$/.exec(subject);
+      if (m) {
+        const mode =
+          m[2] === 'mute'
+            ? ' 뮤트'
+            : m[2] === 'progression'
+              ? ' 코드 진행'
+              : m[2] === 'single'
+                ? ' 단일 코드'
+                : '';
+        return `${m[1]}${mode} ${value} BPM 통과`;
+      }
+      return `${subject} ≥ ${value}`;
+    },
+    distinctDaysAtLeast: (subject: string, value: number, days: number) =>
+      `${subject} ${value} 이상, 서로 다른 ${days}일`,
+    unlockedPairsAtLeast: (value: number, days: number) =>
+      `배운 코드 쌍 모두 1분 체인지 ${value}회 이상(서로 다른 ${days}일)`,
+    recallUnlocked: '배운 코드 모두 기억 퀴즈 3초 안에 통과',
+    sessionsInStageAtLeast: (count: number) => `이 단계에서 ${count}세션 이상 연습`,
+    examPassed: '초급 1 졸업 시험 통과',
+    missing: (items: string) => `남은 것: ${items}`,
   },
   mic: {
     errors: {
@@ -106,6 +181,7 @@ export const ko = {
     calibrationSummary: (rttMs: number, method: string, noiseDb: number) =>
       `지연 ${rttMs.toFixed(1)} ms (${method}), 주변 소음 ${noiseDb.toFixed(1)} dBFS`,
     rerunOnboarding: '캘리브레이션 다시 하기',
+    detectorVersion: (version: string) => `판정기 버전 ${version}`,
     allOff: '에코 제거·잡음 제거·자동 음량이 모두 꺼져 있어요.',
     gaps: (count: number, ms: number) =>
       count === 0 ? '오디오 끊김 없음' : `오디오 끊김 ${count}회 (${ms.toFixed(0)} ms, 시간은 보정됨)`,
@@ -152,7 +228,179 @@ export const ko = {
     decrease: (n: number) => `BPM ${n} 내리기`,
     increase: (n: number) => `BPM ${n} 올리기`,
   },
+  session: {
+    title: '연습',
+    itemOf: (index: number, total: number) => `${index}/${total}`,
+    itemBudget: (seconds: number) =>
+      `이 항목 남은 시간 ${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`,
+    budgetOver: '계획한 시간이 지났어요. 마무리하고 다음으로 가요.',
+    next: (title: string) => `다음: ${title}`,
+    lastItem: '마지막 항목이에요.',
+    nextItem: '다음 항목 (Enter)',
+    skip: '건너뛰기',
+    previous: '이전 항목',
+    pause: '일시정지',
+    resume: '계속하기',
+    paused: '일시정지 중',
+    end: '세션 끝내기',
+    rest: (seconds: number) => `잠깐 쉬어요 · ${seconds}초`,
+    restSkip: '바로 다음으로',
+    breakReminder: '30분 동안 연습했어요. 잠깐 손을 쉬고 스트레칭해요.',
+    breakOk: '알겠어요',
+    reportTitle: '오늘 연습은 어땠나요?',
+    pain: (n: number) => `손가락·손목 통증 ${n}/10`,
+    difficulty: (n: number) => `난이도 ${n}/5`,
+    danger: { sharp: '날카로운 통증', numbness: '저림', joint: '관절·손목 통증' },
+    note: '메모 (선택)',
+    save: '저장하고 끝내기',
+    saved: '세션을 저장했어요.',
+    noRoutine: '오늘은 쉬는 날이에요.',
+  },
+  curriculum: {
+    title: '커리큘럼',
+    locked: '다음 버전에서 열립니다',
+    current: '현재 단계',
+    passed: '통과',
+    learn: '배울 것',
+    tips: '팁',
+    criteria: '진급 기준',
+    chords: (list: string) => `새 코드: ${list}`,
+    exam: '졸업 시험',
+    examIntro: '항목별로 따로 통과해도 돼요. 통과한 항목은 기록돼요.',
+    examItems: {
+      '1': '튜너로 6줄 튜닝(±5 cents)',
+      '2': '무작위 8코드: 이름을 보고 3초 안에 스트럼 + 코드별 정확 체크 깨끗 50% 이상',
+      '3': '무작위 5쌍 1분 체인지 각 30회 이상',
+      '4': '표준 패턴 D DU UDU 80 BPM 8마디 적중 90% (시각 큐 숨김 포함)',
+      '5': '연습곡 5곡 악보 숨김 완주',
+    } as Record<string, string>,
+    examPassedAt: (date: string) => `통과 (${date})`,
+    examStart: '시작',
+    examChordClean: (chord: string, pct: number) => `${chord} 깨끗 ${pct}%`,
+    examSongs: (n: number) => `악보 숨김 완주 ${n}/5곡`,
+    examCheck: '결과 확인',
+    examNotYet: '아직 기준에 못 미쳤어요. 다시 해 봐요.',
+  },
+  progressScreen: {
+    title: '진도',
+    weekly: '주간 연습 시간(분)',
+    pairs: '쌍별 1분 체인지 (점: 기록, 선: 이동 중앙값)',
+    heatmap: '코드 × 줄 깨끗 비율',
+    patterns: '패턴별 최고 통과 BPM',
+    timing: '타이밍 평균·흔들림(ms)',
+    reviews: (n: number) => `복습 대기 ${n}개`,
+    sessions: '세션 기록',
+    noData: '아직 기록이 없어요.',
+    sessionRow: (date: string, minutes: number, done: number, planned: number) =>
+      `${date} · ${minutes}분 · ${done}/${planned}항목`,
+    mean: '평균',
+    sd: '흔들림',
+  },
+  library: {
+    title: '코드',
+    stage: (n: number) => `Stage ${n}`,
+    expected: '기대 음',
+    verifiable: '스트럼으로 확인 가능한 줄',
+    notVerifiable: '스트럼으로 확인 불가(한 줄씩 확인)',
+    listen: '들어 보기',
+    practice: '이 코드로 정밀 체크(E1)',
+    level: { none: '처음', learning: '익히는 중', acquired: '습득', mastered: '숙달' } as Record<
+      string,
+      string
+    >,
+    back: '코드 목록',
+  },
+  settingsScreen: {
+    title: '설정',
+    devices: '입력 장치·진단',
+    recalibrate: '캘리브레이션 다시 하기',
+    theme: '테마',
+    themes: { dark: '다크', light: '라이트', contrast: '고대비' },
+    leftHanded: '왼손잡이(다이어그램 좌우 반전)',
+    strictness: '판정 엄격도',
+    strictnessNames: { lenient: '관대', normal: '보통', strict: '엄격' },
+    visualOnly: '시각 전용 메트로놈(소리 없이)',
+    xStringCheck: 'x줄 확인(치지 않는 줄이 조용한지 확인)',
+    sessionMinutes: '세션 길이(분)',
+    micDisabled: '마이크 없이 쓰기',
+    micNotice: '마이크 판정은 보조 수단이에요. 내 귀가 먼저예요.',
+    backup: '백업',
+    exportData: '내보내기(JSON 파일)',
+    importData: '가져오기',
+    importPreview: (rows: string) => `가져올 데이터: ${rows}`,
+    importMerge: '합치기(같은 기록은 건너뜀)',
+    importReplace: '바꾸기(지금 데이터를 지우고 가져오기)',
+    importReplaceConfirm: '정말 지금 데이터를 모두 지우고 바꿀까요? 되돌릴 수 없어요.',
+    importDone: '가져왔어요.',
+    importError: '파일을 읽지 못했어요. 이 앱에서 내보낸 JSON 파일인지 확인해 주세요.',
+    exported: (name: string) => `${name} 파일로 내보냈어요.`,
+    lastBackup: (date: string | null) => (date ? `마지막 백업: ${date}` : '아직 백업하지 않았어요.'),
+    persist: (granted: boolean) =>
+      granted
+        ? '브라우저가 기록을 지우지 않도록 보호했어요.'
+        : '저장소 보호를 받지 못했어요. 자주 백업해 주세요.',
+    homeScreenTip:
+      'iPad·iPhone에서는 Safari 공유 버튼 → "홈 화면에 추가"로 설치하면 기록이 더 안전하게 보관돼요.',
+    recording: '녹음 키트',
+    reset: '데이터 초기화',
+    resetConfirm1: '모든 연습 기록·설정을 지울까요?',
+    resetConfirm2: '정말 지울까요? 되돌릴 수 없어요. (백업을 먼저 권장해요)',
+    resetDone: '모든 데이터를 지웠어요.',
+    yes: '네',
+    no: '아니요',
+    cancel: '취소',
+    keys: '키·페달',
+  },
+  recording: {
+    title: '녹음 키트',
+    intro: '내 기타·내 방 소리로 판정기를 확인하는 데 쓰는 짧은 녹음이에요. 녹음은 기기 안에만 저장돼요.',
+    record: '녹음',
+    stop: '멈춤',
+    recording: (s: number) => `녹음 중… ${s.toFixed(0)}초`,
+    saved: '저장했어요.',
+    save: '저장',
+    count: '직접 센 횟수',
+    exportAll: '모두 내보내기(zip)',
+    exported: '내보냈어요.',
+    empty: '아직 녹음이 없어요.',
+    unsupported: '이 브라우저는 기기 내 저장(OPFS)을 지원하지 않아요.',
+    kinds: {
+      'chord-clean-strum': (chord: string) => `${chord} 깨끗한 스트럼 1번`,
+      'chord-pluck': (chord: string) => `${chord} 한 줄씩 저음부터 튕기기`,
+      'chord-muted': (chord: string, stringNo: number) => `${chord} ${stringNo}번 줄 일부러 막고 스트럼`,
+      'x-string': (chord: string, stringNo: number) => `${chord} ${stringNo}번 줄(x)까지 울리며 스트럼`,
+      'one-minute': (from: string, to: string) => `${from}↔${to} 30초 체인지(끝나고 센 횟수 입력)`,
+      'strum-grid': (bpm: number) => `메트로놈 ${bpm} BPM에 맞춰 8마디 스트럼`,
+    },
+  },
   keys: {
+    actions: {
+      toggle: '시작/정지',
+      next: '다음·확인',
+      prev: '이전',
+      inc: '올리기·+1 보정',
+      dec: '내리기·−1 보정',
+      abort: '중단',
+      mark: '표시·다시 듣기',
+      manual1: '1 깨끗',
+      manual2: '2 막힘',
+      manual3: '3 버징',
+    } as Record<string, string>,
+    keyNames: {
+      ' ': 'Space',
+      ArrowUp: '↑',
+      ArrowDown: '↓',
+      ArrowLeft: '←',
+      ArrowRight: '→',
+      Escape: 'Esc',
+    } as Record<string, string>,
+    learn: '페달 학습',
+    learnPrompt: (action: string) => `"${action}"에 쓸 페달이나 키를 눌러 주세요… (Esc 취소)`,
+    learned: (key: string, action: string) => `${key} → ${action}`,
+    defaults: '기본 키',
+    custom: '학습한 키',
+    remove: '지우기',
+    pedalTip: '블루투스 페이지 터너 페달은 키보드처럼 동작해요. 페달 버튼을 원하는 동작에 연결하세요.',
     hint: 'Space 시작/정지 · Enter 다음 · ↑↓ 보정 · 1/2/3 수동 판정 · Esc 중단',
     confirmAbort: '연습을 중단할까요? 지금까지 한 것은 기록돼요.',
     abortYes: '중단하기',

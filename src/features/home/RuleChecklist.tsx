@@ -1,0 +1,49 @@
+import type { RuleEvaluation } from '../../domain/progression';
+import { ko } from '../../i18n/ko';
+
+export function ruleText(evaluation: RuleEvaluation): string {
+  const rule = evaluation.rule;
+  switch (rule.kind) {
+    case 'countAtLeast':
+      return ko.rules.countAtLeast(rule.subject, rule.count);
+    case 'metricAtLeast':
+      return ko.rules.metricAtLeast(rule.subject, rule.value);
+    case 'distinctDaysAtLeast':
+      return ko.rules.distinctDaysAtLeast(rule.subject, rule.value, rule.days);
+    case 'unlockedPairsAtLeast':
+      return ko.rules.unlockedPairsAtLeast(rule.value, rule.days);
+    case 'recallUnlocked':
+      return ko.rules.recallUnlocked;
+    case 'sessionsInStageAtLeast':
+      return ko.rules.sessionsInStageAtLeast(rule.count);
+    case 'examPassed':
+      return ko.rules.examPassed;
+  }
+}
+
+/** Stage criteria with progress; met rules carry a check mark and text (not colour alone). */
+export function RuleChecklist({ rules }: { rules: readonly RuleEvaluation[] }) {
+  return (
+    <ul className="space-y-2" data-testid="rule-checklist">
+      {rules.map((r) => (
+        <li key={ruleText(r)} className="flex flex-col gap-1">
+          <span className={r.met ? 'text-ok' : ''}>
+            <span aria-hidden="true">{r.met ? '✓ ' : '○ '}</span>
+            {ruleText(r)}
+          </span>
+          {!r.met && (
+            <span className="h-2 w-full overflow-hidden rounded bg-surface-2" aria-hidden="true">
+              <span
+                className="block h-full bg-accent"
+                style={{ width: `${Math.round(r.progress * 100)}%` }}
+              />
+            </span>
+          )}
+          {!r.met && r.missing.length > 0 && r.missing.length <= 8 && (
+            <span className="text-xs text-muted">{ko.rules.missing(r.missing.join(', '))}</span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}

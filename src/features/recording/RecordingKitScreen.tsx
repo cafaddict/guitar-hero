@@ -1,0 +1,250 @@
+import { useEffect, useRef, useState } from 'react';
+import { useEngineStatus, useMicReleasedOnExit } from '../../app/audioHooks';
+import { audioEngine, captureReady, metronome, repo } from '../../app/services';
+import { useSettingsStore } from '../../app/settingsStore';
+import { DEFAULT_METRONOME_CONFIG } from '../../audio/metronome';
+import { CURRICULUM } from '../../content/curriculum';
+import { voicingById } from '../../content/voicings';
+import { createZip } from '../../data/zip';
+import { newId } from '../../domain/ids';
+import { unlockedChordClasses } from '../../domain/progression';
+import type { RecordingMeta } from '../../domain/records';
+import { stringNumber } from '../../domain/strings';
+import { encodeWav } from '../../dsp/wav';
+import { ko } from '../../i18n/ko';
+import { Button } from '../../ui/Button';
+import { Screen } from '../../ui/Screen';
+import { MicStatusPanel } from '../mic/MicStatusPanel';
+import { opfsSupported, readFile, saveFile } from './opfs';
+import { RawRecorder } from './rawRecorder';
+import { buildLabels, clipFileName, type PlannedClip, recordingPlan, STRUM_GRID } from './recordingPlan';
+
+function clipText(clip: PlannedClip): string {
+  const k = ko.recording.kinds;
+  const chord = clip.voicingId ? voicingById(clip.voicingId).symbol : '';
+  switch (clip.kind) {
+    case 'chord-strum':
+      return k['chord-clean-strum'](chord);
+    case 'chord-pluck':
+      return k['chord-pluck'](chord);
+    case 'chord-muted':
+      return k['chord-muted'](chord, stringNumber(Number(clip.expected.mutedStringIdx)));
+    case 'x-string':
+      return k['x-string'](chord, stringNumber(Number(clip.expected.ringingIdx)));
+    case 'one-minute': {
+      const [a, b] = String(clip.expected.direction).split('>');
+      return k['one-minute'](a ?? '', b ?? '');
+    }
+    case 'strum-grid':
+      return k['strum-grid'](STRUM_GRID.bpm);
+  }
+}
+
+function download(name: string, bytes: Uint8Array, type: string): void {
+  const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Settings > recording kit (SPEC §13.4): guided labelled clips for `bench:real`. */
+export function RecordingKitScreen() {
+  const status = useEngineStatus();
+  const settings = useSettingsStore((s) => s.settings);
+  const [plan, setPlan] = useState<PlannedClip[]>([]);
+  const [recordings, setRecordings] = useState<RecordingMeta[]>([]);
+  const [active, setActive] = useState<{ clip: PlannedClip; startedAt: number } | null>(null);
+  const [pendingCount, setPendingCount] = useState<{
+    clip: PlannedClip;
+    samples: Float32Array;
+    extra: Record<string, unknown>;
+  } | null>(null);
+  const [userCount, setUserCount] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [message, setMessage] = useState<string | null>(null);
+  const recorder = useRef<RawRecorder | null>(null);
+  const extra = useRef<Record<string, unknown>>({});
+  useMicReleasedOnExit();
+
+  useEffect(() => {
+    void repo
+      .progression(Date.now())
+      .then((p) => setPlan(recordingPlan(unlockedChordClasses(CURRICULUM, p.stage), p.gVoicing)));
+    void repo.recordings().then(setRecordings);
+    return () => {
+      recorder.current?.cancel();
+      metronome.stop();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => {
+      const s = (Date.now() - active.startedAt) / 1000;
+      setElapsed(s);
+      if (s >= active.clip.seconds) void stop();
+    }, 200);
+    return () => clearInterval(id);
+  });
+
+  const store = async (clip: PlannedClip, samples: Float32Array, expected: Record<string, unknown>) => {
+    const createdAt = Date.now();
+    const fileName = clipFileName(clip.id, createdAt);
+    await saveFile(fileName, encodeWav(samples, audioEngine.sampleRate));
+    const labels = await audioEngine.deviceLabels();
+    const calibration = await repo.latestCalibration(labels.input, labels.output);
+    await repo.addRecording({
+      id: newId(),
+      createdAt,
+      label: clip.id,
+      kind: clip.kind,
+      voicingId: clip.voicingId,
+      expected,
+      sampleRate: audioEngine.sampleRate,
+      durationMs: Math.round((samples.length / audioEngine.sampleRate) * 1000),
+      device: labels.input,
+      calibrationId: calibration?.id ?? null,
+      fileName,
+    });
+    setRecordings(await repo.recordings());
+    setMessage(ko.recording.saved);
+  };
+
+  const record = async (clip: PlannedClip) => {
+    const ok = await audioEngine.startMic({ deviceId: settings?.preferredInputDeviceId ?? null });
+    if (!ok) return;
+    await captureReady();
+    audioEngine.setJob(null);
+    const r = new RawRecorder(audioEngine);
+    recorder.current = r;
+    const start = r.start();
+    extra.current = { ...clip.expected };
+    if (clip.kind === 'strum-grid') {
+      const labels = await audioEngine.deviceLabels();
+      const calibration = await repo.latestCalibration(labels.input, labels.output);
+      await metronome.start(
+        { ...DEFAULT_METRONOME_CONFIG, bpm: STRUM_GRID.bpm, countInBars: 1, stopAfterBars: STRUM_GRID.bars },
+        { rttMs: calibration?.rttMs ?? 0 },
+      );
+      extra.current = {
+        ...clip.expected,
+        gridStartS: (metronome.gridStartTime ?? start) - start,
+        rttMs: calibration?.rttMs ?? null,
+      };
+    }
+    setMessage(null);
+    setActive({ clip, startedAt: Date.now() });
+  };
+
+  async function stop() {
+    const current = active;
+    const r = recorder.current;
+    if (!current || !r) return;
+    setActive(null);
+    recorder.current = null;
+    metronome.stop();
+    const samples = await r.stop();
+    if (current.clip.kind === 'one-minute') {
+      setUserCount(0);
+      setPendingCount({ clip: current.clip, samples, extra: extra.current });
+      return;
+    }
+    await store(current.clip, samples, extra.current);
+  }
+
+  const exportAll = async () => {
+    const labels = await audioEngine.deviceLabels().catch(() => ({ input: '', output: '' }));
+    const calibration = await repo.latestCalibration();
+    const sampleRate = recordings[0]?.sampleRate ?? audioEngine.sampleRate;
+    const json = buildLabels(
+      recordings,
+      labels.input || recordings[0]?.device || 'device',
+      sampleRate,
+      calibration ?? null,
+    );
+    const files = await Promise.all(
+      json.clips.map(async (c) => ({ name: c.file, data: await readFile(c.file) })),
+    );
+    files.push({ name: 'labels.json', data: new TextEncoder().encode(JSON.stringify(json, null, 1)) });
+    download(`guitar-hero-recordings-${Date.now()}.zip`, createZip(files), 'application/zip');
+    setMessage(ko.recording.exported);
+  };
+
+  if (!opfsSupported()) {
+    return (
+      <Screen title={ko.recording.title}>
+        <p>{ko.recording.unsupported}</p>
+      </Screen>
+    );
+  }
+  const recordedIds = new Set(recordings.map((r) => r.label));
+  return (
+    <Screen title={ko.recording.title}>
+      <p className="text-muted">{ko.recording.intro}</p>
+      <MicStatusPanel status={status} onRetry={() => void audioEngine.startMic()} />
+      <ol className="mt-4 space-y-2">
+        {plan.map((clip) => (
+          <li
+            key={clip.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface p-3"
+          >
+            <span>
+              {recordedIds.has(clip.id) ? '✓ ' : ''}
+              {clipText(clip)}
+            </span>
+            {active?.clip.id === clip.id ? (
+              <Button onClick={() => void stop()}>
+                {ko.recording.stop} · {ko.recording.recording(elapsed)}
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                disabled={active !== null || pendingCount !== null}
+                onClick={() => void record(clip)}
+              >
+                {ko.recording.record}
+              </Button>
+            )}
+          </li>
+        ))}
+      </ol>
+      {pendingCount && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-surface-2 p-3">
+          <label className="flex items-center gap-2">
+            {ko.recording.count}
+            <input
+              type="number"
+              min={0}
+              className="min-h-12 w-24 rounded-lg bg-surface px-3 text-fg"
+              value={userCount}
+              onChange={(e) => setUserCount(Number(e.target.value))}
+            />
+          </label>
+          <Button
+            onClick={() => {
+              const p = pendingCount;
+              setPendingCount(null);
+              void store(p.clip, p.samples, { ...p.extra, userCount });
+            }}
+          >
+            {ko.recording.save}
+          </Button>
+        </div>
+      )}
+      <div className="mt-4">
+        {recordings.length === 0 ? (
+          <p className="text-muted">{ko.recording.empty}</p>
+        ) : (
+          <Button onClick={() => void exportAll()}>{ko.recording.exportAll}</Button>
+        )}
+      </div>
+      {message && (
+        <p role="status" className="mt-2">
+          {message}
+        </p>
+      )}
+    </Screen>
+  );
+}

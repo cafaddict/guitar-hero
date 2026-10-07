@@ -5,6 +5,7 @@ import { audioEngine, CAPTURE_DIAGNOSTICS_KEY, repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
 import type { CaptureDiagnostics } from '../../audio/devices';
 import type { Calibration } from '../../domain/records';
+import { DETECTOR_VERSION } from '../../dsp/version';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { LevelMeter } from '../../ui/LevelMeter';
@@ -133,6 +134,9 @@ export function DiagnosticsScreen() {
           </p>
         </section>
       )}
+      <p className="mt-4 text-sm" data-testid="diag-detector">
+        {ko.diagnostics.detectorVersion(DETECTOR_VERSION)}
+      </p>
       <section className="mt-4 rounded-lg bg-surface p-4">
         <h2 className="font-semibold">{ko.diagnostics.calibration}</h2>
         <p className="mt-1" data-testid="diag-calibration">

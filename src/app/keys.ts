@@ -23,6 +23,13 @@ const DEFAULT_KEYS: Readonly<Record<string, KeyAction>> = {
   m: 'mark',
 };
 
+/** Default keys per action (for the settings screen). */
+export function defaultKeysFor(action: KeyAction): string[] {
+  return Object.entries(DEFAULT_KEYS)
+    .filter(([, a]) => a === action)
+    .map(([key]) => key);
+}
+
 export interface KeyLike {
   key: string;
   code: string;

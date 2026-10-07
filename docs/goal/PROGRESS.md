@@ -5,14 +5,14 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **M6 (커리큘럼·루틴·진도)** 시작 — M0–M5 완료
+- 현재 마일스톤: **M7 (PWA·반응형·접근성·배포 준비)** 시작 — M0–M6 완료
 - 마일스톤 끝 리뷰 서브에이전트: M2·M5·M8 (M4는 해당 없음)
 - 마지막 갱신: 2026-10-08
 - 누적 턴(대략): 2
 - 턴 상한: **1000** (사용자 지시, D-011). §16.1 축소는 턴 800 이후에만.
 - 다음 할 일:
-  2. M6: 홈(오늘의 루틴 카드·진급 체크리스트), 세션 러너(ExerciseHost 연결, 휴식 알림, 자가 평가), 커리큘럼·졸업 시험, 진도 대시보드
-  3. M6: 코드 라이브러리(ChordDiagram, 들어 보기, E1 시작), 백업 UI·리마인더·persist, 녹음 키트, E2E-07/08
+  2. M7: PWA(오프라인 셸·아이콘·업데이트 안내), 레이아웃 다듬기(4 뷰포트, 버튼 ≥64 px), 키·페달 E2E(U2), 테마·왼손잡이 미러(U6), axe(E2E-11), E2E-09/10/14
+  3. M7: `_headers`, `vercel.json`, `docs/DEPLOY.md`
 - 막힌 점: 없음
 
 ## 마일스톤
@@ -24,8 +24,8 @@
 | M2 | DSP 코어·합성기·벤치마크 | DONE | 557f39d | test split 첫 실행 전 지표 통과(8,950 cases, 62 s), 리뷰 반영 D-028 |
 | M3 | 실녹음 벤치마크 | DONE | 9c12306 | GuitarSet 하드 4/4·소프트 2/2(test), detector 1.3.1, test 3회 실행(D-029–D-031) |
 | M4 | 오디오 엔진·캘리브레이션 | DONE | 45f5cd6 | verify PASS(750 tests, E2E 6/6), 렌더 끊김 시계 정렬 수정(D-037), D-032–D-037 |
-| M5 | 연습 플러그인 | DONE | (M5 커밋) | 13종, verify PASS(1002 tests, E2E 13/13), 리뷰 반영(D-045), D-038–D-045 |
-| M6 | 커리큘럼·루틴·진도 | TODO | | |
+| M5 | 연습 플러그인 | DONE | f911cd5 | 13종, verify PASS(1002 tests, E2E 13/13), 리뷰 반영(D-045), D-038–D-045 |
+| M6 | 커리큘럼·루틴·진도 | DONE | (M6 커밋) | verify PASS(1082 tests, E2E 20/20), D-046, D-047 |
 | M7 | PWA·반응형·접근성·배포 준비 | TODO | | |
 | M8 | 하드닝·최종 검증 | TODO | | |
 
@@ -34,7 +34,7 @@
 | AC | 요약 | 상태 | 증거 |
 |---|---|---|---|
 | AC-P1 | 브랜치·커밋·main 불변·push 없음·clean | TODO | |
-| AC-P2 | `npm ci && npm run verify` exit 0 | DOING | M5: `npm run verify` RESULT: PASS(8단계 전부 PASS, 1002 tests, E2E 13/13·4 projects) — 최종 `npm ci && npm run verify`는 M8 |
+| AC-P2 | `npm ci && npm run verify` exit 0 | DOING | M6: `npm run verify` RESULT: PASS(8단계 전부 PASS, 1082 tests, E2E 20/20·4 projects) — 최종 `npm ci && npm run verify`는 M8 |
 | AC-P3 | 라이선스 검사 통과 | DONE | `npm run licenses` (`tools/licenses.ts`): 78 prod packages 표 출력, 전부 허용. `tools/licenses.test.ts` (GPL/LGPL/AGPL/BlueOak 거부). svguitar 제거(D-013) |
 | AC-P4 | 무결성 테스트 통과 | DOING | M2: `tests/integrity/source-rules.test.ts`(§14.6-1,3,4,5,6 + 패턴 자기검사), `thresholds-contract.test.ts`(§14.6-2) 전부 통과 — 최종 확인 M8 |
 | AC-P5 | TS strict·noExplicitAny·린트 경고 0 | DOING | `tsconfig.base.json`(strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes), `biome.json` noExplicitAny=error, `lint` = `biome check --error-on-warnings` — 최종 확인은 M8 |
@@ -68,14 +68,14 @@
 | AC-X6 | E6·E7·E8 | DONE | E6 `src/exercises/e6/`(마디 첫 박 Mode D, 멈춤 마디, ≥14/16 & 멈춤 0 → 통과) + test 4개; E7 `e7/`(시작 프렛, 상시 "스트레칭이지 통증 운동이 아니에요… 의학적 조언이 아닙니다", 통증 0–10) + test; E8 `e8/`(8분음표 적중률 + ioi_cv ≤ 0.10) + test 3개; 공용 `gridRecorder.ts`; D-042 |
 | AC-X7 | Q1–Q4 | DONE | `src/exercises/quiz/`(공통 객관식 러너, Q1 다이어그램 점·x/o, Q2 3초 회상 Mode C set + 자가 보고, Q3 음이름/튜너로 개방현 튕기기, Q4 합성 메이저/마이너) + `quiz.test.ts` 8개; D-043 |
 | AC-X8 | S 연습곡 | DONE | `src/exercises/song/`(코드 차트·현재 마디 강조, 카운트인·메트로놈, 학습/연주 모드, 부분 반복, 악보 숨김, 합성 "들어 보기", 연주 모드 마디 첫 박 적중률, 완주·멈춤·암기 자가 보고) + `runner.test.ts` 3개; D-043 |
-| AC-X9 | 졸업 시험 | TODO | |
+| AC-X9 | 졸업 시험 | DONE | `src/features/curriculum/examModel.ts` + `examModel.test.ts`(5항목 규칙: ±5 cents, 8코드 3초 + 깨끗 50 %, 무작위 5쌍 ≥30, P3 80 BPM 보임·숨김 ≥90 %, 악보 숨김 5곡), `ExamScreen.tsx`(항목별 연습 연결 실행, EXAM Attempt 기록, `progression.exam` 통과 보존); E2E `tests/e2e/exam.spec.ts`(미통과 기록 → 조건 충족 후 통과·새로고침 후 유지, 3 projects); D-047 |
 | AC-X10 | 마이크 거부 대체 흐름·E2E-12/13 | DONE | E2E-12 `tests/e2e/no-mic.mic.spec.ts`(거부 → 온보딩 안내 "마이크 없이 쓰기" → E2 탭 모드 5회 + E1 수동 1/2/3 진행·저장, detectorVersion null); E2E-13 `tests/e2e/fake-capture.spec.ts`(실제 getUserMedia 요청 EC/NS/AGC false, 진단 화면 값 = getSettings); 모든 마이크 연습의 "마이크 없이" 경로(`ExerciseHost`) |
 | AC-R1 | 루틴 생성 규칙 테스트 | DONE | `src/domain/routine.ts` + `src/domain/routine.test.ts`: 규칙 1(20분·4주 상한), 2(순서·곡 마지막 9–10분), 3(쌍 우선순위·하루 6회), 4(연속 금지·interleave), 5(3일 공백 복습), 6(복습 슬롯 ≤3분), 7(통증 감량·휴식), 8(예산), 10(결정성) |
 | AC-R2 | 진급 엔진 테스트 | DONE | `src/domain/progression.ts` + `src/domain/progression.test.ts`: 데이터 규칙 평가(Stage 0/1/7), 조건부 진급(3주 정체), promote 기록, 2주 정체 감지 처방, G-2f→G-3f, 졸업 항목→복습 큐 |
 | AC-R3 | 복습 큐·주간 스트릭 | DONE | `src/domain/srs.ts` + `src/domain/srs.test.ts`: 1→3→7→14→30→90, 실패 시 1단계 후퇴, 곡 7→14→30→90→180→365, 주간 스트릭(주 4일+, 진행 중 주는 끊지 않음) |
 | AC-R4 | 안전 규칙 | DONE | `src/domain/safety.ts` + `src/domain/safety.test.ts`: 4주 20분 상한+확인, 30분 휴식, 통증 ≥5 감량, 위험 통증 휴식일, E7 시작 프렛 하향; 문구 `ko.safety.*`(의학적 조언 아님 포함) |
-| AC-R5 | 홈·세션 러너·커리큘럼·진도·E2E-07 | TODO | |
-| AC-U1 | 화면 전부·i18n | TODO | |
+| AC-R5 | 홈·세션 러너·커리큘럼·진도·E2E-07 | DONE | 홈 `features/home/HomeScreen.tsx` + `homeModel.ts`(+test: 같은 날 같은 루틴, 주간 분·오늘·백업 리마인더, 약한 쌍, 체크리스트), 세션 `features/session/SessionScreen.tsx` + `sessionModel.ts`·`routineParams.ts`(+test: 이동·일시정지·휴식 알림, Stage 0–7 모든 루틴 항목 → 플러그인 params 검증), 커리큘럼 `features/curriculum/CurriculumScreen.tsx`(0–11, 8–11 잠금 미리보기, 상세 + 기준 진행), 진도 `features/progress/ProgressScreen.tsx` + `progressModel.ts`(+test); **E2E-07** `tests/e2e/session.mic.spec.ts`(마이크 없이 Stage 0 루틴 6항목을 키보드만으로 → 세션 1·Attempt N·자가 평가 저장·홈 "오늘 연습" 갱신); D-046 |
+| AC-U1 | 화면 전부·i18n | DONE | §12.1 화면: 홈, 세션 러너, 연습(`/practice/:type`), 커리큘럼(+상세·졸업 시험), 코드 라이브러리(+상세: 기대 음·확인 가능 줄·들어 보기·E1), 튜너, 메트로놈, 진도, 설정(장치·캘리브레이션·테마·왼손잡이·엄격도·시각 전용·키·페달 학습·백업·녹음 키트·진단(getSettings·RTT·sampleRate·detectorVersion)·초기화 2단계); 모든 한국어 문자열 `src/i18n/ko.ts`(무결성 테스트 `tests/integrity/source-rules.test.ts` "no Hangul outside comments" 전 파일 통과) |
 | AC-U2 | 키·페달·첫 스트럼 자동 시작 | TODO | |
 | AC-U3 | 반응형 E2E-10 | TODO | |
 | AC-U4 | 접근성 E2E-11 | TODO | |
@@ -83,8 +83,8 @@
 | AC-U6 | 테마·왼손잡이 | TODO | |
 | AC-T1 | Dexie·append-only·rebuildDerived | DONE | `src/data/db.ts`(§13.2 스키마) + `src/data/repo.ts`(append-only, 수정/삭제 API 없음) + `src/data/repo.test.ts` "rebuildDerived() equals the incrementally maintained metrics, skills and reviews" |
 | AC-T2 | export/import 왕복 | DONE | `src/data/exportImport.ts`(zod 봉투, 마이그레이션 골격 `MIGRATIONS`/`migrate`, 미리보기 counts, merge/replace) + `src/data/repo.test.ts` "round-trips every table into an empty database (deep-equal)", 잘못된 파일·상위 버전 거부 |
-| AC-T3 | persist·백업 리마인더 | TODO | |
-| AC-T4 | 녹음 키트·bench:real | TODO | |
+| AC-T3 | persist·7일 백업 리마인더 | DONE | `src/app/persist.ts`(시작 시 `navigator.storage.persist()`, 설정에 결과 표시), 리마인더 `homeModel.backupReminderDue`(+test: 마지막 백업/첫 세션 후 7일) → 홈 배너, 내보내기 시 `meta.lastBackupAt`; E2E-08 `tests/e2e/backup.spec.ts`(내보내기→초기화→가져오기 후 11개 테이블 건수·진도 화면 동일, 3 projects) |
+| AC-T4 | 녹음 키트·bench:real | DONE | `src/features/recording/`(안내 순서 클립: 코드별 깨끗한 스트럼·한 줄씩·일부러 뮤트·x줄 울림, 30초 체인지+직접 센 수, 메트로놈 8마디+그리드 시작·RTT; `RawRecorder` 2초 구간 연결(+test: 연속성·길이), OPFS 16-bit WAV, Dexie 메타), `labels.json` = `tools/bench/real.ts` `labelsSchema`(+test), zip `src/data/zip.ts`(+test: 독립 리더 왕복·CRC32); `npm run bench:real`(파일 없으면 "no fixtures"로 성공, M3); D-047 |
 | AC-W1 | PWA 오프라인 E2E-09 | TODO | |
 | AC-W2 | 헤더·vercel.json·VITE_BASE·dev:https | TODO | |
 | AC-W3 | DEPLOY.md | TODO | |

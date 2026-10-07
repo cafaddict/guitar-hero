@@ -31,6 +31,8 @@ export interface ExerciseHostProps {
   onFinished?: (attempt: Attempt | null) => void;
   /** Extra actions under the summary (e.g. "again" / "home" in standalone mode). */
   renderAfter?: (attempt: Attempt | null) => React.ReactNode;
+  /** Focus the start button (session runner: keyboard-only flow). */
+  autoFocusStart?: boolean;
 }
 
 interface Running {
@@ -148,6 +150,7 @@ export function ExerciseHost({
   reviewOf = null,
   onFinished,
   renderAfter,
+  autoFocusStart = false,
 }: ExerciseHostProps) {
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.update);
@@ -318,7 +321,13 @@ export function ExerciseHost({
         <div className="flex flex-wrap gap-2">
           {wantsMic ? (
             <>
-              <Button large disabled={starting} onClick={() => void begin(true)} data-testid="exercise-start">
+              <Button
+                large
+                disabled={starting}
+                autoFocus={autoFocusStart}
+                onClick={() => void begin(true)}
+                data-testid="exercise-start"
+              >
                 {ko.exercises.common.startWithMic}
               </Button>
               <Button large variant="secondary" disabled={starting} onClick={() => void begin(false)}>
@@ -326,7 +335,13 @@ export function ExerciseHost({
               </Button>
             </>
           ) : (
-            <Button large disabled={starting} onClick={() => void begin(false)} data-testid="exercise-start">
+            <Button
+              large
+              disabled={starting}
+              autoFocus={autoFocusStart}
+              onClick={() => void begin(false)}
+              data-testid="exercise-start"
+            >
               {ko.exercises.common.start}
             </Button>
           )}
