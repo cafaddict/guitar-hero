@@ -13,3 +13,4 @@ coverage/
 tests/fixtures/real/**/*.wav
 !tests/fixtures/real/.gitkeep
 tests/fixtures/generated/*.wav
+.claude/agent-memory/

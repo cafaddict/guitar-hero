@@ -1,0 +1,2640 @@
+{
+  "$comment": "리서치 권고 → SPEC v1.1 절 → AC(구현) 또는 제외 근거. SPEC v1.1 §14.9-5가 완전성을 검사한다. goal 실행 중 수정 금지(SHA-256 대조).",
+  "version": "1.1",
+  "minimumEntries": 215,
+  "entries": [
+    {
+      "id": "01-5.2-s0-new-0",
+      "source": "01:238",
+      "recommendation": "Stage 0 신규: 튜닝",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§11.2"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s0-new-1",
+      "source": "01:238",
+      "recommendation": "Stage 0 신규: 자세",
+      "status": "implemented",
+      "spec": [
+        "§11.12"
+      ],
+      "ac": [
+        "AC-NE1"
+      ]
+    },
+    {
+      "id": "01-5.2-s0-new-2",
+      "source": "01:238",
+      "recommendation": "Stage 0 신규: 피크 잡기",
+      "status": "implemented",
+      "spec": [
+        "§11.12"
+      ],
+      "ac": [
+        "AC-NE1"
+      ]
+    },
+    {
+      "id": "01-5.2-s0-new-3",
+      "source": "01:238",
+      "recommendation": "Stage 0 신규: 코드 다이어그램 읽기",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s0-new-4",
+      "source": "01:238",
+      "recommendation": "Stage 0 신규: 프렛 가까이 누르기",
+      "status": "implemented",
+      "spec": [
+        "§11.18"
+      ],
+      "ac": [
+        "AC-NE2"
+      ]
+    },
+    {
+      "id": "01-5.2-s0-ex-5",
+      "source": "01:238",
+      "recommendation": "Stage 0 포함 연습: 튜닝 가이드",
+      "status": "implemented",
+      "spec": [
+        "§9.3"
+      ],
+      "ac": [
+        "AC-EX1"
+      ]
+    },
+    {
+      "id": "01-5.2-s0-ex-6",
+      "source": "01:238",
+      "recommendation": "Stage 0 포함 연습: 프렛 위치 압력 비교 테스트",
+      "status": "implemented",
+      "spec": [
+        "§11.18"
+      ],
+      "ac": [
+        "AC-NE2"
+      ]
+    },
+    {
+      "id": "01-5.2-s0-ex-7",
+      "source": "01:238",
+      "recommendation": "Stage 0 포함 연습: 뮤트 스트럼(박자 세기)",
+      "status": "implemented",
+      "spec": [
+        "§7.3",
+        "§11.6"
+      ],
+      "ac": [
+        "AC-NE9",
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s0-crit-8",
+      "source": "01:238",
+      "recommendation": "Stage 0 진급 기준: 튜너로 6줄 튜닝 완료 3회",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s0-crit-9",
+      "source": "01:238",
+      "recommendation": "Stage 0 진급 기준: 다이어그램 퀴즈 ≥90%",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s1-new-0",
+      "source": "01:239",
+      "recommendation": "Stage 1 신규: D, A",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§6.4"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s1-ex-1",
+      "source": "01:239",
+      "recommendation": "Stage 1 포함 연습: 코드 정밀 체크",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s1-ex-2",
+      "source": "01:239",
+      "recommendation": "Stage 1 포함 연습: 앵커 손가락 드릴(D↔A)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s1-ex-3",
+      "source": "01:239",
+      "recommendation": "Stage 1 포함 연습: 1분 코드 체인지 A→D / D→A",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT2"
+      ]
+    },
+    {
+      "id": "01-5.2-s1-ex-4",
+      "source": "01:239",
+      "recommendation": "Stage 1 포함 연습: 4 다운 스트럼 + 1박 체인지",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§11.7"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "01-5.2-s1-ex-5",
+      "source": "01:239",
+      "recommendation": "Stage 1 포함 연습: 2코드 곡",
+      "status": "implemented",
+      "spec": [
+        "§11.10"
+      ],
+      "ac": [
+        "AC-NE8"
+      ]
+    },
+    {
+      "id": "01-5.2-s1-crit-6",
+      "source": "01:239",
+      "recommendation": "Stage 1 진급 기준: D·A 이름 제시 후 3초 내 형성",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§11.9"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s1-crit-7",
+      "source": "01:239",
+      "recommendation": "Stage 1 진급 기준: 1분 체인지 A↔D ≥30",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s1-crit-8",
+      "source": "01:239",
+      "recommendation": "Stage 1 진급 기준: 3주 경과 시 조건부 진급",
+      "status": "implemented",
+      "spec": [
+        "§7.4"
+      ],
+      "ac": [
+        "AC-PG2"
+      ]
+    },
+    {
+      "id": "01-5.2-s2-new-0",
+      "source": "01:240",
+      "recommendation": "Stage 2 신규: E",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s2-ex-1",
+      "source": "01:240",
+      "recommendation": "Stage 2 포함 연습: 발 박자",
+      "status": "implemented",
+      "spec": [
+        "§11.12",
+        "§11.6"
+      ],
+      "ac": [
+        "AC-NE1"
+      ]
+    },
+    {
+      "id": "01-5.2-s2-ex-2",
+      "source": "01:240",
+      "recommendation": "Stage 2 포함 연습: 다운 스트럼 온 비트",
+      "status": "implemented",
+      "spec": [
+        "§6.10",
+        "§7.3"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "01-5.2-s2-ex-3",
+      "source": "01:240",
+      "recommendation": "Stage 2 포함 연습: 첫 단음 리프",
+      "status": "implemented",
+      "spec": [
+        "§6.9",
+        "§11.19"
+      ],
+      "ac": [
+        "AC-NE6"
+      ]
+    },
+    {
+      "id": "01-5.2-s2-crit-4",
+      "source": "01:240",
+      "recommendation": "Stage 2 진급 기준: E 암기",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s2-crit-5",
+      "source": "01:240",
+      "recommendation": "Stage 2 진급 기준: A–D/A–E/D–E 각 ≥30",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§7.3"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-RT2"
+      ]
+    },
+    {
+      "id": "01-5.2-s2-crit-6",
+      "source": "01:240",
+      "recommendation": "Stage 2 진급 기준: 3코드 곡 1곡 완주 시도",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§11.10"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-NE8"
+      ]
+    },
+    {
+      "id": "01-5.2-s3-new-0",
+      "source": "01:241",
+      "recommendation": "Stage 3 신규: Em, Am",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s3-ex-1",
+      "source": "01:241",
+      "recommendation": "Stage 3 포함 연습: 업스트럼 패턴 P1",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s3-ex-2",
+      "source": "01:241",
+      "recommendation": "Stage 3 포함 연습: P2(뮤트)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s3-ex-3",
+      "source": "01:241",
+      "recommendation": "Stage 3 포함 연습: 1분 체인지 Am–E, Em–D, Am–Em",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT2"
+      ]
+    },
+    {
+      "id": "01-5.2-s3-crit-4",
+      "source": "01:241",
+      "recommendation": "Stage 3 진급 기준: Em·Am 암기",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s3-crit-5",
+      "source": "01:241",
+      "recommendation": "Stage 3 진급 기준: 학습 쌍 ≥30",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§7.3"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-RT2"
+      ]
+    },
+    {
+      "id": "01-5.2-s3-crit-6",
+      "source": "01:241",
+      "recommendation": "Stage 3 진급 기준: P2 뮤트 70 BPM",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s4-new-0",
+      "source": "01:242",
+      "recommendation": "Stage 4 신규: Dm",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s4-ex-1",
+      "source": "01:242",
+      "recommendation": "Stage 4 포함 연습: 손가락 스트레칭(1-2-3-4 @5프렛)",
+      "status": "implemented",
+      "spec": [
+        "§11.8",
+        "§7.4"
+      ],
+      "ac": [
+        "AC-PG3",
+        "AC-EX1"
+      ]
+    },
+    {
+      "id": "01-5.2-s4-ex-2",
+      "source": "01:242",
+      "recommendation": "Stage 4 포함 연습: 메트로놈 도입(1박 악센트)",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s4-ex-3",
+      "source": "01:242",
+      "recommendation": "Stage 4 포함 연습: 표준 패턴 D DU UDU(뮤트→단일 코드→체인지)",
+      "status": "implemented",
+      "spec": [
+        "§6.10"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "01-5.2-s4-ex-4",
+      "source": "01:242",
+      "recommendation": "Stage 4 포함 연습: TAB 읽기",
+      "status": "implemented",
+      "spec": [
+        "§11.20"
+      ],
+      "ac": [
+        "AC-NE6"
+      ]
+    },
+    {
+      "id": "01-5.2-s4-ex-5",
+      "source": "01:242",
+      "recommendation": "Stage 4 포함 연습: 리프",
+      "status": "implemented",
+      "spec": [
+        "§6.9",
+        "§11.19"
+      ],
+      "ac": [
+        "AC-NE6"
+      ]
+    },
+    {
+      "id": "01-5.2-s4-crit-6",
+      "source": "01:242",
+      "recommendation": "Stage 4 진급 기준: 6코드 암기",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s4-crit-7",
+      "source": "01:242",
+      "recommendation": "Stage 4 진급 기준: 표준 패턴 뮤트 80 BPM",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s5-new-0",
+      "source": "01:243",
+      "recommendation": "Stage 5 신규: C",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s5-ex-1",
+      "source": "01:243",
+      "recommendation": "Stage 5 포함 연습: 스트레칭",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s5-ex-2",
+      "source": "01:243",
+      "recommendation": "Stage 5 포함 연습: 1분 체인지 Am–C, C–Em",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT2"
+      ]
+    },
+    {
+      "id": "01-5.2-s5-ex-3",
+      "source": "01:243",
+      "recommendation": "Stage 5 포함 연습: 타이밍 중심 스트러밍",
+      "status": "implemented",
+      "spec": [
+        "§7.3",
+        "§6.10"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "01-5.2-s5-ex-4",
+      "source": "01:243",
+      "recommendation": "Stage 5 포함 연습: 음이름 기초",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§11.15"
+      ],
+      "ac": [
+        "AC-NE7"
+      ]
+    },
+    {
+      "id": "01-5.2-s5-crit-5",
+      "source": "01:243",
+      "recommendation": "Stage 5 진급 기준: 7코드 암기",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s5-crit-6",
+      "source": "01:243",
+      "recommendation": "Stage 5 진급 기준: 학습 쌍 ≥30",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s5-crit-7",
+      "source": "01:243",
+      "recommendation": "Stage 5 진급 기준: 패턴에 체인지 포함 70 BPM",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§6.10"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-RT5"
+      ]
+    },
+    {
+      "id": "01-5.2-s6-new-0",
+      "source": "01:244",
+      "recommendation": "Stage 6 신규: G (2-finger G → 3-finger G)",
+      "status": "implemented",
+      "spec": [
+        "§6.4",
+        "§7.4"
+      ],
+      "ac": [
+        "AC-PG3"
+      ]
+    },
+    {
+      "id": "01-5.2-s6-ex-1",
+      "source": "01:244",
+      "recommendation": "Stage 6 포함 연습: 단일 줄 교대 피킹(피크 각도)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s6-ex-2",
+      "source": "01:244",
+      "recommendation": "Stage 6 포함 연습: 1분 체인지 G–C, G–D, C–D",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT2"
+      ]
+    },
+    {
+      "id": "01-5.2-s6-ex-3",
+      "source": "01:244",
+      "recommendation": "Stage 6 포함 연습: 6/8 스트러밍",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s6-ex-4",
+      "source": "01:244",
+      "recommendation": "Stage 6 포함 연습: 개방현 음이름",
+      "status": "implemented",
+      "spec": [
+        "§7.3",
+        "§11.15"
+      ],
+      "ac": [
+        "AC-NE7"
+      ]
+    },
+    {
+      "id": "01-5.2-s6-crit-5",
+      "source": "01:244",
+      "recommendation": "Stage 6 진급 기준: 8코드 암기",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s6-crit-6",
+      "source": "01:244",
+      "recommendation": "Stage 6 진급 기준: ≥30",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s6-crit-7",
+      "source": "01:244",
+      "recommendation": "Stage 6 진급 기준: 교대 피킹 단일 줄 8분음표 70 BPM",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s6-crit-8",
+      "source": "01:244",
+      "recommendation": "Stage 6 진급 기준: 6/8 메트로놈 시도",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s7-new-0",
+      "source": "01:245",
+      "recommendation": "Stage 7 신규: 8코드 정리",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s7-ex-1",
+      "source": "01:245",
+      "recommendation": "Stage 7 포함 연습: 공중 체인지 드릴",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s7-ex-2",
+      "source": "01:245",
+      "recommendation": "Stage 7 포함 연습: 핵심 25쌍 순환",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT2"
+      ]
+    },
+    {
+      "id": "01-5.2-s7-ex-3",
+      "source": "01:245",
+      "recommendation": "Stage 7 포함 연습: 다이내믹(셈여림)",
+      "status": "implemented",
+      "spec": [
+        "§11.6",
+        "§10.11"
+      ],
+      "ac": [
+        "AC-NE9",
+        "AC-BT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s7-ex-4",
+      "source": "01:245",
+      "recommendation": "Stage 7 포함 연습: 곡 암기",
+      "status": "implemented",
+      "spec": [
+        "§11.10"
+      ],
+      "ac": [
+        "AC-NE8"
+      ]
+    },
+    {
+      "id": "01-5.2-s7-ex-5",
+      "source": "01:245",
+      "recommendation": "Stage 7 포함 연습: 귀 훈련 입문(메이저/마이너)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s7-crit-6",
+      "source": "01:245",
+      "recommendation": "Stage 7 진급 기준: Beginner 1 졸업 시험",
+      "status": "implemented",
+      "spec": [
+        "§7.6"
+      ],
+      "ac": [
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-5.2-s8-new-0",
+      "source": "01:246",
+      "recommendation": "Stage 8 신규: G(4-finger), Cadd9, Dsus4, A7sus4, Em7",
+      "status": "implemented",
+      "spec": [
+        "§6.4",
+        "§7.1"
+      ],
+      "ac": [
+        "AC-CT1",
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s8-ex-1",
+      "source": "01:246",
+      "recommendation": "Stage 8 포함 연습: 정확 빠른 체인지",
+      "status": "implemented",
+      "spec": [
+        "§11.11"
+      ],
+      "ac": [
+        "AC-NE3"
+      ]
+    },
+    {
+      "id": "01-5.2-s8-ex-2",
+      "source": "01:246",
+      "recommendation": "Stage 8 포함 연습: Open Em pentatonic",
+      "status": "implemented",
+      "spec": [
+        "§6.8",
+        "§11.13"
+      ],
+      "ac": [
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-5.2-s8-ex-3",
+      "source": "01:246",
+      "recommendation": "Stage 8 포함 연습: 다운 8분음표 스트럼(2·4박 악센트)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s8-ex-4",
+      "source": "01:246",
+      "recommendation": "Stage 8 포함 연습: 의도적 뮤트",
+      "status": "implemented",
+      "spec": [
+        "§6.10",
+        "§11.12"
+      ],
+      "ac": [
+        "AC-NE9",
+        "AC-NE1"
+      ]
+    },
+    {
+      "id": "01-5.2-s8-ex-5",
+      "source": "01:246",
+      "recommendation": "Stage 8 포함 연습: 개방 포지션 음",
+      "status": "implemented",
+      "spec": [
+        "§11.15"
+      ],
+      "ac": [
+        "AC-NE7"
+      ]
+    },
+    {
+      "id": "01-5.2-s8-crit-6",
+      "source": "01:246",
+      "recommendation": "Stage 8 진급 기준: Em pentatonic 80 BPM 1음/클릭 4회 연속 무실수",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§11.13",
+        "§10.10"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-5.2-s8-crit-7",
+      "source": "01:246",
+      "recommendation": "Stage 8 진급 기준: 다운 8분 80 BPM",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s8-crit-8",
+      "source": "01:246",
+      "recommendation": "Stage 8 진급 기준: 신규 코드 암기",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s8-crit-9",
+      "source": "01:246",
+      "recommendation": "Stage 8 진급 기준: 곡 2개",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§6.6"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-CT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s9-new-0",
+      "source": "01:247",
+      "recommendation": "Stage 9 신규: Fmaj7 → 작은 F → 풀 바레 F",
+      "status": "implemented",
+      "spec": [
+        "§6.4",
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s9-ex-1",
+      "source": "01:247",
+      "recommendation": "Stage 9 포함 연습: 새끼손가락 운동",
+      "status": "implemented",
+      "spec": [
+        "§11.17"
+      ],
+      "ac": [
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-5.2-s9-ex-2",
+      "source": "01:247",
+      "recommendation": "Stage 9 포함 연습: C major scale(천천히)",
+      "status": "implemented",
+      "spec": [
+        "§6.8",
+        "§11.13"
+      ],
+      "ac": [
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-5.2-s9-ex-3",
+      "source": "01:247",
+      "recommendation": "Stage 9 포함 연습: 정확 빠른 체인지 Fmaj7–C / Fmaj7–G / D–F",
+      "status": "implemented",
+      "spec": [
+        "§6.5",
+        "§11.11"
+      ],
+      "ac": [
+        "AC-NE3",
+        "AC-CT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s9-crit-4",
+      "source": "01:247",
+      "recommendation": "Stage 9 진급 기준: F 계열 1종 이상 코드 정밀 ≥70%",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s9-crit-5",
+      "source": "01:247",
+      "recommendation": "Stage 9 진급 기준: C major 암기",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§11.13"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-5.2-s9-crit-6",
+      "source": "01:247",
+      "recommendation": "Stage 9 진급 기준: F 포함 곡 1개",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§6.6"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-CT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s10-new-0",
+      "source": "01:248",
+      "recommendation": "Stage 10 신규: R6/R5 파워코드",
+      "status": "implemented",
+      "spec": [
+        "§6.4"
+      ],
+      "ac": [
+        "AC-CT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s10-ex-1",
+      "source": "01:248",
+      "recommendation": "Stage 10 포함 연습: Am pentatonic position 1",
+      "status": "implemented",
+      "spec": [
+        "§6.8",
+        "§11.13"
+      ],
+      "ac": [
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-5.2-s10-ex-2",
+      "source": "01:248",
+      "recommendation": "Stage 10 포함 연습: 팜뮤트",
+      "status": "implemented",
+      "spec": [
+        "§11.6",
+        "§11.12",
+        "§10.11"
+      ],
+      "ac": [
+        "AC-NE9",
+        "AC-BT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s10-ex-3",
+      "source": "01:248",
+      "recommendation": "Stage 10 포함 연습: 6·5번줄 음 암기",
+      "status": "implemented",
+      "spec": [
+        "§11.15"
+      ],
+      "ac": [
+        "AC-NE7"
+      ]
+    },
+    {
+      "id": "01-5.2-s10-ex-4",
+      "source": "01:248",
+      "recommendation": "Stage 10 포함 연습: 크로매틱 1-2-3-4",
+      "status": "implemented",
+      "spec": [
+        "§11.14"
+      ],
+      "ac": [
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-5.2-s10-crit-5",
+      "source": "01:248",
+      "recommendation": "Stage 10 진급 기준: 6·5번줄 음 퀴즈 ≥90%(응답 <3초)",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§11.15"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-NE7"
+      ]
+    },
+    {
+      "id": "01-5.2-s10-crit-6",
+      "source": "01:248",
+      "recommendation": "Stage 10 진급 기준: Am pent 80 BPM",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s10-crit-7",
+      "source": "01:248",
+      "recommendation": "Stage 10 진급 기준: 파워코드 곡 2개",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§6.6"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-CT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s11-new-0",
+      "source": "01:249",
+      "recommendation": "Stage 11 신규: A7, D7, E7, G7, C7, B7",
+      "status": "implemented",
+      "spec": [
+        "§6.4",
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s11-ex-1",
+      "source": "01:249",
+      "recommendation": "Stage 11 포함 연습: 12마디 블루스(G/A/E)",
+      "status": "implemented",
+      "spec": [
+        "§6.6"
+      ],
+      "ac": [
+        "AC-CT1"
+      ]
+    },
+    {
+      "id": "01-5.2-s11-ex-2",
+      "source": "01:249",
+      "recommendation": "Stage 11 포함 연습: 셔플 리듬",
+      "status": "implemented",
+      "spec": [
+        "§6.10",
+        "§14.8"
+      ],
+      "ac": [
+        "AC-NE9",
+        "AC-SW1"
+      ]
+    },
+    {
+      "id": "01-5.2-s11-ex-3",
+      "source": "01:249",
+      "recommendation": "Stage 11 포함 연습: 해머온 손가락 운동(≤80 BPM)",
+      "status": "implemented",
+      "spec": [
+        "§11.16"
+      ],
+      "ac": [
+        "AC-NE5"
+      ]
+    },
+    {
+      "id": "01-5.2-s11-crit-4",
+      "source": "01:249",
+      "recommendation": "Stage 11 진급 기준: 7th 6종 암기",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s11-crit-5",
+      "source": "01:249",
+      "recommendation": "Stage 11 진급 기준: 12마디 블루스 완주",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-s11-crit-6",
+      "source": "01:249",
+      "recommendation": "Stage 11 진급 기준: 대부분 체인지 ≥30",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§6.5"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-time",
+      "source": "01:234",
+      "recommendation": "Stage 0–7 20분/일, Stage 8+ 30분(2×15 분할 허용)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.2-stay",
+      "source": "01:234",
+      "recommendation": "최소 체류 4세션, Stage 8+ 최소 2주",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§7.4"
+      ],
+      "ac": [
+        "AC-PG1"
+      ]
+    },
+    {
+      "id": "01-5.2-order",
+      "source": "01:251",
+      "recommendation": "코드 도입 순서 D→A→E→Em→Am→Dm→C→G, G는 2-finger 먼저",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§6.4"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-PG3"
+      ]
+    },
+    {
+      "id": "01-5.3-0",
+      "source": "01:254-270",
+      "recommendation": "Stage 1 예시: 튜닝 1 · 코드 정밀 D 3 · A 3 · 앵커 2 · 1분 체인지 A→D 1 · D→A 1 · 곡 9",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ],
+      "note": "Q2·E6를 넣기 위해 E1을 각 2분으로(템플릿 합계 20분)"
+    },
+    {
+      "id": "01-5.3-1",
+      "source": "01:254-270",
+      "recommendation": "워밍업/스트레칭 1–2분(Stage 4+)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.3-2",
+      "source": "01:254-270",
+      "recommendation": "코드 정밀: 신규 1–2분 + 최약 1분",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.3-3",
+      "source": "01:254-270",
+      "recommendation": "1분 체인지 2–3쌍(신규 포함 쌍 우선, 그다음 최저 점수), 쌍 사이 30초 휴식",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT2"
+      ]
+    },
+    {
+      "id": "01-5.3-4",
+      "source": "01:254-270",
+      "recommendation": "리듬/스트러밍 2분(메트로놈)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.3-5",
+      "source": "01:254-270",
+      "recommendation": "리프/기술 1–2분",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1",
+        "AC-RT2"
+      ]
+    },
+    {
+      "id": "01-5.3-6",
+      "source": "01:254-270",
+      "recommendation": "곡 10분(항상 마지막)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ],
+      "note": "Stage 2–3 600초, 4–6 540초"
+    },
+    {
+      "id": "01-5.3-7",
+      "source": "01:254-270",
+      "recommendation": "Stage 7+: 앞 5분 레퍼토리 복습, 남는 시간 약점 기반",
+      "status": "implemented",
+      "spec": [
+        "§7.3",
+        "§11.10"
+      ],
+      "ac": [
+        "AC-RT1",
+        "AC-NE8"
+      ]
+    },
+    {
+      "id": "01-5.3-8",
+      "source": "01:254-270",
+      "recommendation": "같은 항목 연속 금지(interleave)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.3-9",
+      "source": "01:254-270",
+      "recommendation": "졸업 항목 SRS 1→3→7→14→30→90일, 실패 시 1단계 후퇴",
+      "status": "implemented",
+      "spec": [
+        "§7.5"
+      ],
+      "ac": [
+        "AC-RT3"
+      ]
+    },
+    {
+      "id": "01-5.3-10",
+      "source": "01:254-270",
+      "recommendation": "3일 초과 공백이면 첫 블록을 직전 스테이지 복습",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-5.4-E1",
+      "source": "01:276-281",
+      "recommendation": "코드 정밀 체크(줄별 상태, clean 정의, 습득 ≥5/10, 숙달 ≥8/10, 3초 형성 퀴즈)",
+      "status": "implemented",
+      "spec": [
+        "§11.3",
+        "§7.4"
+      ],
+      "ac": [
+        "AC-EX1",
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-5.4-E1-hints",
+      "source": "01:278",
+      "recommendation": "결함 힌트(프렛에서 멂, 손끝, 엄지, 힘, X줄, 손톱)",
+      "status": "implemented",
+      "spec": [
+        "§6.7"
+      ],
+      "ac": [
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-5.4-E2",
+      "source": "01:283-290",
+      "recommendation": "1분 코드 체인지(도착 카운트, ≥30, 2일, 하루 6회 상한, 쌍 선택 우선순위)",
+      "status": "implemented",
+      "spec": [
+        "§11.4",
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT2",
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-5.4-E2-plateau",
+      "source": "01:288",
+      "recommendation": "3주 정체 → 조건부 진급 + 앵커/공중 처방",
+      "status": "implemented",
+      "spec": [
+        "§7.4"
+      ],
+      "ac": [
+        "AC-PG2"
+      ]
+    },
+    {
+      "id": "01-5.4-E3",
+      "source": "01:292-296",
+      "recommendation": "정확 빠른 체인지(clean 도착만, clean_rate ≥80% & ≥20/분)",
+      "status": "implemented",
+      "spec": [
+        "§11.11"
+      ],
+      "ac": [
+        "AC-NE3"
+      ]
+    },
+    {
+      "id": "01-5.4-E4",
+      "source": "01:298-302",
+      "recommendation": "앵커/공중 체인지 드릴",
+      "status": "implemented",
+      "spec": [
+        "§11.5"
+      ],
+      "ac": [
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-5.4-E5",
+      "source": "01:304-310",
+      "recommendation": "스트러밍 패턴 사다리(창, 개인 선행 보정, ±5, 목표 BPM, 주의 분산 모드)",
+      "status": "implemented",
+      "spec": [
+        "§11.6",
+        "§7.1"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "01-5.4-E5-grad",
+      "source": "01:309",
+      "recommendation": "패턴 졸업 = 목표 BPM에서 2일 연속 통과",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "01-5.4-E5-count",
+      "source": "01:307",
+      "recommendation": "박을 소리 내어 세기 권장",
+      "status": "implemented",
+      "spec": [
+        "§11.6"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "01-5.4-E6",
+      "source": "01:312-316",
+      "recommendation": "박 1 체인지(지연, 누락, 코드 인식 시 정확 코드 비율, +5 BPM)",
+      "status": "implemented",
+      "spec": [
+        "§11.7"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "01-5.4-E7",
+      "source": "01:318-322",
+      "recommendation": "손가락 스트레칭(시작 프렛 5, 통증 ≤2로 3세션 → 1칸 낮춤, 1프렛 졸업, 떼지 않기·1초·손바닥 평행)",
+      "status": "implemented",
+      "spec": [
+        "§11.8",
+        "§7.4"
+      ],
+      "ac": [
+        "AC-PG3",
+        "AC-EX1"
+      ]
+    },
+    {
+      "id": "01-5.4-E8",
+      "source": "01:324-327",
+      "recommendation": "단일 줄 교대 피킹(ioi_cv, hit_rate, +5)",
+      "status": "implemented",
+      "spec": [
+        "§11.8"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "01-5.4-E9",
+      "source": "01:329-333",
+      "recommendation": "크로매틱 1-2-3-4(10회 무실수 후 가속)",
+      "status": "implemented",
+      "spec": [
+        "§11.14"
+      ],
+      "ac": [
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-5.4-E10",
+      "source": "01:335-338",
+      "recommendation": "스케일 사다리 5단계, 4회 연속 무실수, 졸업 80 BPM",
+      "status": "implemented",
+      "spec": [
+        "§11.13",
+        "§6.8"
+      ],
+      "ac": [
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-5.4-E11",
+      "source": "01:340-343",
+      "recommendation": "해머온 손가락 운동(쌍, ≤80 BPM, 하루 5분/최대 10분, 어려운 조합 우선)",
+      "status": "implemented",
+      "spec": [
+        "§11.16"
+      ],
+      "ac": [
+        "AC-NE5"
+      ]
+    },
+    {
+      "id": "01-5.4-E12",
+      "source": "01:345-347",
+      "recommendation": "새끼손가락 운동(7·8프렛 3·4번, 완료+명료도 자가 보고)",
+      "status": "implemented",
+      "spec": [
+        "§11.17"
+      ],
+      "ac": [
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-5.4-E13",
+      "source": "01:349-353",
+      "recommendation": "지판 음이름(범위 3단계, SRS, 졸업 ≥90% & 중앙값 <3초)",
+      "status": "implemented",
+      "spec": [
+        "§11.15",
+        "§7.5"
+      ],
+      "ac": [
+        "AC-NE7",
+        "AC-RT3"
+      ]
+    },
+    {
+      "id": "01-5.4-E14",
+      "source": "01:355-357",
+      "recommendation": "귀 훈련(메이저/마이너 → 인터벌 → I–IV–V), SRS, Stage 7부터",
+      "status": "implemented",
+      "spec": [
+        "§11.21",
+        "§7.5"
+      ],
+      "ac": [
+        "AC-NE7"
+      ]
+    },
+    {
+      "id": "01-5.4-E15",
+      "source": "01:359-363",
+      "recommendation": "곡 연습(학습 모드 → 연주 모드, 백킹, 멈춤·완주·암기, 레퍼토리 간격)",
+      "status": "implemented",
+      "spec": [
+        "§11.10",
+        "§8.6",
+        "§7.5"
+      ],
+      "ac": [
+        "AC-NE8",
+        "AC-BK1"
+      ]
+    },
+    {
+      "id": "01-5.5-1",
+      "source": "01:365-372",
+      "recommendation": "초급 1 졸업 시험 1: 튜너 사용 6줄 튜닝 완료",
+      "status": "implemented",
+      "spec": [
+        "§7.6"
+      ],
+      "ac": [
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-5.5-2",
+      "source": "01:365-372",
+      "recommendation": "초급 1 졸업 시험 2: 무작위 8코드 퀴즈 + 코드별 clean ≥50%",
+      "status": "implemented",
+      "spec": [
+        "§7.6"
+      ],
+      "ac": [
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-5.5-3",
+      "source": "01:365-372",
+      "recommendation": "초급 1 졸업 시험 3: 무작위 5쌍 각 ≥30",
+      "status": "implemented",
+      "spec": [
+        "§7.6"
+      ],
+      "ac": [
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-5.5-4",
+      "source": "01:365-372",
+      "recommendation": "초급 1 졸업 시험 4: D DU UDU 80 BPM 8마디 hit_rate ≥90%(주의 분산 모드 포함)",
+      "status": "implemented",
+      "spec": [
+        "§7.6"
+      ],
+      "ac": [
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-5.5-5",
+      "source": "01:365-372",
+      "recommendation": "초급 1 졸업 시험 5: 연습곡 5개 암기 완주(악보 숨김)",
+      "status": "implemented",
+      "spec": [
+        "§7.6"
+      ],
+      "ac": [
+        "AC-P10",
+        "AC-NE8"
+      ]
+    },
+    {
+      "id": "01-safety-cap",
+      "source": "01:380",
+      "recommendation": "첫 4주 세션 상한 20분",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "01-safety-break",
+      "source": "01:381",
+      "recommendation": "연속 30분 후 휴식 알림",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-safety-pain",
+      "source": "01:383",
+      "recommendation": "통증 ≥5 → 손끝 부하 항목 감량",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT5"
+      ]
+    },
+    {
+      "id": "01-safety-danger",
+      "source": "01:382",
+      "recommendation": "날카로운 통증·저림·관절 → 휴식 안내",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-P10"
+      ]
+    },
+    {
+      "id": "01-safety-stretch",
+      "source": "01:384",
+      "recommendation": "스트레칭·새끼손가락은 늘어나는 느낌까지만",
+      "status": "implemented",
+      "spec": [
+        "§11.8",
+        "§11.17"
+      ],
+      "ac": [
+        "AC-EX1",
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-stagnation",
+      "source": "01:389",
+      "recommendation": "2주 핵심 지표 개선 없음 → 대체 연습 처방",
+      "status": "implemented",
+      "spec": [
+        "§7.4"
+      ],
+      "ac": [
+        "AC-PG2"
+      ]
+    },
+    {
+      "id": "01-pfc-omc",
+      "source": "01:180",
+      "recommendation": "정체 시 PFC↔OMC 전환, anchor/air drill, 조건부 진급",
+      "status": "implemented",
+      "spec": [
+        "§7.4"
+      ],
+      "ac": [
+        "AC-PG2"
+      ]
+    },
+    {
+      "id": "01-timebox",
+      "source": "01:156",
+      "recommendation": "타임박싱: 카운트다운 타이머, 블록 슬롯",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT4"
+      ]
+    },
+    {
+      "id": "01-block-rest",
+      "source": "01:178",
+      "recommendation": "블록 사이 휴식",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT4"
+      ]
+    },
+    {
+      "id": "01-auto-slowdown",
+      "source": "01:170",
+      "recommendation": "오류 시 감속·국소 반복 자동 제안",
+      "status": "implemented",
+      "spec": [
+        "§11.10",
+        "§7.4"
+      ],
+      "ac": [
+        "AC-UX1",
+        "AC-PG2"
+      ]
+    },
+    {
+      "id": "01-segment-loop",
+      "source": "01:175",
+      "recommendation": "마디 단위 세그먼트 분할·루프",
+      "status": "implemented",
+      "spec": [
+        "§11.10"
+      ],
+      "ac": [
+        "AC-UX1",
+        "AC-NE8"
+      ]
+    },
+    {
+      "id": "01-variability",
+      "source": "01:177",
+      "recommendation": "일정한 선행은 감점하지 않고 변동성을 주 지표로",
+      "status": "implemented",
+      "spec": [
+        "§7.1",
+        "§11.6"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "01-song-review",
+      "source": "01:158",
+      "recommendation": "곡은 공연 수준 도달 후 간격 복습",
+      "status": "implemented",
+      "spec": [
+        "§7.5",
+        "§11.10"
+      ],
+      "ac": [
+        "AC-NE8"
+      ]
+    },
+    {
+      "id": "01-play-along",
+      "source": "01:109",
+      "recommendation": "멈추지 않는 반주에 맞춰 손을 멈추지 않기",
+      "status": "implemented",
+      "spec": [
+        "§8.6",
+        "§11.10"
+      ],
+      "ac": [
+        "AC-BK1",
+        "AC-NE8"
+      ]
+    },
+    {
+      "id": "01-10-times",
+      "source": "01:154",
+      "recommendation": "10회 무실수 후 가속",
+      "status": "implemented",
+      "spec": [
+        "§11.14"
+      ],
+      "ac": [
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-4-perfect",
+      "source": "01:118",
+      "recommendation": "스케일 4회 완벽 후 템포 상승, 6단계 백킹트랙",
+      "status": "implemented",
+      "spec": [
+        "§11.13"
+      ],
+      "ac": [
+        "AC-NE4"
+      ]
+    },
+    {
+      "id": "01-m13-blues-solo",
+      "source": "01:44",
+      "recommendation": "M13 Beginner Blues Solo, Blues Improv",
+      "status": "excluded",
+      "note": "스테이지 표(01:249)에 없음 — v1.1 범위 밖(§3.2)"
+    },
+    {
+      "id": "01-m11-fingerstyle",
+      "source": "01:42",
+      "recommendation": "M11 Sus Chords, Fingerstyle",
+      "status": "excluded",
+      "note": "스테이지 표에 없음 — v1.1 범위 밖(§3.2)"
+    },
+    {
+      "id": "01-m12-distortion",
+      "source": "01:44",
+      "recommendation": "M12 Distortion, Enter Sandman, Writing Riffs",
+      "status": "excluded",
+      "note": "스테이지 표에 없음·저작권 곡 — 범위 밖(§3.2)"
+    },
+    {
+      "id": "01-m14",
+      "source": "01:45",
+      "recommendation": "M14 Playing Without Looking, Thumb Muting, Jamming, Developing Repertoire",
+      "status": "excluded",
+      "note": "스테이지 표에 없음(레퍼토리 블록만 §11.10으로 반영) — 범위 밖"
+    },
+    {
+      "id": "01-grade3",
+      "source": "01:47",
+      "recommendation": "Grade 3 Advancing Beginner 이후 과정",
+      "status": "excluded",
+      "note": "초급 2(Stage 11) 이후 과정 — 범위 밖(§3.2)"
+    },
+    {
+      "id": "02-buzz",
+      "source": "02:223-225, 02:463",
+      "recommendation": "버징 판정(v2 실험)",
+      "status": "implemented",
+      "spec": [
+        "§10.11"
+      ],
+      "ac": [
+        "AC-BT1"
+      ],
+      "note": "베타(보고 전용)"
+    },
+    {
+      "id": "02-direction",
+      "source": "02:275, 02:464",
+      "recommendation": "스트럼 업/다운 판정",
+      "status": "implemented",
+      "spec": [
+        "§10.11"
+      ],
+      "ac": [
+        "AC-BT1"
+      ],
+      "note": "베타(보고 전용)"
+    },
+    {
+      "id": "02-backing",
+      "source": "02:308, 02:333",
+      "recommendation": "반주 재생 중 판정 주의, 유선 헤드폰 권장",
+      "status": "implemented",
+      "spec": [
+        "§8.6",
+        "§10.12"
+      ],
+      "ac": [
+        "AC-BK1"
+      ]
+    },
+    {
+      "id": "02-ios-bug",
+      "source": "02:67, 02:482",
+      "recommendation": "iOS 마이크 사용 중 재생 품질 저하(WebKit 311451)",
+      "status": "implemented",
+      "spec": [
+        "§8.6"
+      ],
+      "ac": [
+        "AC-BK1"
+      ],
+      "note": "안내 문구"
+    },
+    {
+      "id": "02-mic-mode",
+      "source": "02:73",
+      "recommendation": "iOS 마이크 모드(음성 분리) 안내",
+      "status": "implemented",
+      "spec": [
+        "§9.3"
+      ],
+      "ac": [
+        "AC-UX3"
+      ]
+    },
+    {
+      "id": "02-mic-position",
+      "source": "02:100",
+      "recommendation": "사운드홀과 12프렛 사이를 향하게",
+      "status": "implemented",
+      "spec": [
+        "§9.3"
+      ],
+      "ac": [
+        "AC-UX3"
+      ]
+    },
+    {
+      "id": "02-single-note",
+      "source": "02:252-261",
+      "recommendation": "단음 음높이 검증, GuitarSet solo 참고치",
+      "status": "implemented",
+      "spec": [
+        "§10.10",
+        "§14.4"
+      ],
+      "ac": [
+        "AC-SQ1",
+        "AC-SQ2"
+      ]
+    },
+    {
+      "id": "02-synth-buzz",
+      "source": "02:367",
+      "recommendation": "합성 buzz 파라미터",
+      "status": "implemented",
+      "spec": [
+        "§14.2"
+      ],
+      "ac": [
+        "AC-BT1"
+      ]
+    },
+    {
+      "id": "02-same-note-string",
+      "source": "02:465",
+      "recommendation": "같은 음의 줄 식별",
+      "status": "excluded",
+      "note": "v1.1 §3.2 제외 — 지판 음이름 연주 응답은 음높이만 판정"
+    },
+    {
+      "id": "02-nnls",
+      "source": "02 v2",
+      "recommendation": "calibration template NNLS 분해",
+      "status": "excluded",
+      "note": "v1.1 §3.2 제외"
+    },
+    {
+      "id": "02-basic-pitch",
+      "source": "02 v2",
+      "recommendation": "basic-pitch(ONNX) second opinion",
+      "status": "excluded",
+      "note": "v1.1 §3.2 제외"
+    },
+    {
+      "id": "03-routine-edit",
+      "source": "03:60, 03:424",
+      "recommendation": "커리큘럼 템플릿 → 사용자 편집",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-UX3",
+        "AC-TR4"
+      ]
+    },
+    {
+      "id": "03-earned-tempo",
+      "source": "03:61",
+      "recommendation": "깨끗한 통과 N회 → +BPM(earned tempo)",
+      "status": "implemented",
+      "spec": [
+        "§7.4"
+      ],
+      "ac": [
+        "AC-RT5"
+      ]
+    },
+    {
+      "id": "03-ear-first",
+      "source": "03:45",
+      "recommendation": "자가 판정 먼저 → 앱 판정 공개",
+      "status": "implemented",
+      "spec": [
+        "§11.3"
+      ],
+      "ac": [
+        "AC-EX1",
+        "AC-UX1"
+      ]
+    },
+    {
+      "id": "03-root",
+      "source": "03:87",
+      "recommendation": "다이어그램 루트음 강조",
+      "status": "implemented",
+      "spec": [
+        "§12.1"
+      ],
+      "ac": [
+        "AC-UX3"
+      ]
+    },
+    {
+      "id": "03-level-lines",
+      "source": "03:93",
+      "recommendation": "레벨 미터에 잡음 바닥선·최소 레벨선",
+      "status": "implemented",
+      "spec": [
+        "§12.1"
+      ],
+      "ac": [
+        "AC-UX2"
+      ]
+    },
+    {
+      "id": "03-confidence",
+      "source": "03:94",
+      "recommendation": "확실/아마도/불확실 표시",
+      "status": "implemented",
+      "spec": [
+        "§12.1"
+      ],
+      "ac": [
+        "AC-UX2"
+      ]
+    },
+    {
+      "id": "03-e1-summary",
+      "source": "03:95",
+      "recommendation": "E1 결과에 줄별 경향 요약",
+      "status": "implemented",
+      "spec": [
+        "§11.3"
+      ],
+      "ac": [
+        "AC-EX1"
+      ]
+    },
+    {
+      "id": "03-block-alert",
+      "source": "03:101",
+      "recommendation": "항목 종료 알림(소리 + 큰 시각 표시)",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT4"
+      ]
+    },
+    {
+      "id": "03-wired",
+      "source": "03:77",
+      "recommendation": "유선 이어폰 권장, 시각 전용 메트로놈",
+      "status": "implemented",
+      "spec": [
+        "§8.6",
+        "§9.3"
+      ],
+      "ac": [
+        "AC-BK1",
+        "AC-UX3"
+      ]
+    },
+    {
+      "id": "03-fsrs",
+      "source": "03:113",
+      "recommendation": "지식형 항목에 FSRS(ts-fsrs)",
+      "status": "excluded",
+      "note": "D-055: 리서치 01:353의 고정 간격 사다리를 채택(새 의존성 없음, v1 SRS와 일관)"
+    },
+    {
+      "id": "03-review-slot",
+      "source": "03:114",
+      "recommendation": "리뷰 큐를 루틴에 \"복습 슬롯 5분\"으로",
+      "status": "excluded",
+      "note": "D-058: 20분 세션에서 곡 9분·리서치 블록과 양립 불가 → 같은 종류 블록 안 복습(§7.3-6)으로 대체"
+    },
+    {
+      "id": "03-tonejs",
+      "source": "03:79, 03:158",
+      "recommendation": "백킹 트랙에 Tone.js",
+      "status": "excluded",
+      "note": "기존 합성기·엔진 예약 재생으로 충분(§4) — 새 의존성 없음"
+    },
+    {
+      "id": "03-alphatab",
+      "source": "03:138, 03:141",
+      "recommendation": "노래/탭에 alphaTab",
+      "status": "excluded",
+      "note": "자체 TAB 컴포넌트(§6.9)로 충분, 저작권 곡 없음"
+    },
+    {
+      "id": "03-cloud",
+      "source": "03",
+      "recommendation": "클라우드 동기화·계정·텔레메트리",
+      "status": "excluded",
+      "note": "v1.1 §3.2 제외(서버 필요, local-first D-003)"
+    },
+    {
+      "id": "audit-1",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #1",
+      "status": "implemented",
+      "spec": [
+        "§11.12"
+      ],
+      "ac": [
+        "AC-NE1"
+      ]
+    },
+    {
+      "id": "audit-2",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #2",
+      "status": "implemented",
+      "spec": [
+        "§11.18"
+      ],
+      "ac": [
+        "AC-NE2"
+      ]
+    },
+    {
+      "id": "audit-3",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #3",
+      "status": "implemented",
+      "spec": [
+        "§9.3"
+      ],
+      "ac": [
+        "AC-EX1"
+      ]
+    },
+    {
+      "id": "audit-4",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #4",
+      "status": "implemented",
+      "spec": [
+        "§11.6"
+      ],
+      "ac": [
+        "AC-NE9",
+        "AC-NE1"
+      ]
+    },
+    {
+      "id": "audit-5",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #5",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-NE9",
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "audit-6",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #6",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "audit-7",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #7",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT1",
+        "AC-PG1",
+        "AC-TR3"
+      ]
+    },
+    {
+      "id": "audit-8",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #8",
+      "status": "implemented",
+      "spec": [
+        "§6.10"
+      ],
+      "ac": [
+        "AC-RT5"
+      ]
+    },
+    {
+      "id": "audit-9",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #9",
+      "status": "implemented",
+      "spec": [
+        "§6.10"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "audit-10",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #10",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT2",
+        "AC-TR3"
+      ]
+    },
+    {
+      "id": "audit-11",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #11",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT2"
+      ]
+    },
+    {
+      "id": "audit-12",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #12",
+      "status": "implemented",
+      "spec": [
+        "§6.9"
+      ],
+      "ac": [
+        "AC-NE6"
+      ]
+    },
+    {
+      "id": "audit-13",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #13",
+      "status": "implemented",
+      "spec": [
+        "§11.12"
+      ],
+      "ac": [
+        "AC-NE1"
+      ]
+    },
+    {
+      "id": "audit-14",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #14",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-PG1",
+        "AC-NE8"
+      ]
+    },
+    {
+      "id": "audit-15",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #15",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-NE7"
+      ]
+    },
+    {
+      "id": "audit-16",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #16",
+      "status": "implemented",
+      "spec": [
+        "§6.4"
+      ],
+      "ac": [
+        "AC-PG3",
+        "AC-TR4"
+      ]
+    },
+    {
+      "id": "audit-17",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #17",
+      "status": "implemented",
+      "spec": [
+        "§7.4"
+      ],
+      "ac": [
+        "AC-RT5"
+      ]
+    },
+    {
+      "id": "audit-18",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #18",
+      "status": "implemented",
+      "spec": [
+        "§7.4"
+      ],
+      "ac": [
+        "AC-PG3",
+        "AC-EX1",
+        "AC-TR4"
+      ]
+    },
+    {
+      "id": "audit-19",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #19",
+      "status": "implemented",
+      "spec": [
+        "§11.10"
+      ],
+      "ac": [
+        "AC-NE8",
+        "AC-RT1"
+      ]
+    },
+    {
+      "id": "audit-20",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #20",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT3"
+      ]
+    },
+    {
+      "id": "audit-21",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #21",
+      "status": "implemented",
+      "spec": [
+        "§11.6"
+      ],
+      "ac": [
+        "AC-NE9",
+        "AC-BT1"
+      ]
+    },
+    {
+      "id": "audit-22",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #22",
+      "status": "implemented",
+      "spec": [
+        "§7.4"
+      ],
+      "ac": [
+        "AC-PG2",
+        "AC-TR4"
+      ]
+    },
+    {
+      "id": "audit-23",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #23",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT4"
+      ]
+    },
+    {
+      "id": "audit-24",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #24",
+      "status": "implemented",
+      "spec": [
+        "§12.3"
+      ],
+      "ac": [
+        "AC-UX1"
+      ]
+    },
+    {
+      "id": "audit-25",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #25",
+      "status": "implemented",
+      "spec": [
+        "§7.1"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "audit-26",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #26",
+      "status": "implemented",
+      "spec": [
+        "§7.5"
+      ],
+      "ac": [
+        "AC-RT3"
+      ]
+    },
+    {
+      "id": "audit-27",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #27",
+      "status": "implemented",
+      "spec": [
+        "§11.7"
+      ],
+      "ac": [
+        "AC-NE9"
+      ]
+    },
+    {
+      "id": "audit-28",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #28",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-RT4"
+      ]
+    },
+    {
+      "id": "audit-29",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #29",
+      "status": "implemented",
+      "spec": [
+        "§11.3"
+      ],
+      "ac": [
+        "AC-EX1"
+      ]
+    },
+    {
+      "id": "audit-30",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #30",
+      "status": "implemented",
+      "spec": [
+        "§12.1"
+      ],
+      "ac": [
+        "AC-UX2"
+      ]
+    },
+    {
+      "id": "audit-31",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #31",
+      "status": "implemented",
+      "spec": [
+        "§9.3"
+      ],
+      "ac": [
+        "AC-UX3"
+      ]
+    },
+    {
+      "id": "audit-32",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #32",
+      "status": "implemented",
+      "spec": [
+        "§12.1"
+      ],
+      "ac": [
+        "AC-UX3"
+      ]
+    },
+    {
+      "id": "audit-33",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #33",
+      "status": "implemented",
+      "spec": [
+        "§7.3"
+      ],
+      "ac": [
+        "AC-UX3",
+        "AC-TR4"
+      ]
+    },
+    {
+      "id": "audit-34",
+      "source": "docs/goal/v1.1/GAP_AUDIT.md",
+      "recommendation": "GAP_AUDIT #34",
+      "status": "implemented",
+      "spec": [
+        "§3.1"
+      ],
+      "ac": [
+        "AC-NE3",
+        "AC-NE4",
+        "AC-NE5",
+        "AC-NE7",
+        "AC-PG2",
+        "AC-BK1",
+        "AC-BT1"
+      ]
+    }
+  ]
+}

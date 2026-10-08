@@ -1,0 +1,479 @@
+{
+  "$comment": "guitar-hero v1.1 고정 계약. v1 계약(docs/goal/thresholds.json)의 모든 키·값을 그대로 포함하고(완화 금지, SPEC v1.1 §14.0) v1.1 영역을 더한다. SPEC v1.1 §14.3·§14.4·§14.8. goal 실행 중 수정 금지 — SHA-256 대조. beta 구획은 보고 전용(게이트 아님). 비율 0..1, 시간 ms, 음정 cents. 길이 2 숫자 배열은 [min,max] 구간, 문자열/집합 배열은 집합.",
+  "version": "1.1",
+  "splitSeeds": {
+    "dev": [
+      1000,
+      1999
+    ],
+    "test": [
+      9000,
+      9999
+    ]
+  },
+  "minimumTestSizes": {
+    "modeA": 3000,
+    "modeB": 2000,
+    "modeCSequences": 120,
+    "modeDEvents": 3000,
+    "tuner": 1000,
+    "rtt": 200,
+    "modeCSetStrums": 1000,
+    "sequenceCycles": 1200,
+    "swingEvents": 3000,
+    "backingBleedEvents": 2000,
+    "betaPerDetector": 500,
+    "modeCSetStage8to11Strums": 1000
+  },
+  "matrix": {
+    "sampleRates": [
+      44100,
+      48000
+    ],
+    "synthModels": [
+      "karplus-strong",
+      "additive"
+    ],
+    "additiveInharmonicityB": [
+      1e-05,
+      0.00015
+    ],
+    "snrDb": [
+      15,
+      25,
+      40
+    ],
+    "micHighpassHz": [
+      0,
+      100,
+      150
+    ],
+    "reverb": [
+      "none",
+      "small-room"
+    ],
+    "stringGainJitterDb": 6,
+    "detuneCentsMax": 15,
+    "calibrationResidualCentsMax": 3,
+    "strumSpreadMs": [
+      0,
+      40
+    ],
+    "voicings": [
+      "D",
+      "A",
+      "E",
+      "Em",
+      "Am",
+      "Dm",
+      "C",
+      "G-2f",
+      "G-3f",
+      "F-small",
+      "C7",
+      "B7",
+      "G5",
+      "G-4f",
+      "Cadd9",
+      "Dsus4",
+      "A7sus4",
+      "Em7",
+      "Fmaj7",
+      "F",
+      "C5",
+      "E5",
+      "A5",
+      "D5",
+      "F5",
+      "A7",
+      "D7",
+      "E7",
+      "G7"
+    ],
+    "modeAConditions": [
+      "ok",
+      "muted",
+      "wrong+1",
+      "wrong-1",
+      "wrong+2",
+      "wrong-2",
+      "weak-fundamental"
+    ],
+    "modeAMutedDecayDbIn120ms": -30,
+    "modeAWeakFundamentalDb": -20,
+    "modeBConditions": [
+      "clean",
+      "verifiable-muted",
+      "dependent-muted",
+      "x-string-ringing",
+      "wrong-fret-verifiable"
+    ],
+    "modeC": {
+      "sequenceSeconds": 60,
+      "changesPerMin": [
+        10,
+        45
+      ],
+      "extraSameChordStrumProb": 0.3,
+      "mutedStringArrivalProb": 0.1,
+      "openStringsBetweenProb": 0.2
+    },
+    "modeD": {
+      "bpm": [
+        60,
+        120
+      ],
+      "humanJitterSdMs": 12,
+      "humanMeanOffsetMs": [
+        -30,
+        10
+      ],
+      "rttMs": [
+        10,
+        300
+      ],
+      "clickBleedRelDb": -20,
+      "sustainSeconds": 3,
+      "clickBleedSequenceFraction": 0.5,
+      "rttGivenToDetectorJitterMs": 2
+    },
+    "tuner": {
+      "noteRange": [
+        "E2",
+        "E5"
+      ],
+      "detuneCentsMax": 50,
+      "snrDbMin": 20
+    },
+    "rtt": {
+      "latencyMs": [
+        10,
+        300
+      ],
+      "snrDbMin": 20,
+      "reverb": [
+        "none",
+        "small-room"
+      ]
+    },
+    "rangeEndpointCoverageFraction": 0.1,
+    "smallRoomReverb": {
+      "rt60S": 0.3,
+      "drrDb": 3
+    },
+    "snrDefinition": "signal RMS over onset+0..500ms (all strings) / stationary noise RMS",
+    "synthF0ErrorCentsMax": 0.5,
+    "modeCPairSet": "core25+stage8-11",
+    "gVoicings": [
+      "G-2f",
+      "G-3f",
+      "G-4f"
+    ],
+    "sequence": {
+      "shapes": [
+        "em-pent-open",
+        "c-major-open",
+        "am-pent-pos1",
+        "chromatic",
+        "R1",
+        "R2",
+        "R3",
+        "R4"
+      ],
+      "scaleSteps": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bpm": [
+        60,
+        100
+      ],
+      "noteValues": [
+        "quarter",
+        "eighth"
+      ],
+      "conditions": [
+        "clean",
+        "wrong+1",
+        "wrong-1",
+        "missed",
+        "extra"
+      ],
+      "humanJitterSdMs": 12,
+      "rttMs": [
+        10,
+        300
+      ],
+      "onsetMatchMs": 30,
+      "pitchToleranceCents": 35,
+      "flawlessGateMaxCycleNotes": 24,
+      "defectsPerCycle": 1,
+      "extraOffsetJitterMs": 10,
+      "chromaticCycleNotes": 4
+    },
+    "swing": {
+      "patterns": [
+        "P7",
+        "P8"
+      ],
+      "swingRatio": [
+        1.6,
+        2.2
+      ],
+      "bpm": [
+        60,
+        120
+      ],
+      "detectorGetsRatio": true
+    },
+    "backingBleed": {
+      "relDb": [
+        -25,
+        -10
+      ],
+      "maskWindowMs": 15,
+      "userStrumKeepLowBandDb": 6,
+      "userPattern": "P0",
+      "backingPattern": "P3",
+      "overlapExcludeMs": 50,
+      "attributionWindowMs": 25
+    },
+    "betaConditions": {
+      "buzzStrength": [
+        0.2,
+        1.0
+      ],
+      "directions": [
+        "down",
+        "up"
+      ],
+      "palmMuteDecayS": [
+        0.1,
+        0.3
+      ],
+      "dynamicsDeltaDb": [
+        6,
+        12
+      ]
+    },
+    "modeCSetStage8to11": {
+      "sets": [
+        [
+          "G-4f",
+          "Cadd9",
+          "Dsus4",
+          "A7sus4",
+          "Em7"
+        ],
+        [
+          "F",
+          "C",
+          "G-3f",
+          "Am",
+          "Dm",
+          "E"
+        ],
+        [
+          "F-small",
+          "Cadd9",
+          "G-4f",
+          "A",
+          "D",
+          "Em"
+        ],
+        [
+          "Fmaj7",
+          "C",
+          "Dsus4",
+          "Em7",
+          "Am",
+          "G-2f"
+        ],
+        [
+          "E5",
+          "A5",
+          "D5",
+          "G5",
+          "C5",
+          "F5"
+        ],
+        [
+          "A7",
+          "D7",
+          "E7",
+          "G7",
+          "C7",
+          "B7"
+        ]
+      ],
+      "rootsDistinctWithinSet": true
+    }
+  },
+  "synthetic": {
+    "modeA": {
+      "okFalseRejectMax": 0.03,
+      "okRetryMax": 0.1,
+      "wrongNoteFalseAcceptMax": 0.02,
+      "mutedFalseAcceptMax": 0.05,
+      "weakFundamentalOkMin": 0.95,
+      "mutedDetectRateMin": 0.8,
+      "wrongNoteDetectRateMin": 0.9
+    },
+    "modeB": {
+      "cleanFailMax": 0.03,
+      "cleanRetryMax": 0.15,
+      "verifiableMutedPassMax": 0.1,
+      "verifiableMutedCorrectFlagMin": 0.85,
+      "xStringRingingUnexpectedFailMin": 0.85,
+      "xStringRingingPassMax": 0.1,
+      "wrongFretVerifiablePassMax": 0.1,
+      "dependentMutedMisattributionMax": 0.05,
+      "detectionStrataSnrDbMin": 25
+    },
+    "modeC": {
+      "absErrLe1RateMin": 0.95,
+      "overcountGe2RateMax": 0.01,
+      "meanAbsErrMax": 0.6
+    },
+    "modeCSet": {
+      "top1AccuracyMin": 0.9,
+      "snrDbMin": 25
+    },
+    "modeD": {
+      "onsetF1At25msMin": 0.95,
+      "timingAbsErrP95MsMax": 15,
+      "timingAbsErrMedianMsMax": 6,
+      "sustainFalseOnsetRateMax": 0.02,
+      "clickBleedRejectRateMin": 0.98,
+      "patternMissExtraAccuracyMin": 0.95
+    },
+    "tuner": {
+      "medianAbsCentsMax": 1,
+      "p95AbsCentsMax": 3,
+      "octaveErrorRateMax": 0.005,
+      "timeToStableMsP95Max": 300
+    },
+    "rtt": {
+      "absErrP95MsMax": 2,
+      "silentFailureReportRateMin": 1.0
+    },
+    "perf": {
+      "verifyStrumMedianMsMax": 20,
+      "verifyPluckMedianMsMax": 10,
+      "workletBlockAvgMsMax": 0.3
+    },
+    "coverage": {
+      "modeBVerifiableRatioMustBeAtLeastDefaultRule": true
+    },
+    "sequence": {
+      "noteOnsetF1At30msMin": 0.95,
+      "cleanNoteOkRateMin": 0.97,
+      "wrongNoteDetectRateMin": 0.9,
+      "missedDetectRateMin": 0.9,
+      "extraDetectRateMin": 0.85,
+      "faultyCycleFlawlessRateMax": 0.02,
+      "cleanCycleFlawlessRateMin": 0.9,
+      "cleanCycleUncertainRateMax": 0.05,
+      "flawlessGateSnrDbMin": 25
+    },
+    "swing": {
+      "onsetF1At25msMin": 0.95,
+      "timingAbsErrP95MsMax": 15,
+      "slotAssignmentAccuracyMin": 0.95
+    },
+    "backingBleed": {
+      "strumOnsetF1At25msMin": 0.9,
+      "backingHitFalseStrumRateMax": 0.05
+    },
+    "modeCSetStage8to11": {
+      "top1AccuracyMin": 0.9,
+      "snrDbMin": 25
+    }
+  },
+  "guitarset": {
+    "zenodoRecord": 3371780,
+    "files": [
+      "audio_mono-mic.zip",
+      "annotation.zip"
+    ],
+    "license": "CC-BY-4.0",
+    "split": {
+      "devPlayers": [
+        "00",
+        "01",
+        "02",
+        "03"
+      ],
+      "testPlayers": [
+        "04",
+        "05"
+      ]
+    },
+    "eventFilters": {
+      "strumGroupMs": 60,
+      "strumMinNotes": 3,
+      "strumMinSoundingStrings": 4,
+      "strumMinNoteDurationMs": 250,
+      "strumIsolationAfterMs": 300,
+      "singleMinDurationMs": 400,
+      "singleMinGapToNextOnsetMs": 400,
+      "singleIsolationBeforeMs": 150,
+      "singleMaxPitchContourDevCents": 35,
+      "onsetF1GroupMs": 60,
+      "onsetF1ExcludeGenres": [
+        "Funk"
+      ],
+      "sequenceMinIoiMs": 120,
+      "sequenceMinDurationMs": 120,
+      "sequenceIsolationOtherStringMs": 60,
+      "sequenceMaxPitchContourDevCents": 35,
+      "sequenceMatchMs": 50,
+      "sequenceMinTestNotes": 1000
+    },
+    "hard": {
+      "modeAOkRateMin": 0.95,
+      "modeAPerturbedFalseAcceptMax": 0.03,
+      "modeCPairAccuracyMin": 0.9,
+      "strumOnsetF1At50msMin": 0.85,
+      "soloSequencePitchOkRateMin": 0.95,
+      "soloSequencePerturbedFalseAcceptMax": 0.03
+    },
+    "soft": {
+      "modeBFalseRejectMax": 0.1,
+      "modeBPerturbedFalseAcceptMax": 0.15,
+      "soloSequenceOnsetF1At50msMin": 0.75
+    },
+    "download": {
+      "maxAttempts": 3,
+      "blockedMarker": "data/guitarset/.download-blocked"
+    },
+    "clipNaming": {
+      "comp": "_comp",
+      "solo": "_solo",
+      "genres": [
+        "BN",
+        "Funk",
+        "Jazz",
+        "Rock",
+        "SS"
+      ]
+    }
+  },
+  "beta": {
+    "reportOnly": true,
+    "$comment": "보고 전용 목표치. verify 성패와 무관(SPEC v1.1 §10.11, §14.8, 무결성 10). 하드 구획(synthetic, guitarset.hard)에 같은 키가 없어야 한다.",
+    "targets": {
+      "buzzDetectRateMin": 0.7,
+      "buzzFalseAlarmRateMax": 0.1,
+      "directionAccuracyMin": 0.85,
+      "legatoOnsetRecallMin": 0.7,
+      "legatoFalseOnsetRateMax": 0.1,
+      "palmMuteAccuracyMin": 0.8,
+      "dynamicsAccuracyMin": 0.85,
+      "modeCUnderBleedAbsErrLe1RateMin": 0.85
+    }
+  }
+}
