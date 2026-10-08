@@ -163,11 +163,14 @@ describe('session model', () => {
     expect(s.index).toBe(2);
   });
 
-  it('keys between runs: next/toggle advance after a run or a rest, prev goes back, toggle resumes', () => {
+  it('keys between runs: after a run Space retries and next advances; rest skips; prev goes back; toggle resumes', () => {
     const view = { paused: false, isRest: false, runEnded: false, first: false };
     expect(sessionKeyCommand('next', view)).toBeNull(); // not started: the exercise host starts it
-    expect(sessionKeyCommand('toggle', { ...view, runEnded: true })).toBe('advance');
+    expect(sessionKeyCommand('toggle', view)).toBeNull();
+    expect(sessionKeyCommand('toggle', { ...view, runEnded: true })).toBe('retry');
+    expect(sessionKeyCommand('next', { ...view, runEnded: true })).toBe('advance');
     expect(sessionKeyCommand('next', { ...view, isRest: true })).toBe('advance');
+    expect(sessionKeyCommand('toggle', { ...view, isRest: true })).toBe('advance');
     expect(sessionKeyCommand('prev', view)).toBe('previous');
     expect(sessionKeyCommand('prev', { ...view, first: true })).toBeNull();
     expect(sessionKeyCommand('toggle', { ...view, paused: true })).toBe('resume');

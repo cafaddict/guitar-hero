@@ -58,3 +58,34 @@ test('AC-U2: page-turner keys walk the session between runs; navigation waits wh
   await page.keyboard.press('PageUp');
   await expect(header).toHaveAttribute('data-index', '0');
 });
+
+test('session: after a run Space runs the same item again (even with the focus on "다음 항목"); Enter moves on', async ({
+  page,
+}) => {
+  await page.goto('/#/settings');
+  await page.getByTestId('setting-mic-disabled').check();
+  await page.goto('/#/session?timeScale=0.25');
+  const header = page.getByTestId('session-header');
+  await expect(header).toHaveAttribute('data-index', '0');
+
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('exercise-finish')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('retry-item')).toBeVisible();
+  await expect(page.getByTestId('next-item')).toBeFocused();
+
+  // Space: the same item from its start screen (the focused "다음 항목" is not clicked, nothing is skipped).
+  await page.keyboard.press('Space');
+  await expect(page.getByTestId('exercise-start')).toBeVisible();
+  await expect(header).toHaveAttribute('data-index', '0');
+
+  // It runs again from the keyboard, and Enter then moves on.
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('exercise-finish')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('next-item')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(header).toHaveAttribute('data-index', '1');
+});

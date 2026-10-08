@@ -6,7 +6,9 @@ import {
   type E5View,
   e5ParamsSchema,
   LADDER_DOWN_HIT_RATE,
+  nextBpmFor,
   StrumLadderRunner,
+  tempoRetry,
 } from './runner';
 
 export const e5Plugin: ExercisePlugin<E5Params, StrumResult, E5View> = {
@@ -33,5 +35,6 @@ export const e5Plugin: ExercisePlugin<E5Params, StrumResult, E5View> = {
     const last = recent.find((r) => r.patternId === params.patternId);
     return { ...params, previousLow: last !== undefined && last.hitRate < LADDER_DOWN_HIT_RATE };
   },
+  suggestedTempoRetry: (params, result) => tempoRetry(params, nextBpmFor(result.bpm, result.ladder)),
   usesMicrophone: true,
 };

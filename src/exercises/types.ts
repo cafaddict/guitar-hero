@@ -159,6 +159,8 @@ export interface ExercisePlugin<P, R, V> {
   toMetrics(result: R, params: P): MetricSampleInput[];
   /** Optional: adjusts params from this exercise's most recent results (newest first), e.g. ladder history. */
   withHistory?(params: P, recent: readonly R[]): P;
+  /** Optional: the run again at the tempo its summary suggests (ladder up/down, passed → +5), or null. */
+  suggestedTempoRetry?(params: P, result: R): { bpm: number; params: P } | null;
   usesMicrophone: boolean;
   migrateResult?(raw: unknown, fromVersion: number): R;
 }

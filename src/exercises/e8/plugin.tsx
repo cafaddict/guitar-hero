@@ -1,7 +1,7 @@
 import { type AltPickResult, altPickResultSchema, extractMetrics } from '../../domain/exerciseResults';
 import { stringNumber } from '../../domain/strings';
 import { ko } from '../../i18n/ko';
-import { nextBpmFor } from '../e5/runner';
+import { nextBpmFor, tempoRetry } from '../e5/runner';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { SelfRating } from '../ui/SelfRating';
@@ -59,5 +59,8 @@ export const e8Plugin: ExercisePlugin<E8Params, AltPickResult, E8View> = {
   View: E8ViewComponent,
   Summary: E8Summary,
   toMetrics: (result) => extractMetrics('E8', result),
+  // Passing suggests the next tempo up (the summary says so); otherwise the same tempo again.
+  suggestedTempoRetry: (params, result) =>
+    result.passed ? tempoRetry(params, nextBpmFor(result.bpm, 'up')) : null,
   usesMicrophone: true,
 };

@@ -43,6 +43,19 @@ interface Loaded {
   rest: boolean;
 }
 
+/**
+ * A focused button is clicked by the keyup of Space. When Space was used as a session command on keydown, that
+ * keyup must not also click whatever button holds the focus.
+ */
+function swallowNextSpaceKeyup(): void {
+  const onKeyUp = (event: KeyboardEvent) => {
+    if (event.key !== ' ') return;
+    event.preventDefault();
+    window.removeEventListener('keyup', onKeyUp, true);
+  };
+  window.addEventListener('keyup', onKeyUp, true);
+}
+
 /** Simulated ms (E2E builds may compress time; production rate is 1). */
 function useClock(): () => number {
   return useMemo(() => {
@@ -149,6 +162,8 @@ export function SessionScreen() {
   const [endedIndex, setEndedIndex] = useState<number | null>(null);
   /** An exercise run is starting or in progress: navigation would throw it away, so it waits. */
   const [runActive, setRunActive] = useState(false);
+  /** Reruns of the current item: each one is a fresh host; `params` overrides the routine's (suggested tempo). */
+  const [rerun, setRerun] = useState<{ n: number; params: unknown }>({ n: 0, params: null });
   const customKeys = useSettingsStore((s) => s.settings?.customKeys);
   const [showBreak, setShowBreak] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -203,16 +218,22 @@ export function SessionScreen() {
   const items = loaded?.items ?? [];
   const go = useCallback((step: (s: SessionState) => SessionState) => {
     setEndedIndex(null);
+    setRerun({ n: 0, params: null });
     setState((s) => (s ? step(s) : s));
   }, []);
   const advance = useCallback(() => go((s) => completeItem(s, items, now())), [go, items, now]);
+  /** The current item again: with the params it just ran with, or with `params` (e.g. a suggested tempo). */
+  const retry = useCallback((params?: unknown) => {
+    setEndedIndex(null);
+    setRerun((r) => ({ n: r.n + 1, params: params === undefined ? r.params : params }));
+  }, []);
 
   // Keyboard / pedal between runs (§12.3); during a run the exercise's own keys apply.
   const between = state !== null && !runActive && !ending && !isFinished(state, items);
   useEffect(() => {
     if (!between || !state) return;
     const onKey = (event: KeyboardEvent) => {
-      if (isEditableTarget(event.target) || isNativeActivation(event)) return;
+      if (isEditableTarget(event.target)) return;
       const command = sessionKeyCommand(actionForKey(event, customKeys ?? {}), {
         paused: state.paused,
         isRest: items[state.index]?.exerciseType === 'REST',
@@ -220,14 +241,20 @@ export function SessionScreen() {
         first: state.index === 0,
       });
       if (!command) return;
+      // After a run Space means "again" even with the focus on the next-item button; Enter on a focused button
+      // keeps that button's own action.
+      if (command !== 'retry' && isNativeActivation(event)) return;
       event.preventDefault();
-      if (command === 'advance') advance();
+      if (command === 'retry') {
+        if (event.key === ' ') swallowNextSpaceKeyup();
+        retry();
+      } else if (command === 'advance') advance();
       else if (command === 'previous') go((s) => previousItem(s, now()));
       else setState(resume(state, now()));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [between, state, items, endedIndex, customKeys, advance, go, now]);
+  }, [between, state, items, endedIndex, customKeys, advance, go, retry, now]);
 
   const finishSession = async (report: SelfReport) => {
     if (!state) return;
@@ -292,9 +319,9 @@ export function SessionScreen() {
         <RestItem key={item.id} item={item} now={now} onDone={advance} />
       ) : definition ? (
         <ExerciseHost
-          key={item.id}
+          key={`${item.id}#${rerun.n}`}
           definition={definition}
-          params={pluginParamsFor(item, definition, loaded.content)}
+          params={rerun.params ?? pluginParamsFor(item, definition, loaded.content)}
           sessionId={sessionId}
           reviewOf={item.block === 'review' ? (item.subjectKey ?? null) : null}
           autoFocusStart
@@ -303,11 +330,29 @@ export function SessionScreen() {
             setEndedIndex(state.index);
             if (attempt) setState((s) => (s ? markRecorded(s, item.id) : s));
           }}
-          renderAfter={() => (
-            <Button large autoFocus className="mt-4" onClick={advance} data-testid="next-item">
-              {ko.session.nextItem}
-            </Button>
-          )}
+          renderAfter={(attempt) => {
+            const tempo = attempt ? definition.suggestedTempoRetry(attempt.params, attempt.result) : null;
+            return (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button large variant="secondary" onClick={() => retry()} data-testid="retry-item">
+                  {tempo ? ko.session.retrySameTempo : ko.session.retry}
+                </Button>
+                {tempo && (
+                  <Button
+                    large
+                    variant="secondary"
+                    onClick={() => retry(tempo.params)}
+                    data-testid="retry-tempo"
+                  >
+                    {ko.session.retryAtBpm(tempo.bpm)}
+                  </Button>
+                )}
+                <Button large autoFocus onClick={advance} data-testid="next-item">
+                  {ko.session.nextItem}
+                </Button>
+              </div>
+            );
+          }}
         />
       ) : (
         <Button onClick={() => go((s) => skipItem(s, items, now()))}>{ko.session.skip}</Button>

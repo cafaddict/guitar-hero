@@ -79,6 +79,14 @@ export function nextBpmFor(bpm: number, ladder: Ladder): number {
   return bpm;
 }
 
+/** The same run at `nextBpm` (the tempo a summary suggests), or null when that is the current tempo. */
+export function tempoRetry<P extends { bpm: number }>(
+  params: P,
+  nextBpm: number,
+): { bpm: number; params: P } | null {
+  return nextBpm === params.bpm ? null : { bpm: nextBpm, params: { ...params, bpm: nextBpm } };
+}
+
 /** Metronome settings for a pattern: 4/4 clicks on quarters; 6/8 clicks on eighths (accents on 1 and 4). */
 export function metronomeFor(
   pattern: StrumPattern,

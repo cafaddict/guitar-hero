@@ -100,11 +100,12 @@ export function acknowledgeBreak(state: SessionState, now: number): SessionState
   return { ...state, breakShownAtMs: elapsed - (elapsed % BREAK_AFTER_MS) };
 }
 
-export type SessionKeyCommand = 'advance' | 'previous' | 'resume';
+export type SessionKeyCommand = 'advance' | 'previous' | 'resume' | 'retry';
 
 /**
  * Keyboard / pedal between runs (§12.3), so a routine can be walked without touching the screen. While a run is
- * in progress its own keys apply instead; starting an item is the exercise host's toggle/next.
+ * in progress its own keys apply instead; starting an item is the exercise host's toggle/next. After a run,
+ * toggle (Space) runs the item again and next (Enter, PageDown, →) moves on.
  */
 export function sessionKeyCommand(
   action: KeyAction | null,
@@ -112,6 +113,7 @@ export function sessionKeyCommand(
 ): SessionKeyCommand | null {
   if (view.paused) return action === 'toggle' || action === 'next' ? 'resume' : null;
   if (action === 'prev') return view.first ? null : 'previous';
+  if (action === 'toggle' && view.runEnded && !view.isRest) return 'retry';
   if (action === 'next' || action === 'toggle') return view.isRest || view.runEnded ? 'advance' : null;
   return null;
 }

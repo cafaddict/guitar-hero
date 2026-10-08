@@ -342,3 +342,12 @@
 
 - 결정: 세 번째 대안. verify는 시작할 때 `docs/BENCHMARK.md`를 `bench-results/BENCHMARK.md`로 복사한다(GuitarSet 절과 test-run log 이력이 이어진다). 그다음 벤치 단계에 `BENCHMARK_REPORT`를 넘겨 그 사본에 쓰게 한다(`tools/bench/reportPath.ts`). `npm run bench:dsp`나 `bench:guitarset`를 직접 실행하면 지금처럼 `docs/BENCHMARK.md`(기록용 보고서)를 갱신한다. 임계값 판정과 exit code는 바뀌지 않는다. 바뀌는 것은 보고서 파일 위치뿐이다.
 - 커밋된 `docs/BENCHMARK.md`는 M8 커밋 직전 verify의 실행 결과다(detector 1.3.1, test split 전부 통과, GuitarSet 하드 4/4·소프트 2/2). 최종 게이트 실행의 보고서와 log는 `bench-results/BENCHMARK.md`에 있다.
+
+## D-051 세션 결과 화면의 "다시 하기" (v1 이후 사용자 요청)
+- 세션 러너에서 연습이 끝나면 "다음 항목"만 있어, 같은 항목을 바로 다시 할 수 없었다(예: E5 적중률 69 %, "55 BPM으로 내려서 다져 봐요").
+- 결과 화면 버튼: `다시 하기 (Space)`와 `다음 항목 (Enter)`. 결과가 다른 템포를 제안하면 `같은 템포로 다시 (Space)`와 `N BPM으로 다시`, `다음 항목 (Enter)`을 보여 준다(사용자 선택: 버튼 두 개).
+- 템포 제안은 각 연습 요약 문구와 같은 규칙이고, 플러그인 선택 훅 `suggestedTempoRetry`로 낸다. E5는 사다리 up/down이면 ±5, E6·E8은 통과하면 +5다. 같은 템포면 버튼이 없다. 코어는 연습 종류를 모른다.
+- 다시 하기는 같은 항목을 새 호스트(새 key)의 시작 화면으로 연다. 자동으로 시작하지 않는다. 호스트가 바뀌면 마이크가 꺼지고, iOS는 마이크 시작이 탭·키 입력 안에서 일어나야 하기 때문이다. 시작은 Enter·Space·PageDown 한 번이다.
+- 다시 한 실행도 Attempt로 쌓인다(append-only). 세션 완료 항목 수는 항목 단위라 늘지 않는다.
+- 키(§12.3): 실행이 끝난 뒤 Space(toggle)는 다시 하기, Enter·PageDown·→(next)는 다음 항목이다. "다음 항목" 버튼에 포커스가 있어도 Space는 다시 하기다. 그 keydown을 먼저 처리하고, 이어지는 Space keyup을 한 번 막아 포커스된 버튼이 눌리지 않게 한다. 휴식 중에는 둘 다 다음 항목이다.
+

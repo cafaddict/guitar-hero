@@ -1,6 +1,6 @@
 import { extractMetrics, type OneBeatResult, oneBeatResultSchema } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
-import { nextBpmFor } from '../e5/runner';
+import { nextBpmFor, tempoRetry } from '../e5/runner';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
 import { ArmedStart } from '../ui/ArmedStart';
 import { useRunnerSnapshot } from '../ui/hooks';
@@ -75,5 +75,8 @@ export const e6Plugin: ExercisePlugin<E6Params, OneBeatResult, E6View> = {
   View: E6ViewComponent,
   Summary: E6Summary,
   toMetrics: (result) => extractMetrics('E6', result),
+  // Passing suggests the next tempo up (the summary says so); otherwise the same tempo again.
+  suggestedTempoRetry: (params, result) =>
+    result.passed ? tempoRetry(params, nextBpmFor(result.bpm, 'up')) : null,
   usesMicrophone: true,
 };
