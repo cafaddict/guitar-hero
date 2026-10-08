@@ -64,7 +64,12 @@ function E16ViewComponent({
 }) {
   const { view } = useRunnerSnapshot(runner);
   return (
-    <section className="flex flex-col gap-3" data-testid="e16-view" data-position={view.position ?? ''}>
+    <section
+      className="flex flex-col gap-3"
+      data-testid="e16-view"
+      data-position={view.position ?? ''}
+      data-step={view.positions.reduce((n, p) => n + p.statuses.length, 0)}
+    >
       <p>{ko.exercises.e16.intro}</p>
       {view.position && (
         <div className="flex flex-wrap items-center gap-4 rounded-lg bg-surface p-4">

@@ -24,6 +24,7 @@ import {
   weekPracticeMinutes,
 } from './homeModel';
 import { RuleChecklist } from './RuleChecklist';
+import { subjectLabel } from './subjectLabel';
 
 /** The first-run redirect happens once per page load; "나중에 하기" then leaves the user on home. */
 let firstRunRedirectDone = false;
@@ -209,7 +210,7 @@ export function HomeScreen() {
               <ul className="mt-2 space-y-1 text-sm">
                 {prep.progression.prescriptions.map((p) => (
                   <li key={p.subjectKey} data-testid="prescription">
-                    {ko.home.prescription[p.kind](p.subjectKey.slice(p.subjectKey.indexOf(':') + 1))}
+                    {ko.home.prescription[p.kind](subjectLabel(p.subjectKey))}
                   </li>
                 ))}
               </ul>

@@ -17,6 +17,7 @@ export function LevelMeter({
   label,
   format,
   textTestId,
+  lines = [],
 }: {
   /** Latest level (polled from rAF, e.g. `() => audioEngine.latestLevel`). */
   read: () => LevelReading | null;
@@ -24,6 +25,11 @@ export function LevelMeter({
   /** Optional text line ("입력 레벨: −23.4 dBFS"). */
   format?: (db: number | null) => string;
   textTestId?: string;
+  /**
+   * Reference lines (dBFS), e.g. the calibrated noise floor and the minimum level a judgement needs
+   * (SPEC v1.1 §12.1, research 03:93). Drawn on the canvas and listed in text for assistive tech.
+   */
+  lines?: readonly { db: number; label: string; tone: 'muted' | 'info' }[];
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const meter = useRef<HTMLMeterElement>(null);
@@ -52,6 +58,11 @@ export function LevelMeter({
           ? styles.getPropertyValue('--fail') || '#f87171'
           : styles.getPropertyValue('--ok') || '#4ade80';
         ctx.fillRect(0, 0, width * fraction, height);
+        for (const line of lines) {
+          const at = Math.min(1, Math.max(0, (line.db - FLOOR_DB) / -FLOOR_DB)) * width;
+          ctx.fillStyle = styles.getPropertyValue(line.tone === 'info' ? '--info' : '--fg') || '#e2e8f0';
+          ctx.fillRect(Math.max(0, at - devicePixelRatio), 0, 2 * devicePixelRatio, height);
+        }
       }
       if (now - lastText > 250) {
         lastText = now;
@@ -63,7 +74,7 @@ export function LevelMeter({
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [read, format]);
+  }, [read, format, lines]);
 
   return (
     <div className="flex flex-col gap-1">
@@ -76,6 +87,11 @@ export function LevelMeter({
       <div aria-hidden="true">
         <canvas ref={canvas} className="block h-3 w-full rounded" />
       </div>
+      {lines.length > 0 && (
+        <p className="text-xs text-muted" data-testid="level-lines">
+          {lines.map((l) => `${l.label} ${l.db.toFixed(0)} dBFS`).join(' · ')}
+        </p>
+      )}
     </div>
   );
 }

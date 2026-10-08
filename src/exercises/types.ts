@@ -24,7 +24,11 @@ export type RunnerCommand =
   | 'mark'
   | 'manual1'
   | 'manual2'
-  | 'manual3';
+  | 'manual3'
+  | 'ear'
+  | 'cues'
+  | 'loop'
+  | 'hide';
 
 /**
  * ready: waiting for the user · armed: waiting for the first strum (auto start) · countIn · running ·
@@ -60,6 +64,11 @@ export interface ExerciseRunner<R, V> {
    */
   hasResult(): boolean;
   dspStats(): DspStats;
+  /**
+   * Params as they are now, after option keys changed them during the run (SPEC v1.1 §12.3: options are
+   * recorded in the Attempt params). Runners without options leave it out and the start params are stored.
+   */
+  effectiveParams?(): unknown;
   dispose(): void;
 }
 

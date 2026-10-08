@@ -120,6 +120,8 @@ export interface CalibrationDraft {
   outputDeviceLabel: string;
   noise: { noiseDbfs: number; thirdOctaveDb: number[] };
   tuningCents: (number | null)[];
+  /** Skipped strings (δ = 0); absent or all false when every string was measured. */
+  tuningSkipped?: boolean[];
   firstReadings: { measuredHz: number; expectedHz: number }[];
   templates: ({ harmonics: number[]; decayRatio: number } | null)[];
   rtt: { rttMs: number; madMs: number; method: 'loopback' | 'tap' };
@@ -158,6 +160,7 @@ export function buildCalibration(draft: CalibrationDraft): Calibration {
     noiseFloorDbfs: draft.noise.noiseDbfs,
     noiseThirdOctaveDb: draft.noise.thirdOctaveDb,
     tuningCents: draft.tuningCents as number[],
+    ...(draft.tuningSkipped?.some((x) => x) ? { tuningSkipped: draft.tuningSkipped } : {}),
     stringTemplates: draft.templates as { harmonics: number[]; decayRatio: number }[],
     rttMs: draft.rtt.rttMs,
     rttMethod: draft.rtt.method,

@@ -14,6 +14,11 @@ export const e8ParamsSchema = z.object({
   stringIdx: z.number().int().min(0).max(5),
   bpm: z.number().int().min(30).max(240),
   bars: z.number().int().min(2).max(32),
+  /**
+   * The ladder's tempo when a "−10 BPM" prescription started (SPEC v1.1 §7.4): a slowed run never lowers the
+   * stored ladder below it ("사다리 상태는 보존").
+   */
+  ladderBase: z.number().int().optional(),
 });
 export type E8Params = z.infer<typeof e8ParamsSchema>;
 
@@ -165,6 +170,7 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
         o.hitRate >= ALT_PICK_HIT_RATE &&
         evenEnough,
       source: this.ctx.audio ? 'mic' : 'self',
+      ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
     };
   }
 }

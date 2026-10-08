@@ -3,6 +3,7 @@
  * the capture worklet and posts judgements to the main thread.
  */
 import '../../app/zodConfig';
+import { classOfVoicing } from '../../content/voicings';
 import { STANDARD_TUNING } from '../../domain/theory';
 import { verifyPluck, verifySilentString } from '../../dsp/modeA';
 import { verifyStrum } from '../../dsp/modeB';
@@ -97,7 +98,8 @@ function judge(segment: Float32Array, onsetIndex: number): unknown {
       return classifySet(
         { ...base, tuning: STANDARD_TUNING, deltaCents: job.deltaCents },
         job.voicings,
-        (v) => (v.id.startsWith('G-') ? 'G' : v.id),
+        // Two- and three-finger G are one class; G-4f and every other voicing are their own (SPEC v1.1 §6.5).
+        (v) => classOfVoicing(v.id),
       );
   }
 }

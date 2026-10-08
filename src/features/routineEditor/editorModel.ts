@@ -4,7 +4,16 @@
  * the generator refills pairs, chords and tempos (rules 3, 6, 10) from the next session on.
  */
 import type { ExerciseRef, RoutineItem, RoutineTemplate, StageDef } from '../../content/schemas';
+import type { RoutineInput } from '../../domain/routine';
 import { stageTemplate, type TemplateSlot } from '../../domain/routineTemplates';
+
+/**
+ * The editor edits the stage's composition at template times: today's adjustments (pain halving, the daily change
+ * cap, review songs, the knowledge-card split) are not part of a saved template (SPEC v1.1 §7.3-7, §7.3-9).
+ */
+export function editorInput(input: RoutineInput): RoutineInput {
+  return { ...input, lastSelfReport: null, dueReviews: [], changesDoneToday: 0 };
+}
 
 export const EDITOR_STEP_SEC = 30;
 export const EDITOR_MIN_SEC = 30;

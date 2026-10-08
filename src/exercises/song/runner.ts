@@ -1,8 +1,9 @@
 /**
- * S practice song (SPEC §11.10): chord chart in a bar grid with the current bar highlighted, count-in,
- * metronome, tempo choice, section loop, hidden chart, synth "listen". Learn mode (stop and retry; a section
- * can loop) and perform mode (keep going; with a microphone the beat-1 hit rate is measured). Afterwards the
- * user reports: played to the end, number of stops, played from memory.
+ * S practice song (SPEC v1.1 §11.10): chord chart in a bar grid with the current bar highlighted, count-in,
+ * metronome, tempo (↑/↓), section loop (L), hidden chart (H), synth "listen" (M). Stages: learn (stop and retry;
+ * a section can loop), perform (keep going) and hidden (perform with the chart covered). In perform/hidden with
+ * a microphone the beat-1 strums are timed and every run of two or more bars without one counts as a stop;
+ * without a microphone the user reports the stops. Afterwards: played to the end, stops, played from memory.
  */
 import { z } from 'zod';
 import { DEFAULT_METRONOME_CONFIG } from '../../audio/metronome';
@@ -30,11 +31,36 @@ export interface ChartBar {
   section: number;
 }
 
+export type SongStageName = 'learn' | 'perform' | 'hidden';
+
+/** Stage of a song run from its mode and chart setting (SPEC v1.1 §11.10). */
+export function songStageOf(mode: SongParams['mode'], chartHidden: boolean): SongStageName {
+  return mode === 'learn' ? 'learn' : chartHidden ? 'hidden' : 'perform';
+}
+
+/** Stops (§11.10): every run of ≥ 2 consecutive bars whose beat-1 strum is missing. */
+export function beat1Stops(beat1Hit: readonly boolean[]): number {
+  let stops = 0;
+  let missing = 0;
+  for (const hit of beat1Hit) {
+    if (hit) {
+      missing = 0;
+      continue;
+    }
+    missing += 1;
+    if (missing === 2) stops += 1;
+  }
+  return stops;
+}
+
+export const SONG_TEMPO_STEP = 5;
+
 export interface SongView {
   song: PracticeSong;
   chart: ChartBar[];
   bpm: number;
   mode: SongParams['mode'];
+  stage: SongStageName;
   chartHidden: boolean;
   loopSection: number | null;
   /** Index into `chart` (looping sections wrap). */
@@ -54,8 +80,15 @@ export function expandChart(song: PracticeSong): ChartBar[] {
 export class SongRunner extends BaseRunner<SongResult, SongView> {
   private readonly song: PracticeSong;
   private readonly chart: ChartBar[];
-  private readonly playBars: ChartBar[];
-  private readonly barS: number;
+  private playBars: ChartBar[];
+  private barS: number;
+  private bpm: number;
+  private chartHidden: boolean;
+  private loopSection: number | null;
+  /** Stops counted from the beat-1 strums (perform/hidden with a microphone). */
+  private autoStops: number | null = null;
+  /** The chart was visible at some point while playing (the take then is not "hidden"). */
+  private chartShownWhilePlaying = false;
   private recorder: GridRecorder | null = null;
   private bar: number | null = null;
   private readonly report = { completed: false, stops: 0, memorized: false };
@@ -76,10 +109,34 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
     super(ctx);
     this.song = songById(params.songId);
     this.chart = expandChart(this.song);
-    const loop = params.mode === 'learn' ? params.loopSection : null;
-    this.playBars = loop === null ? this.chart : this.chart.filter((b) => b.section === loop);
+    this.bpm = params.bpm;
+    this.chartHidden = params.chartHidden;
+    this.loopSection = params.mode === 'learn' ? params.loopSection : null;
+    this.playBars = this.chart;
+    this.barS = 0;
+    this.layout();
+  }
+
+  private layout(): void {
+    this.playBars =
+      this.loopSection === null ? this.chart : this.chart.filter((b) => b.section === this.loopSection);
     const beats = this.song.timeSignature === '6/8' ? 2 : 4;
-    this.barS = (beats * 60) / params.bpm;
+    this.barS = (beats * 60) / this.bpm;
+  }
+
+  /** The take counts as "hidden" (memorization, §7.6-5, §11.10) only if the chart stayed hidden while playing. */
+  private get hiddenThroughout(): boolean {
+    return this.chartHidden && !this.chartShownWhilePlaying;
+  }
+
+  /** Tempo, chart and loop as recorded for this run (option keys, SPEC v1.1 §12.3). */
+  effectiveParams(): SongParams {
+    return {
+      ...this.params,
+      bpm: this.bpm,
+      chartHidden: this.hiddenThroughout,
+      loopSection: this.loopSection,
+    };
   }
 
   protected view(): SongView {
@@ -88,10 +145,11 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
     return {
       song: this.song,
       chart: this.chart,
-      bpm: this.params.bpm,
+      bpm: this.bpm,
       mode: this.params.mode,
-      chartHidden: this.params.chartHidden,
-      loopSection: this.params.mode === 'learn' ? this.params.loopSection : null,
+      stage: songStageOf(this.params.mode, this.chartHidden),
+      chartHidden: this.chartHidden,
+      loopSection: this.loopSection,
       bar: chartIndex,
       report: { ...this.report },
       analyzing: this.analyzing,
@@ -117,22 +175,23 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
     this.ctx.output.playSamples(
       this.renderListen(
         this.playBars.slice(0, 8).map((b) => b.chord),
-        this.params.bpm,
+        this.bpm,
         beatsPerBar,
       ),
     );
   }
 
   private play(): void {
+    if (!this.chartHidden) this.chartShownWhilePlaying = true;
     this.recorder?.dispose();
     this.scoreFailed = false;
-    const looping = this.params.mode === 'learn' && this.params.loopSection !== null;
+    const looping = this.params.mode === 'learn' && this.loopSection !== null;
     const sixEight = this.song.timeSignature === '6/8';
     this.recorder = new GridRecorder(
       this.params.mode === 'perform' ? this.ctx : { ...this.ctx, audio: null },
       {
         ...DEFAULT_METRONOME_CONFIG,
-        bpm: sixEight ? this.params.bpm * 3 : this.params.bpm,
+        bpm: sixEight ? this.bpm * 3 : this.bpm,
         meter: sixEight ? '6/8' : '4/4',
         countInBars: 1,
         stopAfterBars: looping ? null : this.playBars.length,
@@ -149,7 +208,7 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
   private toReview(): void {
     this.bar = null;
     this.recorder?.stop();
-    this.report.completed = this.recorder?.endTime !== null && this.params.loopSection === null;
+    this.report.completed = this.recorder?.endTime !== null && this.loopSection === null;
     this.setPhase('review');
   }
 
@@ -162,6 +221,29 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
     const waiting = this.phase === 'ready' || this.phase === 'armed';
     if (waiting && (cmd === 'toggle' || cmd === 'next')) {
       this.play();
+      return;
+    }
+    if (cmd === 'hide' && this.phase !== 'review' && this.phase !== 'done') {
+      this.chartHidden = !this.chartHidden;
+      if (!this.chartHidden && (this.phase === 'countIn' || this.phase === 'running'))
+        this.chartShownWhilePlaying = true;
+      this.publish();
+      return;
+    }
+    if ((waiting || (this.phase === 'review' && this.params.mode === 'learn')) && cmd === 'loop') {
+      if (this.params.mode !== 'learn') return;
+      const sections = this.song.sections.length;
+      this.loopSection =
+        this.loopSection === null ? 0 : this.loopSection + 1 < sections ? this.loopSection + 1 : null;
+      this.layout();
+      this.publish();
+      return;
+    }
+    if (waiting && (cmd === 'inc' || cmd === 'dec')) {
+      const step = cmd === 'inc' ? SONG_TEMPO_STEP : -SONG_TEMPO_STEP;
+      this.bpm = Math.min(240, Math.max(this.song.bpmMin, this.bpm + step));
+      this.layout();
+      this.publish();
       return;
     }
     if (waiting && cmd === 'mark') {
@@ -226,12 +308,15 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
           slots: Array.from({ length: bars }, (_, b) => ({ time: grid + b * this.barS, expected: true })),
           strumTimes: rec.strums,
           rttS: rec.rttS,
-          bpm: this.params.bpm,
+          bpm: this.bpm,
           personalOffsetMs: this.ctx.personalOffsetMs ?? null,
         })
         .then((outcome) => {
           this.recordDsp(outcome);
           this.beat1HitRate = outcome.result.hitRate;
+          // A bar is "played" when its beat-1 strum hit; the user can still correct the count (↑/↓).
+          this.autoStops = beat1Stops(outcome.result.judgements.map((j) => j === 'hit'));
+          this.report.stops = this.autoStops;
           this.analyzing = false;
           this.publish();
         })
@@ -253,12 +338,17 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
     return {
       songId: this.song.id,
       mode: this.params.mode,
-      chartHidden: this.params.chartHidden,
-      bpm: this.params.bpm,
+      stage: songStageOf(this.params.mode, this.hiddenThroughout),
+      chartHidden: this.hiddenThroughout,
+      bpm: this.bpm,
       completed: this.report.completed,
       stops: this.report.stops,
       memorized: this.report.memorized,
       beat1HitRate: this.beat1HitRate,
+      chordCorrectRatio: null,
+      backingOn: false,
+      backingAudible: false,
+      ...(this.ctx.audio ? {} : { memorizedSelfReport: this.report.memorized }),
     };
   }
 }

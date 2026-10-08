@@ -21,6 +21,7 @@ import { contentContextFor } from '../contentContext';
 import type { ExerciseDefinition } from '../registry';
 import type { ExerciseContext, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from './hooks';
+import { MicFeedback } from './MicFeedback';
 
 export interface ExerciseHostProps {
   definition: ExerciseDefinition;
@@ -118,6 +119,7 @@ function RunningExercise({
   return (
     <div>
       {definition.renderView({ runner, params, ctx })}
+      {definition.usesMicrophone && <MicFeedback ctx={ctx} />}
       {!ctx.audio && definition.usesMicrophone && (
         <p className="mt-2 text-sm text-muted">{ko.exercises.common.noMic}</p>
       )}
@@ -307,7 +309,7 @@ export function ExerciseHost({
       exerciseVersion: definition.version,
       startedAt,
       endedAt: Date.now(),
-      params: running.params,
+      params: runner.effectiveParams?.() ?? running.params,
       result,
       detectorVersion: stats.events > 0 ? stats.detectorVersion : null,
       processingMs: stats.meanProcessingMs,

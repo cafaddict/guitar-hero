@@ -25,6 +25,8 @@ export const e5Plugin: ExercisePlugin<E5Params, StrumResult, E5View> = {
     chords: content.unlockedChordClasses.slice(-1),
     cuesHidden: false,
     previousLow: false,
+    dynamics: false,
+    palmMute: false,
   }),
   createRunner: (ctx, params) => new StrumLadderRunner(ctx, params),
   View: E5ViewComponent,
@@ -33,7 +35,7 @@ export const e5Plugin: ExercisePlugin<E5Params, StrumResult, E5View> = {
   // "Two runs in a row below 70 %": the latest run of the same pattern decides `previousLow`.
   withHistory: (params, recent) => {
     const last = recent.find((r) => r.patternId === params.patternId);
-    return { ...params, previousLow: last !== undefined && last.hitRate < LADDER_DOWN_HIT_RATE };
+    return { ...params, previousLow: last !== undefined && last.hitRateCorrected < LADDER_DOWN_HIT_RATE };
   },
   suggestedTempoRetry: (params, result) => tempoRetry(params, nextBpmFor(result.bpm, result.ladder)),
   usesMicrophone: true,

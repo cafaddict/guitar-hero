@@ -1,7 +1,7 @@
 import { voicingById, voicingForClass } from '../../content/voicings';
 import { type ChordCheckResult, chordCheckResultSchema, extractMetrics } from '../../domain/exerciseResults';
 import type { ExercisePlugin } from '../types';
-import { E1Summary, makeE1View } from './E1View';
+import { makeE1Summary, makeE1View } from './E1View';
 import { ChordCheckRunner, type E1Params, type E1View, e1ParamsSchema } from './runner';
 
 export const e1Plugin: ExercisePlugin<E1Params, ChordCheckResult, E1View> = {
@@ -18,7 +18,7 @@ export const e1Plugin: ExercisePlugin<E1Params, ChordCheckResult, E1View> = {
   }),
   createRunner: (ctx, params) => new ChordCheckRunner(ctx, params, voicingById(params.voicingId)),
   View: makeE1View(voicingById),
-  Summary: E1Summary,
+  Summary: makeE1Summary(voicingById),
   toMetrics: (result) => extractMetrics('E1', result),
   usesMicrophone: true,
 };

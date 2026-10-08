@@ -4,6 +4,7 @@
  * ended and late judgements (~0.4 s after each onset) have settled.
  */
 import type { MetronomeConfig } from '../audio/metronome';
+import type { Job } from '../audio/worker/protocol';
 import type { ExerciseContext, JudgedEvent } from './types';
 
 /** Judged onsets arrive ~0.4 s after the strum; wait this long after the last bar before scoring. */
@@ -11,6 +12,8 @@ export const SETTLE_S = 0.7;
 
 export class GridRecorder {
   readonly strums: number[] = [];
+  /** The judged events behind `strums` (same order), e.g. Mode C classifications for a chord check. */
+  readonly events: JudgedEvent[] = [];
   gridStart: number | null = null;
   endTime: number | null = null;
   private readonly disposers: (() => void)[] = [];
@@ -20,6 +23,8 @@ export class GridRecorder {
     private readonly config: MetronomeConfig,
     private readonly onBarsDone: () => void,
     private readonly onEvent: (event: JudgedEvent) => void = () => {},
+    /** Worker job for the strums: plain onsets, or a closed-set classification that also yields onsets. */
+    private readonly job: Job = { kind: 'onsets' },
   ) {}
 
   get rttS(): number {
@@ -29,7 +34,7 @@ export class GridRecorder {
   start(onGrid: () => void): void {
     const mic = this.ctx.audio;
     if (mic) {
-      mic.setJob({ kind: 'onsets' });
+      mic.setJob(this.job);
       this.disposers.push(
         () => mic.setJob(null),
         mic.onJudged((e) => this.collect(e)),
@@ -50,10 +55,11 @@ export class GridRecorder {
   }
 
   private collect(event: JudgedEvent): void {
-    if (event.jobKind !== 'onsets' || this.gridStart === null) return;
+    if (event.jobKind !== this.job.kind || this.gridStart === null) return;
     if (event.time < this.gridStart - 0.3) return;
     if (this.endTime !== null && event.time > this.endTime + 0.3) return;
     this.strums.push(event.time);
+    this.events.push(event);
     this.onEvent(event);
   }
 

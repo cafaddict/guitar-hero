@@ -53,7 +53,7 @@ function E17ViewComponent({ runner }: { runner: ExerciseRunner<RiffResult, E17Vi
             >
               {ko.exercises.e17.mistake}
             </Button>
-            <Button variant="secondary" onClick={() => runner.command('mark')}>
+            <Button variant="secondary" onClick={() => runner.command('hide')}>
               {view.tabHidden ? ko.exercises.e17.showTab : ko.exercises.e17.hideTab}
             </Button>
             <Button variant="secondary" onClick={() => runner.command('toggle')}>

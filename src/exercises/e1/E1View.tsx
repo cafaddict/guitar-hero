@@ -9,6 +9,7 @@ import type { ExerciseContext, ExerciseRunner } from '../types';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
 import type { E1Params, E1StringView, E1View as View } from './runner';
+import { stringTendencies } from './tendency';
 
 const FAILED = new Set(['MUTED', 'WRONG_NOTE', 'UNEXPECTED']);
 const ICON: Record<string, string> = {
@@ -189,6 +190,11 @@ export function makeE1View(voicingOf: (id: string) => ChordVoicing) {
                 ))}
             </div>
           )}
+          {(view.step === 'place' || view.step === 'release') && (
+            <p className="text-sm text-muted" data-testid="e1-option-keys">
+              {ko.exercises.e1.optionKeys}
+            </p>
+          )}
           <p className="text-sm text-muted" data-testid="e1-stats">
             {ko.exercises.e1.stats(view.cleanAttempts, view.attempts)}
           </p>
@@ -198,15 +204,28 @@ export function makeE1View(voicingOf: (id: string) => ChordVoicing) {
   };
 }
 
-export function E1Summary({ result }: { result: ChordCheckResult; params: E1Params }) {
-  const agreements = result.attempts.map((a) => a.selfAgreement).filter((x): x is number => x !== null);
-  return (
-    <div data-testid="e1-summary">
-      <p className="text-xl font-bold">{ko.exercises.e1.cleanRatio(result.cleanRatio)}</p>
-      <p>{ko.exercises.e1.stats(result.attempts.filter((a) => a.clean).length, result.attempts.length)}</p>
-      {agreements.length > 0 && (
-        <p>{ko.exercises.e1.selfAgreement(agreements.reduce((s, x) => s + x, 0) / agreements.length)}</p>
-      )}
-    </div>
-  );
+export function makeE1Summary(voicingOf: (id: string) => ChordVoicing) {
+  return function E1Summary({ result }: { result: ChordCheckResult; params: E1Params }) {
+    const agreements = result.attempts.map((a) => a.selfAgreement).filter((x): x is number => x !== null);
+    const tendencies = stringTendencies(result, voicingOf(result.voicingId));
+    return (
+      <div data-testid="e1-summary">
+        <p className="text-xl font-bold">{ko.exercises.e1.cleanRatio(result.cleanRatio)}</p>
+        <p>{ko.exercises.e1.stats(result.attempts.filter((a) => a.clean).length, result.attempts.length)}</p>
+        {agreements.length > 0 && (
+          <p>{ko.exercises.e1.selfAgreement(agreements.reduce((s, x) => s + x, 0) / agreements.length)}</p>
+        )}
+        {tendencies.length > 0 && (
+          <ul className="mt-2 space-y-1" data-testid="e1-tendencies">
+            {tendencies.map((t) => (
+              <li key={`${t.stringNo}-${t.kind}`}>
+                {ko.exercises.e1.tendency(t.stringNo, t.attempts, t.count, t.kind)}
+                {t.hint && ` → ${ko.coaching.render(t.hint)}`}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  };
 }

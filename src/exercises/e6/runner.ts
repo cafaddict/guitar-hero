@@ -1,22 +1,64 @@
 /**
- * E6 change on beat 1 (SPEC §11.7): one chord per bar, the pattern is strummed and the chord changes on the
- * next bar's first beat. Mode D measures the beat-1 strum of every bar (delay vs grid + RTT) and finds bars
- * with no strum at all (a stop). Rule: ≥ 14 of 16 bars inside the window and no stop → +5 BPM.
+ * E6 change on beat 1 (SPEC v1.1 §11.7): one chord per bar, the pattern is strummed and the chord changes on
+ * the next bar's first beat. Mode D measures the beat-1 strum of every bar (delay vs grid + RTT) and finds bars
+ * with no strum at all (a stop). Rule: ≥ 14 of 16 bars inside the window and no stop → +5 BPM. With a
+ * microphone every strum is also classified among the progression's chords (Mode C), and each bar that changes
+ * chord is checked as a two-way choice "this bar's chord vs the previous one" (research 01:315).
  */
 import { z } from 'zod';
 import { DEFAULT_METRONOME_CONFIG } from '../../audio/metronome';
 import { patternById } from '../../content/patterns';
+import { voicingById, voicingForClass } from '../../content/voicings';
 import type { OneBeatResult } from '../../domain/exerciseResults';
+import type { SetClassification } from '../../dsp/modeC';
 import { timingWindowMs } from '../../dsp/timing';
 import { BaseRunner } from '../baseRunner';
 import { GridRecorder } from '../gridRecorder';
-import type { ExerciseContext, RunnerCommand } from '../types';
+import type { ExerciseContext, JudgedEvent, RunnerCommand } from '../types';
+
+/**
+ * Share of chord-changing bars whose beat-1 strum sounded more like this bar's chord than the previous one
+ * (null when no such bar was heard). `chords` are the classification candidates (classes, distinct).
+ */
+export function chordCorrectRatio(
+  progression: readonly string[],
+  chords: readonly string[],
+  events: readonly JudgedEvent[],
+  gridStart: number,
+  barS: number,
+  bars: number,
+  rttS: number,
+  windowS: number,
+): number | null {
+  let judged = 0;
+  let correct = 0;
+  for (let b = 1; b < bars; b++) {
+    const chord = progression[b % progression.length]!;
+    const previous = progression[(b - 1) % progression.length]!;
+    if (chord === previous) continue;
+    const at = gridStart + b * barS + rttS;
+    const event = events
+      .filter((e) => Math.abs(e.time - at) <= windowS)
+      .sort((x, y) => Math.abs(x.time - at) - Math.abs(y.time - at))[0];
+    if (!event) continue;
+    const scores = (event.result as SetClassification | null)?.scores;
+    if (!scores) continue;
+    judged += 1;
+    if (scores[chords.indexOf(chord)]! > scores[chords.indexOf(previous)]!) correct += 1;
+  }
+  return judged === 0 ? null : correct / judged;
+}
 
 export const e6ParamsSchema = z.object({
   progression: z.array(z.string().min(1)).min(2).max(8),
   patternId: z.enum(['P0', 'P1', 'P2', 'P3', 'P4']),
   bpm: z.number().int().min(30).max(240),
   bars: z.number().int().min(4).max(32),
+  /**
+   * The ladder's tempo when a "−10 BPM" prescription started (SPEC v1.1 §7.4): a slowed run never lowers the
+   * stored ladder below it ("사다리 상태는 보존").
+   */
+  ladderBase: z.number().int().optional(),
 });
 export type E6Params = z.infer<typeof e6ParamsSchema>;
 
@@ -57,6 +99,8 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
   private bar: number | null = null;
   private analyzing = false;
   private outcome: Omit<OneBeatResult, 'progression' | 'patternId' | 'bpm' | 'bars' | 'source'> | null = null;
+  /** Distinct chord classes of the progression (Mode C candidates). */
+  private readonly chords: string[];
 
   constructor(
     ctx: ExerciseContext,
@@ -65,6 +109,8 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
     super(ctx);
     patternById(params.patternId);
     this.barS = (4 * 60) / params.bpm;
+    this.chords = [...new Set(params.progression)];
+    const voicings = this.chords.map((c) => voicingById(voicingForClass(c, ctx.content.gVoicing)));
     this.recorder = new GridRecorder(
       ctx,
       {
@@ -80,6 +126,9 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
         this.setPhase('review');
       },
       (event) => this.recordDsp(event),
+      this.chords.length >= 2
+        ? { kind: 'set', voicings, deltaCents: ctx.calibration?.tuningCents }
+        : { kind: 'onsets' },
     );
   }
 
@@ -200,7 +249,19 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
             this.params.bars,
             windowS,
           ).length;
-          this.outcome = this.summarize(outcome.result.hits, stops, outcome.result.meanOffsetMs);
+          this.outcome = {
+            ...this.summarize(outcome.result.hits, stops, outcome.result.meanOffsetMs),
+            chordCorrectRatio: chordCorrectRatio(
+              this.params.progression,
+              this.chords,
+              this.recorder.events,
+              grid,
+              this.barS,
+              this.params.bars,
+              this.recorder.rttS,
+              windowS,
+            ),
+          };
           this.analyzing = false;
           this.setPhase('done');
         })
@@ -226,6 +287,7 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
       bars: this.params.bars,
       ...o,
       source: this.ctx.audio ? 'mic' : 'self',
+      ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
     };
   }
 }

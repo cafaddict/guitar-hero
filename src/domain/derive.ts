@@ -3,7 +3,7 @@
  * that can always be recomputed by replaying attempts in order through applyAttempt().
  */
 import { modeOpenBpm } from '../content/patterns';
-import { extractMetrics, recallResultSchema } from './exerciseResults';
+import { extractMetrics, quizResultSchema, recallResultSchema } from './exerciseResults';
 import { graduatedItems } from './progression';
 import { type Attempt, dayKey, type MetricSample, type ReviewItem, type SkillState } from './records';
 import { applySample } from './skills';
@@ -38,10 +38,19 @@ export function reviewPassed(reviewOf: string, samples: readonly MetricSample[])
   return false;
 }
 
-/** Knowledge-card answers carried by an attempt (SPEC v1.1 §7.5): Q2 chord cards for now. */
+/** Knowledge-card answers carried by an attempt (SPEC v1.1 §7.5): Q2 chord cards, Q3 note cards, Q4 type cards. */
 export function cardAnswers(
   attempt: Pick<Attempt, 'exerciseType' | 'result'>,
 ): { subjectKey: string; correct: boolean; reactionMs: number | null }[] {
+  if (attempt.exerciseType === 'Q3' || attempt.exerciseType === 'Q4') {
+    const quiz = quizResultSchema.safeParse(attempt.result);
+    if (!quiz.success) return [];
+    return (quiz.data.items ?? []).map((i) => ({
+      subjectKey: i.card,
+      correct: i.correct,
+      reactionMs: i.reactionMs,
+    }));
+  }
   if (attempt.exerciseType !== 'Q2') return [];
   const parsed = recallResultSchema.safeParse(attempt.result);
   if (!parsed.success) return [];
@@ -76,15 +85,19 @@ export function applyAttempt(state: DerivedState, attempt: Attempt): AttemptDeri
   const changedReviews = new Map<string, ReviewItem>();
   if (attempt.reviewOf) {
     const item = state.reviews.get(attempt.reviewOf);
-    if (item) {
+    // A review moves one step per due date: repeats of the same block (rule 12) do not move it again (§7.5).
+    if (item && item.due <= attempt.startedAt) {
       const next = recordReview(item, reviewPassed(attempt.reviewOf, samples), attempt.endedAt);
       state.reviews.set(item.subjectKey, next);
       changedReviews.set(item.subjectKey, next);
     }
   }
   for (const answer of cardAnswers(attempt)) {
+    const card = state.reviews.get(answer.subjectKey);
+    // A card is graded when it is new or due; a repeat within the same interval does not move it (§7.5).
+    if (card && card.due > attempt.startedAt) continue;
     const next = recordCardAnswer(
-      state.reviews.get(answer.subjectKey),
+      card,
       answer.subjectKey,
       answer.correct,
       answer.reactionMs,

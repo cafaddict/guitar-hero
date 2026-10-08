@@ -5,6 +5,7 @@
  * description, so nothing is conveyed by the picture alone.
  */
 import { stringNumber } from '../domain/strings';
+import { STANDARD_TUNING } from '../domain/theory';
 import type { ChordVoicing } from '../domain/voicing';
 import { ko } from '../i18n/ko';
 
@@ -21,7 +22,27 @@ export interface ChordDiagramProps {
   marks?: readonly DiagramMark[];
   /** Highlight one finger position (Q1 diagram quiz). */
   highlight?: { idx: number; fret: number } | null;
+  /** Mark the chord's root notes with a different shape and colour (SPEC v1.1 §12.1, research 03:87). */
+  showRoot?: boolean;
   className?: string;
+}
+
+const NOTE_PC: Readonly<Record<string, number>> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+/** Pitch class of a chord symbol's root ('F#m' → 6, 'Bb7' → 10). */
+export function rootPitchClass(symbol: string): number | null {
+  const m = /^([A-G])([#b]?)/.exec(symbol);
+  if (!m) return null;
+  return (NOTE_PC[m[1]!]! + (m[2] === '#' ? 1 : m[2] === 'b' ? 11 : 0)) % 12;
+}
+
+/** String indices whose sounding note is the root (x strings excluded). */
+export function rootStrings(voicing: ChordVoicing): number[] {
+  const root = rootPitchClass(voicing.symbol);
+  if (root === null) return [];
+  return voicing.frets.flatMap((fret, idx) =>
+    typeof fret === 'number' && (STANDARD_TUNING.openMidi[idx]! + fret) % 12 === root ? [idx] : [],
+  );
 }
 
 function describe(voicing: ChordVoicing): string {
@@ -34,7 +55,9 @@ function describe(voicing: ChordVoicing): string {
       finger === null || finger === 0 || finger === undefined ? '' : ko.exercises.e1.fingerName(finger);
     return ko.exercises.e1.fingerAt(stringNo, fret, name);
   });
-  return `${ko.exercises.e1.diagramLabel(voicing.symbol)}: ${parts.join(', ')}`;
+  const roots = rootStrings(voicing).map(stringNumber);
+  const rootText = roots.length > 0 ? ` (${ko.exercises.e1.rootStrings(roots.join(', '))})` : '';
+  return `${ko.exercises.e1.diagramLabel(voicing.symbol)}: ${parts.join(', ')}${rootText}`;
 }
 
 export function ChordDiagram({
@@ -43,8 +66,10 @@ export function ChordDiagram({
   activeIdx = null,
   marks,
   highlight = null,
+  showRoot = true,
   className = '',
 }: ChordDiagramProps) {
+  const roots = new Set(showRoot ? rootStrings(voicing) : []);
   const width = 180;
   const height = 230;
   const left = 30;
@@ -130,7 +155,17 @@ export function ChordDiagram({
             </text>
           );
         if (fret === 0)
-          return (
+          return roots.has(idx) ? (
+            // Open root: a diamond in the root colour instead of the plain circle.
+            <polygon
+              key={`top-${stringNumber(idx)}`}
+              points={`${cx},${top - 23} ${cx + 8},${top - 15} ${cx},${top - 7} ${cx - 8},${top - 15}`}
+              fill="none"
+              stroke="var(--info)"
+              strokeWidth={2.5}
+              data-root="true"
+            />
+          ) : (
             <circle
               key={`top-${stringNumber(idx)}`}
               cx={cx}
@@ -162,9 +197,16 @@ export function ChordDiagram({
         if (typeof fret !== 'number' || fret === 0) return null;
         const finger = voicing.fingers[idx];
         const isHighlight = highlight !== null && highlight.idx === idx && highlight.fret === fret;
+        const isRoot = roots.has(idx);
+        const fill = isHighlight ? 'var(--accent)' : isRoot ? 'var(--info)' : 'var(--fg)';
         return (
-          <g key={`dot-${stringNumber(idx)}`}>
-            <circle cx={x(idx)} cy={y(fret)} r={11} fill={isHighlight ? 'var(--accent)' : 'var(--fg)'} />
+          <g key={`dot-${stringNumber(idx)}`} data-root={isRoot || undefined}>
+            {isRoot ? (
+              // Fretted root: a rounded square instead of a circle (shape, not only colour).
+              <rect x={x(idx) - 11} y={y(fret) - 11} width={22} height={22} rx={4} fill={fill} />
+            ) : (
+              <circle cx={x(idx)} cy={y(fret)} r={11} fill={fill} />
+            )}
             {finger !== null && finger !== 0 && finger !== undefined && (
               <text
                 x={x(idx)}

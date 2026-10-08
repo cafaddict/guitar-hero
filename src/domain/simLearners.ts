@@ -24,10 +24,29 @@ export interface ImprovingOptions {
   stuckPair?: { id: string; cpm: number; stage: number };
   /** Pain report every this many practice days (the `pain` model). */
   painEveryDays?: number;
+  /** Tempo ladders never move (an adversarial model for the −10 BPM prescription, §7.4). */
+  stuckLadders?: boolean;
 }
 
 function quizResult(questions: number, accuracy: number, reactionMs: number) {
   return { questions, correct: Math.round(accuracy * questions), meanReactionMs: reactionMs };
+}
+
+/** Q3/Q4 with knowledge cards (§7.5): due cards first, then the quiz's own cards in turn. */
+function cardQuiz(p: Params, accuracy: number, reactionMs: number, cardOf: (k: number) => string) {
+  const questions = num(p.questions, 10);
+  const focus = Array.isArray(p.focus) ? (p.focus as string[]) : [];
+  const correct = Math.round(accuracy * questions);
+  return {
+    ...quizResult(questions, accuracy, reactionMs),
+    items: Array.from({ length: questions }, (_, k) => ({
+      card: focus[k] ?? cardOf(k),
+      correct: k < correct,
+      reactionMs,
+    })),
+    ...(typeof p.scope === 'string' ? { scope: p.scope } : {}),
+    ...(typeof p.kind === 'string' ? { kind: p.kind } : {}),
+  };
 }
 
 /** `improving`: every number from SPEC v1.1 §14.9-2. */
@@ -41,166 +60,182 @@ export function improvingLearner(options: ImprovingOptions = {}, name = 'improvi
       return { pain: 0, dangerFlags: [], difficulty: 3, note: '' };
     },
     result(item: RoutineItem, raw: unknown, ctx: LearnerContext) {
-      const p = raw as Params;
-      switch (item.exerciseType) {
-        case 'E0':
-          return {
-            strings: Array.from({ length: 6 }, (_, idx) => ({ idx, cents: 1, inTune: true })),
-            complete: true,
-            durationMs: 60_000,
-          };
-        case 'E1': {
-          const voicingId = str(p.voicingId);
-          const ratio = Math.min(1, 0.3 + 0.1 * nextRun(ctx, `E1:${voicingId}`));
-          const cleanCount = Math.round(ratio * 10);
-          return {
-            voicingId,
-            mode: str(p.mode, 'pluck'),
-            earFirst: false,
-            attempts: Array.from({ length: 10 }, (_, k) => ({
-              perString: [],
-              clean: k < cleanCount,
-              strumVerdict: null,
-              selfAgreement: null,
-            })),
-            cleanRatio: cleanCount / 10,
-          };
-        }
-        case 'E2': {
-          const from = str(p.from);
-          const to = str(p.to);
-          const id = pairId(from, to);
-          const run = nextRun(ctx, `E2:${id}`);
-          const stuck = options.stuckPair;
-          const cpm =
-            stuck && stuck.id === id && ctx.stage >= stuck.stage ? stuck.cpm : Math.min(45, 24 + 3 * run);
-          const durationMs = num(p.durationMs, 60_000);
-          return {
-            pair: id,
-            direction: `${from}>${to}`,
-            durationMs,
-            countMode: 'auto',
-            detectedChanges: Math.round((cpm * durationMs) / 60_000),
-            correctedChanges: null,
-            tapChanges: null,
-            lowConfidenceEvents: 0,
-            changeTimestampsMs: [],
-          };
-        }
-        case 'E4':
-          return {
-            pair: pairId(str(p.from), str(p.to)),
-            kind: 'anchor',
-            durationMs: num(p.durationMs, 60_000),
-            selfReportSuccess: 8,
-          };
-        case 'E5':
-          return {
-            patternId: str(p.patternId),
-            bpm: num(p.bpm, 60),
-            bars: num(p.bars, 8),
-            mode: str(p.mode, 'mute'),
-            hits: 32,
-            misses: 0,
-            extras: 0,
-            meanOffsetMs: 0,
-            sdOffsetMs: 10,
-            hitRate: 1,
-            hitRateCorrected: 1,
-            cuesHidden: p.cuesHidden === true,
-            ladder: 'up',
-            passed: true,
-            source: 'mic',
-          };
-        case 'E6':
-          return {
-            progression: p.progression,
-            patternId: str(p.patternId, 'P0'),
-            bpm: num(p.bpm, 60),
-            bars: num(p.bars, 16),
-            barsInWindow: num(p.bars, 16),
-            stops: 0,
-            beat1DelayMsMean: 10,
-            missingBarRatio: 0,
-            passed: true,
-            source: 'mic',
-          };
-        case 'E7':
-          return { startFret: num(p.startFret, 5), durationMs: num(p.durationMs, 60_000), pain: 0 };
-        case 'E8':
-          return {
-            stringIdx: num(p.stringIdx, 3),
-            bpm: num(p.bpm, 60),
-            bars: num(p.bars, 8),
-            hitRate: 1,
-            ioiCv: 0.05,
-            passed: true,
-            source: 'mic',
-          };
-        case 'E16':
-          return {
-            positions: (['behind', 'middle', 'onFret'] as const).map((pos) => ({
-              pos,
-              statuses: ['OK', 'OK'],
-              clarity: 0.9,
-              decayRatio: 0.5,
-            })),
-            source: 'mic',
-          };
-        case 'E17':
-          return {
-            riffId: str(p.riffId),
-            bpm: num(p.bpm, 60),
-            tabHidden: p.tabHidden === true,
-            cycles: Array.from({ length: 4 }, () => ({
-              flawless: true,
-              uncertain: false,
-              stops: 0,
-              okRatio: 1,
-            })),
-            ladder: 'up',
-            source: 'mic',
-          };
-        case 'K1':
-          return {
-            items: (p.items as string[]).map((id) => ({
-              id,
-              // "됐어요" at the item's third appearance (§14.9-2).
-              status: nextRun(ctx, `K1:${id}`) >= 2 ? 'done' : 'notYet',
-            })),
-          };
-        case 'Q1':
-        case 'Q3':
-        case 'Q5':
-          return quizResult(num(p.questions, 10), 0.95, 2000);
-        case 'Q4':
-          return quizResult(num(p.questions, 10), 0.9, 2000);
-        case 'Q2': {
-          const classes = p.chordClasses as string[];
-          const count = Math.max(num(p.count, classes.length), classes.length);
-          return {
-            items: Array.from({ length: count }, (_, k) => {
-              const chordClass = classes[k % classes.length]!;
-              return { chordClass, voicingId: chordClass, correct: true, reactionMs: 2500, method: 'mic' };
-            }),
-          };
-        }
-        case 'S':
-          return {
-            songId: str(p.songId),
-            mode: str(p.mode, 'learn'),
-            chartHidden: p.chartHidden === true,
-            bpm: num(p.bpm, 60),
-            completed: true,
-            stops: 0,
-            memorized: p.chartHidden === true,
-            beat1HitRate: 1,
-          };
-        default:
-          return null;
-      }
+      const result = baseResult(item, raw, ctx);
+      // Like the runners, a run slowed by a −10 BPM prescription carries the ladder tempo it must keep.
+      const base = (raw as Params).ladderBase;
+      const r =
+        result !== null && typeof base === 'number' ? { ...(result as Params), ladderBase: base } : result;
+      if (!options.stuckLadders || r === null) return r;
+      const x = r as Params;
+      if (item.exerciseType === 'E5')
+        return { ...x, hitRate: 0.8, hitRateCorrected: 0.8, ladder: 'stay', passed: false };
+      if (item.exerciseType === 'E6' || item.exerciseType === 'E8') return { ...x, passed: false };
+      if (item.exerciseType === 'E17') return { ...x, ladder: 'stay' };
+      return r;
     },
   };
+
+  function baseResult(item: RoutineItem, raw: unknown, ctx: LearnerContext): unknown | null {
+    const p = raw as Params;
+    switch (item.exerciseType) {
+      case 'E0':
+        return {
+          strings: Array.from({ length: 6 }, (_, idx) => ({ idx, cents: 1, inTune: true })),
+          complete: true,
+          durationMs: 60_000,
+        };
+      case 'E1': {
+        const voicingId = str(p.voicingId);
+        const ratio = Math.min(1, 0.3 + 0.1 * nextRun(ctx, `E1:${voicingId}`));
+        const cleanCount = Math.round(ratio * 10);
+        return {
+          voicingId,
+          mode: str(p.mode, 'pluck'),
+          earFirst: false,
+          attempts: Array.from({ length: 10 }, (_, k) => ({
+            perString: [],
+            clean: k < cleanCount,
+            strumVerdict: null,
+            selfAgreement: null,
+          })),
+          cleanRatio: cleanCount / 10,
+        };
+      }
+      case 'E2': {
+        const from = str(p.from);
+        const to = str(p.to);
+        const id = pairId(from, to);
+        const run = nextRun(ctx, `E2:${id}`);
+        const stuck = options.stuckPair;
+        const cpm =
+          stuck && stuck.id === id && ctx.stage >= stuck.stage ? stuck.cpm : Math.min(45, 24 + 3 * run);
+        const durationMs = num(p.durationMs, 60_000);
+        return {
+          pair: id,
+          direction: `${from}>${to}`,
+          durationMs,
+          countMode: 'auto',
+          detectedChanges: Math.round((cpm * durationMs) / 60_000),
+          correctedChanges: null,
+          tapChanges: null,
+          lowConfidenceEvents: 0,
+          changeTimestampsMs: [],
+        };
+      }
+      case 'E4':
+        return {
+          pair: pairId(str(p.from), str(p.to)),
+          kind: 'anchor',
+          durationMs: num(p.durationMs, 60_000),
+          selfReportSuccess: 8,
+        };
+      case 'E5':
+        return {
+          patternId: str(p.patternId),
+          bpm: num(p.bpm, 60),
+          bars: num(p.bars, 8),
+          mode: str(p.mode, 'mute'),
+          hits: 32,
+          misses: 0,
+          extras: 0,
+          meanOffsetMs: 0,
+          sdOffsetMs: 10,
+          hitRate: 1,
+          hitRateCorrected: 1,
+          cuesHidden: p.cuesHidden === true,
+          ladder: 'up',
+          passed: true,
+          source: 'mic',
+        };
+      case 'E6':
+        return {
+          progression: p.progression,
+          patternId: str(p.patternId, 'P0'),
+          bpm: num(p.bpm, 60),
+          bars: num(p.bars, 16),
+          barsInWindow: num(p.bars, 16),
+          stops: 0,
+          beat1DelayMsMean: 10,
+          missingBarRatio: 0,
+          passed: true,
+          source: 'mic',
+        };
+      case 'E7':
+        return { startFret: num(p.startFret, 5), durationMs: num(p.durationMs, 60_000), pain: 0 };
+      case 'E8':
+        return {
+          stringIdx: num(p.stringIdx, 3),
+          bpm: num(p.bpm, 60),
+          bars: num(p.bars, 8),
+          hitRate: 1,
+          ioiCv: 0.05,
+          passed: true,
+          source: 'mic',
+        };
+      case 'E16':
+        return {
+          positions: (['behind', 'middle', 'onFret'] as const).map((pos) => ({
+            pos,
+            statuses: ['OK', 'OK'],
+            clarity: 0.9,
+            decayRatio: 0.5,
+          })),
+          source: 'mic',
+        };
+      case 'E17':
+        return {
+          riffId: str(p.riffId),
+          bpm: num(p.bpm, 60),
+          tabHidden: p.tabHidden === true,
+          cycles: Array.from({ length: 4 }, () => ({
+            flawless: true,
+            uncertain: false,
+            stops: 0,
+            okRatio: 1,
+          })),
+          ladder: 'up',
+          source: 'mic',
+        };
+      case 'K1':
+        return {
+          items: (p.items as string[]).map((id) => ({
+            id,
+            // "됐어요" at the item's third appearance (§14.9-2).
+            status: nextRun(ctx, `K1:${id}`) >= 2 ? 'done' : 'notYet',
+          })),
+        };
+      case 'Q1':
+      case 'Q5':
+        return quizResult(num(p.questions, 10), 0.95, 2000);
+      case 'Q3':
+        return cardQuiz(p, 0.95, 2000, (k) => `card:note:${k % 6}:0`);
+      case 'Q4':
+        return cardQuiz(p, 0.9, 2000, (k) => `card:ear:majmin:${k % 2 === 0 ? 'major' : 'minor'}`);
+      case 'Q2': {
+        const classes = p.chordClasses as string[];
+        const count = Math.max(num(p.count, classes.length), classes.length);
+        return {
+          items: Array.from({ length: count }, (_, k) => {
+            const chordClass = classes[k % classes.length]!;
+            return { chordClass, voicingId: chordClass, correct: true, reactionMs: 2500, method: 'mic' };
+          }),
+        };
+      }
+      case 'S':
+        return {
+          songId: str(p.songId),
+          mode: str(p.mode, 'learn'),
+          chartHidden: p.chartHidden === true,
+          bpm: num(p.bpm, 60),
+          completed: true,
+          stops: 0,
+          memorized: p.chartHidden === true,
+          beat1HitRate: 1,
+        };
+      default:
+        return null;
+    }
+  }
 }
 
 /** `blank`: every run fails, scores zero, self reports "아직". */

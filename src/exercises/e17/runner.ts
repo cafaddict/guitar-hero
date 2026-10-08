@@ -17,6 +17,11 @@ export const e17ParamsSchema = z.object({
   tabHidden: z.boolean().default(false),
   /** The previous run of this riff had mistakes in half or more of its cycles (two in a row → −5). */
   previousLow: z.boolean().default(false),
+  /**
+   * The ladder's tempo when a "−10 BPM" prescription started (SPEC v1.1 §7.4): a slowed run never lowers the
+   * stored ladder below it ("사다리 상태는 보존").
+   */
+  ladderBase: z.number().int().optional(),
 });
 export type E17Params = z.infer<typeof e17ParamsSchema>;
 
@@ -99,6 +104,11 @@ export class RiffRunner extends BaseRunner<RiffResult, E17View> {
       this.stop();
       return;
     }
+    if (cmd === 'hide') {
+      this.tabHidden = !this.tabHidden;
+      this.publish();
+      return;
+    }
     if (this.phase === 'ready' && (cmd === 'toggle' || cmd === 'next')) {
       void this.ctx.output.metronome.start({
         ...DEFAULT_METRONOME_CONFIG,
@@ -112,9 +122,6 @@ export class RiffRunner extends BaseRunner<RiffResult, E17View> {
     if (cmd === 'manual1' || cmd === 'manual2') {
       this.cycles.push({ flawless: cmd === 'manual1', uncertain: false, stops: 0, okRatio: null });
       this.publish();
-    } else if (cmd === 'mark') {
-      this.tabHidden = !this.tabHidden;
-      this.publish();
     } else if (cmd === 'toggle' || (cmd === 'next' && this.cycles.length > 0)) this.stop();
   }
 
@@ -125,6 +132,11 @@ export class RiffRunner extends BaseRunner<RiffResult, E17View> {
 
   hasResult(): boolean {
     return this.cycles.length > 0;
+  }
+
+  /** TAB shown or hidden as it is now (H key, SPEC v1.1 §12.3). */
+  effectiveParams(): E17Params {
+    return { ...this.params, tabHidden: this.tabHidden };
   }
 
   notes() {
@@ -139,6 +151,7 @@ export class RiffRunner extends BaseRunner<RiffResult, E17View> {
       cycles: [...this.cycles],
       ladder: sequenceLadder(this.cycles, this.params.previousLow),
       source: 'self',
+      ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
     };
   }
 

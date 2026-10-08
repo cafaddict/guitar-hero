@@ -103,6 +103,7 @@ export function OnboardingScreen() {
           outputDeviceLabel: outputLabel,
           noise,
           tuningCents: tuning.cents,
+          tuningSkipped: tuning.skipped,
           firstReadings: tuning.firstReadings,
           templates,
           rtt: { rttMs: rtt.rttMs, madMs: rtt.madMs, method: rtt.method },

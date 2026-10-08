@@ -201,6 +201,8 @@ export interface Calibration {
   noiseThirdOctaveDb?: number[];
   /** δ[i] cents per string, idx 0 = 6th string. */
   tuningCents: number[];
+  /** Strings whose tuning step was skipped ("다른 튜너로 이미 맞췄어요"); their δ is 0 (SPEC v1.1 §9.3). */
+  tuningSkipped?: boolean[];
   stringTemplates: { harmonics: number[]; decayRatio: number }[];
   rttMs: number;
   rttMethod: 'loopback' | 'tap';

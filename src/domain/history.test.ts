@@ -66,4 +66,12 @@ describe('practice history (SPEC v1.1 §7.3 input)', () => {
       ),
     ).toEqual(['K1|check:posture+pick', 'K1|check:posture', 'K1|check:pick']);
   });
+
+  it('a session left without the self report still counts once it holds an attempt', () => {
+    const sessions = [session('a', T0), session('left', T0 + DAY_MS, 0, false)];
+    const attempts = [attempt('left', 'E5', { patternId: 'P1', mode: 'single' }, 'E5|strum:P1')];
+    const h = practiceHistory(sessions, attempts, T0 + 2 * DAY_MS);
+    expect(h.sessionNumber).toBe(3);
+    expect(h.appearances.get('E5|strum:P1')).toEqual({ session: 2, day: 2 });
+  });
 });

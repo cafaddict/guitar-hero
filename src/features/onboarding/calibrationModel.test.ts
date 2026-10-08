@@ -116,6 +116,19 @@ describe('buildCalibration', () => {
     expect(JSON.parse(JSON.stringify(c))).toEqual(c);
   });
 
+  it('AC-EX1 (v1.1 §9.3): strings skipped with "다른 튜너로 이미 맞췄어요" keep δ = 0 and are marked', () => {
+    const c = buildCalibration({
+      ...draft,
+      tuningCents: [1, -2, 0, 0, 0, 0],
+      tuningSkipped: [false, false, true, true, true, true],
+    });
+    expect(c.tuningCents).toEqual([1, -2, 0, 0, 0, 0]);
+    expect(c.tuningSkipped).toEqual([false, false, true, true, true, true]);
+    expect(
+      buildCalibration({ ...draft, tuningSkipped: [false, false, false, false, false, false] }),
+    ).not.toHaveProperty('tuningSkipped');
+  });
+
   it('refuses incomplete tuning or templates', () => {
     expect(() => buildCalibration({ ...draft, tuningCents: [1, null, 3, 0, 4, -5] })).toThrow('tuning');
     expect(() => buildCalibration({ ...draft, templates: [...draft.templates.slice(0, 5), null] })).toThrow(

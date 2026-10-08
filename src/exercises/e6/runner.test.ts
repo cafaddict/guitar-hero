@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { oneBeatResultSchema } from '../../domain/exerciseResults';
 import { DETECTOR_VERSION } from '../../dsp/version';
 import { testContext } from '../testing/fakes';
-import { type E6Params, OneBeatRunner, stoppedBars } from './runner';
+import { chordCorrectRatio, type E6Params, OneBeatRunner, stoppedBars } from './runner';
 
 const flush = async () => {
   for (let i = 0; i < 4; i++) await Promise.resolve();
@@ -32,7 +32,8 @@ async function run(
       t.mic.judged.emit({
         time: pending.shift()!,
         result: null,
-        jobKind: 'onsets',
+        // The strums arrive as whatever job the runner set (Mode C set classification with a microphone).
+        jobKind: t.mic.job?.kind ?? 'onsets',
         detectorVersion: DETECTOR_VERSION,
         processingMs: 1,
       });
@@ -67,6 +68,27 @@ describe('E6 change on beat 1', () => {
       bar === 5 ? [] : [0, 0.75, 1.5, 2.25].map((o) => start + o),
     );
     expect(runner.finish()).toMatchObject({ barsInWindow: 15, stops: 1, passed: false });
+  });
+
+  it('v1.1 §11.7: with a microphone the strums are classified among the progression chords (Mode C)', async () => {
+    const { t } = await run((start) => [start]);
+    expect(t.mic.jobs.find((j) => j?.kind === 'set')).toMatchObject({ kind: 'set' });
+  });
+
+  it('chordCorrectRatio: each chord-changing bar is a two-way choice between its chord and the previous one', () => {
+    const ev = (time: number, scores: number[]) => ({
+      time,
+      result: { top: 0, margin: 1, scores, detectorVersion: 'x', processingMs: 1 },
+      jobKind: 'set' as const,
+      detectorVersion: 'x',
+      processingMs: 1,
+    });
+    // C G C G over 4 bars of 3 s: bars 1, 2, 3 change chord; bar 2 sounded like G (wrong), the others right.
+    const events = [ev(3, [0, 5]), ev(6, [1, 4]), ev(9, [0, 5])];
+    expect(chordCorrectRatio(['C', 'G'], ['C', 'G'], events, 0, 3, 4, 0, 0.05)).toBeCloseTo(2 / 3, 5);
+    // Repeated chords are not checked; no event near a bar → not judged.
+    expect(chordCorrectRatio(['C', 'C'], ['C'], events, 0, 3, 4, 0, 0.05)).toBeNull();
+    expect(chordCorrectRatio(['C', 'G'], ['C', 'G'], [], 0, 3, 4, 0, 0.05)).toBeNull();
   });
 
   it('stoppedBars helper', () => {

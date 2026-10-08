@@ -15,6 +15,7 @@ import {
   addItem,
   addOptions,
   EDITOR_STEP_SEC,
+  editorInput,
   moveItem,
   removeItem,
   resizeItem,
@@ -41,7 +42,9 @@ export function RoutineEditorScreen() {
     const now = Date.now();
     const stored = await loadStoredState(now);
     const stage = stored.progression.stage;
-    const plan = generateRoutine(routineInputFrom(stored, now));
+    // The editor shows the stage's composition with template times: today's adjustments (pain halving, the daily
+    // change cap, review songs, the card split) are not part of a saved template (§7.3-7, §7.3-9).
+    const plan = generateRoutine(editorInput(routineInputFrom(stored, now)));
     const options = addOptions(stageDef(stage));
     setLoaded({
       stage,

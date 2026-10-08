@@ -1,35 +1,42 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { actionForKey, isEditableTarget, isNativeActivation } from '../../app/keys';
-import { repo } from '../../app/services';
+import { audioEngine, metronome, repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
 import { loadStoredState } from '../../app/storedState';
 import { simulatedRate } from '../../app/testRate';
 import type { RoutineItem } from '../../content/schemas';
+import { voicingById } from '../../content/voicings';
 import { newId } from '../../domain/ids';
-import type { SelfReport } from '../../domain/records';
+import type { Attempt, SelfReport } from '../../domain/records';
 import { generateRoutine } from '../../domain/routine';
 import { prepareSession } from '../../domain/sessionPrep';
+import { createExerciseOutput } from '../../exercises/audioAdapter';
 import { contentContextFor } from '../../exercises/contentContext';
 import { exerciseDefinition } from '../../exercises/registry';
 import type { ContentContext } from '../../exercises/types';
 import { ExerciseHost } from '../../exercises/ui/ExerciseHost';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { ChordDiagram } from '../../ui/ChordDiagram';
 import { Screen } from '../../ui/Screen';
 import { routineInputFrom } from '../home/homeModel';
 import { itemTitle } from './itemTitle';
 import { pluginParamsFor } from './routineParams';
 import {
   acknowledgeBreak,
+  BLOCK_TRANSITION_MS,
   breakDue,
   completeItem,
   isFinished,
   itemRemainingSec,
   markRecorded,
+  opensNewBlock,
   pause,
   practiceMs,
   previousItem,
+  REPEATABLE_TYPES,
+  restartItemClock,
   resume,
   type SessionState,
   sessionKeyCommand,
@@ -166,6 +173,14 @@ export function SessionScreen() {
   /** Reruns of the current item: each one is a fresh host; `params` overrides the routine's (suggested tempo). */
   const [rerun, setRerun] = useState<{ n: number; params: unknown }>({ n: 0, params: null });
   const customKeys = useSettingsStore((s) => s.settings?.customKeys);
+  const blockTransition = useSettingsStore((s) => s.settings?.blockTransition ?? true);
+  const leftHanded = useSettingsStore((s) => s.settings?.leftHanded ?? false);
+  /** The stored attempt of the current item's last run (its suggested tempo drives "이어서 한 번 더"). */
+  const [lastAttempt, setLastAttempt] = useState<Attempt | null>(null);
+  /** Item id whose block time ran out (signal shown once). */
+  const [blockEndedFor, setBlockEndedFor] = useState<string | null>(null);
+  /** Transition screen before a new block (§7.3-13): ends at this simulated time. */
+  const [transitionEndsAt, setTransitionEndsAt] = useState<number | null>(null);
   const [showBreak, setShowBreak] = useState(false);
   const [ending, setEnding] = useState(false);
   const [, setTick] = useState(0);
@@ -211,17 +226,17 @@ export function SessionScreen() {
     };
   }, [sessionId, now]);
 
-  // Once per second: item budget display and the 30-minute break reminder.
+  // Once per second: item budget display and the 30-minute break reminder (decided outside the state updater).
+  const stateRef = useRef<SessionState | null>(null);
+  stateRef.current = state;
   useEffect(() => {
     const id = setInterval(() => {
       setTick((t) => t + 1);
-      setState((s) => {
-        if (s && !s.paused && breakDue(s, now())) {
-          setShowBreak(true);
-          return acknowledgeBreak(s, now());
-        }
-        return s;
-      });
+      const s = stateRef.current;
+      if (s && !s.paused && breakDue(s, now())) {
+        setShowBreak(true);
+        setState(acknowledgeBreak(s, now()));
+      }
     }, 1000);
     return () => clearInterval(id);
   }, [now]);
@@ -229,15 +244,53 @@ export function SessionScreen() {
   const items = loaded?.items ?? [];
   const go = useCallback((step: (s: SessionState) => SessionState) => {
     setEndedIndex(null);
+    setLastAttempt(null);
+    setTransitionEndsAt(null);
     setRerun({ n: 0, params: null });
     setState((s) => (s ? step(s) : s));
   }, []);
-  const advance = useCallback(() => go((s) => completeItem(s, items, now())), [go, items, now]);
+  const advance = useCallback(() => {
+    go((s) => completeItem(s, items, now()));
+    const index = state?.index ?? 0;
+    if (blockTransition && opensNewBlock(items[index], items[index + 1]))
+      setTransitionEndsAt(now() + BLOCK_TRANSITION_MS);
+  }, [go, items, now, state?.index, blockTransition]);
+  const endTransition = useCallback(() => {
+    setTransitionEndsAt(null);
+    // The block's own time starts after the transition screen (§7.3-13).
+    setState((s) => (s ? restartItemClock(s, now()) : s));
+  }, [now]);
+
+  // Block end signal (§7.3-12): a short cue and a big "블록 끝" once the item's block time is used up.
+  useEffect(() => {
+    if (!state || state.paused || transitionEndsAt !== null) return;
+    const item = items[state.index];
+    if (!item || item.exerciseType === 'REST' || blockEndedFor === item.id) return;
+    if (itemRemainingSec(state, items, now()) === 0) {
+      setBlockEndedFor(item.id);
+      createExerciseOutput(audioEngine, metronome).cue('end');
+    }
+  });
+  useEffect(() => {
+    if (transitionEndsAt === null) return;
+    const id = setInterval(() => {
+      if (now() >= transitionEndsAt) endTransition();
+    }, 100);
+    return () => clearInterval(id);
+  }, [transitionEndsAt, endTransition, now]);
   /** The current item again: with the params it just ran with, or with `params` (e.g. a suggested tempo). */
   const retry = useCallback((params?: unknown) => {
     setEndedIndex(null);
     setRerun((r) => ({ n: r.n + 1, params: params === undefined ? r.params : params }));
   }, []);
+
+  /** "이어서 한 번 더" at the ladder's next tempo while block time remains (§7.3-12). */
+  const repeatParams = (() => {
+    const item = state ? items[state.index] : undefined;
+    if (!item || !lastAttempt || !REPEATABLE_TYPES.has(item.exerciseType)) return undefined;
+    const definition = exerciseDefinition(item.exerciseType);
+    return definition?.suggestedTempoRetry(lastAttempt.params, lastAttempt.result)?.params;
+  })();
 
   // Keyboard / pedal between runs (§12.3); during a run the exercise's own keys apply.
   const between = state !== null && !runActive && !ending && !isFinished(state, items);
@@ -245,6 +298,19 @@ export function SessionScreen() {
     if (!between || !state) return;
     const onKey = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
+      if (transitionEndsAt !== null) {
+        // Transition screen: Enter / Space / → start the block now, ← goes back.
+        const action = actionForKey(event, customKeys ?? {});
+        if (action === 'next' || action === 'toggle') {
+          if (isNativeActivation(event)) return;
+          event.preventDefault();
+          endTransition();
+        } else if (action === 'prev') {
+          event.preventDefault();
+          go((s) => previousItem(s, now()));
+        }
+        return;
+      }
       const command = sessionKeyCommand(actionForKey(event, customKeys ?? {}), {
         paused: state.paused,
         isRest: items[state.index]?.exerciseType === 'REST',
@@ -258,14 +324,27 @@ export function SessionScreen() {
       event.preventDefault();
       if (command === 'retry') {
         if (event.key === ' ') swallowNextSpaceKeyup();
-        retry();
+        retry(repeatParams);
       } else if (command === 'advance') advance();
       else if (command === 'previous') go((s) => previousItem(s, now()));
       else setState(resume(state, now()));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [between, state, items, endedIndex, customKeys, advance, go, retry, now]);
+  }, [
+    between,
+    state,
+    items,
+    endedIndex,
+    customKeys,
+    advance,
+    go,
+    retry,
+    now,
+    transitionEndsAt,
+    endTransition,
+    repeatParams,
+  ]);
 
   const finishSession = async (report: SelfReport) => {
     if (!state) return;
@@ -319,7 +398,35 @@ export function SessionScreen() {
           </Button>
         </div>
       )}
-      {state.paused ? (
+      {blockEndedFor === item.id && transitionEndsAt === null && (
+        <p
+          role="status"
+          className="mb-3 rounded-lg bg-surface-2 p-4 text-center text-4xl font-black"
+          data-testid="block-end"
+        >
+          {ko.session.blockEnd}
+        </p>
+      )}
+      {transitionEndsAt !== null ? (
+        <section
+          className="flex flex-col items-center gap-3 rounded-lg bg-surface p-6 text-center"
+          data-testid="block-transition"
+        >
+          <p className="text-muted">{ko.session.transitionNext(ko.home.blocks[item.block])}</p>
+          <p className="text-3xl font-bold">{itemTitle(item)}</p>
+          {item.exerciseType === 'E1' && typeof item.params.voicingId === 'string' && (
+            <div className="w-40">
+              <ChordDiagram voicing={voicingById(item.params.voicingId)} leftHanded={leftHanded} />
+            </div>
+          )}
+          <p className="tabular-nums">
+            {ko.session.transitionIn(Math.max(0, Math.ceil((transitionEndsAt - now()) / 1000)))}
+          </p>
+          <Button large autoFocus onClick={endTransition} data-testid="transition-start">
+            {ko.session.transitionStart}
+          </Button>
+        </section>
+      ) : state.paused ? (
         <section className="rounded-lg bg-surface p-6 text-center">
           <p className="text-2xl">{ko.session.paused}</p>
           <Button autoFocus className="mt-3" onClick={() => setState(resume(state, now()))}>
@@ -340,16 +447,23 @@ export function SessionScreen() {
           onActiveChange={setRunActive}
           onFinished={(attempt) => {
             setEndedIndex(state.index);
+            setLastAttempt(attempt);
             if (attempt) setState((s) => (s ? markRecorded(s, item.id) : s));
           }}
           renderAfter={(attempt) => {
             const tempo = attempt ? definition.suggestedTempoRetry(attempt.params, attempt.result) : null;
+            const repeatable = REPEATABLE_TYPES.has(item.exerciseType) && budget > 0 && attempt !== null;
             return (
               <div className="mt-4 flex flex-wrap gap-2">
+                {repeatable && (
+                  <Button large onClick={() => retry(tempo?.params)} data-testid="repeat-item">
+                    {tempo ? ko.session.repeatAtBpm(tempo.bpm) : ko.session.repeat}
+                  </Button>
+                )}
                 <Button large variant="secondary" onClick={() => retry()} data-testid="retry-item">
-                  {tempo ? ko.session.retrySameTempo : ko.session.retry}
+                  {repeatable ? ko.session.sameTempo : tempo ? ko.session.retrySameTempo : ko.session.retry}
                 </Button>
-                {tempo && (
+                {tempo && !repeatable && (
                   <Button
                     large
                     variant="secondary"

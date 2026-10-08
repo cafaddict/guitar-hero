@@ -32,11 +32,16 @@ export class ChoiceQuizRunner<P> extends BaseRunner<QuizResult, QuizView<P>> {
   private advanceAt: number | null = null;
   private correct = 0;
   private readonly reactions: number[] = [];
+  private readonly items: { card: string; correct: boolean; reactionMs: number | null }[] = [];
 
   constructor(
     ctx: ExerciseContext,
     protected readonly questions: readonly ChoiceQuestion<P>[],
     private readonly onShow: (question: ChoiceQuestion<P>) => void = () => {},
+    /** Knowledge card of a question (SPEC v1.1 §7.5), or null when the quiz keeps no cards. */
+    private readonly cardOf: (prompt: P) => string | null = () => null,
+    /** Extra result fields (Q3 scope, Q4 kind). */
+    private readonly extra: Partial<QuizResult> = {},
   ) {
     super(ctx);
     if (questions.length === 0) throw new Error('quiz without questions');
@@ -75,7 +80,10 @@ export class ChoiceQuizRunner<P> extends BaseRunner<QuizResult, QuizView<P>> {
     if (!q || this.picked !== null || this.phase !== 'running') return;
     this.picked = choice;
     if (choice === q.answer) this.correct++;
-    this.reactions.push(this.ctx.clock.now() - this.shownAt);
+    const reaction = this.ctx.clock.now() - this.shownAt;
+    this.reactions.push(reaction);
+    const card = this.cardOf(q.prompt);
+    if (card) this.items.push({ card, correct: choice === q.answer, reactionMs: reaction });
     this.advanceAt = this.ctx.clock.now() + FEEDBACK_MS;
     this.publish();
   }
@@ -123,6 +131,8 @@ export class ChoiceQuizRunner<P> extends BaseRunner<QuizResult, QuizView<P>> {
       meanReactionMs: this.reactions.length
         ? this.reactions.reduce((s, x) => s + x, 0) / this.reactions.length
         : null,
+      ...(this.items.length > 0 ? { items: [...this.items] } : {}),
+      ...this.extra,
     };
   }
 }

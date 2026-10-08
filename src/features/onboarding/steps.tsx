@@ -15,6 +15,8 @@ import { DEFAULT_RTT_PARAMS, type RttResult, rttProbe, tapRttStats } from '../..
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { CentsNeedle } from '../../ui/CentsNeedle';
+import { EnvironmentGuide } from '../../ui/EnvironmentGuide';
+import { TuningDirection } from '../../ui/TuningDirection';
 import { CaptureWarnings, MicStatusPanel } from '../mic/MicStatusPanel';
 import {
   aggregateTemplate,
@@ -38,6 +40,8 @@ export interface NoiseResult {
 export interface TuningResult {
   cents: (number | null)[];
   firstReadings: { measuredHz: number; expectedHz: number }[];
+  /** Strings skipped with "다른 튜너로 이미 맞췄어요" (δ = 0, SPEC v1.1 §9.3). */
+  skipped: boolean[];
 }
 
 export type StringTemplate = { harmonics: number[]; decayRatio: number };
@@ -154,6 +158,9 @@ export function NoiseStep({ onDone }: { onDone: (result: NoiseResult) => void })
   return (
     <div>
       <p>{ko.onboarding.noise.explain}</p>
+      <div className="mt-3">
+        <EnvironmentGuide />
+      </div>
       {phase !== 'done' && (
         <Button large className="mt-4" onClick={() => void measure()} disabled={phase === 'measuring'}>
           {phase === 'measuring' ? ko.onboarding.noise.measuring : ko.onboarding.noise.measure}
@@ -196,6 +203,7 @@ function verdictText(verdict: TuningVerdict | null): string {
 }
 
 export function TuningStep({ onDone }: { onDone: (result: TuningResult) => void }) {
+  const headStyle = useSettingsStore((s) => s.settings?.headStyle ?? '3+3');
   const [idx, setIdx] = useState(0);
   const [cents, setCents] = useState<(number | null)[]>(() => Array(STRING_COUNT).fill(null));
   const [live, setLive] = useState<{ cents: number | null; verdict: TuningVerdict | null }>({
@@ -269,12 +277,29 @@ export function TuningStep({ onDone }: { onDone: (result: TuningResult) => void 
               label={ko.onboarding.stepNames.tuning}
             />
           </div>
+          <div className="mt-2">
+            <TuningDirection cents={live.cents} stringIdx={idx} head={headStyle} />
+          </div>
           <p className="mt-2 text-retry">{verdictText(live.verdict)}</p>
           {live.verdict?.kind === 'pass' && (
             <p className="mt-2 text-ok">
               {ko.onboarding.tuning.passed(stringNumber(idx), live.verdict.cents)}
             </p>
           )}
+          <Button
+            className="mt-3"
+            variant="secondary"
+            onClick={() =>
+              onDone({
+                cents: cents.map((c) => c ?? 0),
+                skipped: cents.map((c) => c === null),
+                firstReadings: [...firstReadings.current.values()],
+              })
+            }
+            data-testid="tuning-skip"
+          >
+            {ko.tuningGuide.skip}
+          </Button>
         </section>
       ) : (
         <div className="mt-4">
@@ -284,7 +309,13 @@ export function TuningStep({ onDone }: { onDone: (result: TuningResult) => void 
           <Button
             large
             className="mt-3"
-            onClick={() => onDone({ cents, firstReadings: [...firstReadings.current.values()] })}
+            onClick={() =>
+              onDone({
+                cents,
+                skipped: cents.map(() => false),
+                firstReadings: [...firstReadings.current.values()],
+              })
+            }
           >
             {ko.common.next}
           </Button>

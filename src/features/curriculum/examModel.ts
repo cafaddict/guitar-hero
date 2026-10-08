@@ -74,10 +74,13 @@ export function exam4Passed(shown: StrumResult, hidden: StrumResult): boolean {
   return ok(shown) && ok(hidden) && !shown.cuesHidden && hidden.cuesHidden;
 }
 
-/** 5. Five different practice songs completed with the chart hidden (self-reported). */
+/**
+ * 5. Five different practice songs played from memory: the hidden stage completed with ≤ 1 stop (SPEC v1.1
+ * §7.6-5, §11.10; stops are counted from the beat-1 strums, self-reported only without a microphone).
+ */
 export function exam5Songs(skills: ReadonlyMap<string, SkillState>): number {
   return [...skills.values()].filter(
-    (s) => s.subjectKey.startsWith('song:') && (s.metrics.hiddenCompleted?.best ?? 0) >= 1,
+    (s) => s.subjectKey.startsWith('song:') && (s.metrics.hiddenMemorized?.best ?? 0) >= 1,
   ).length;
 }
 

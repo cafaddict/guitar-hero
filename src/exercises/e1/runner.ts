@@ -106,7 +106,8 @@ function freshStrings(voicing: ChordVoicing, xStringCheck: boolean, mode: E1Para
 }
 
 export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
-  private readonly mode: E1Params['mode'];
+  private mode: E1Params['mode'];
+  private earFirstOn: boolean;
   private readonly expectedF0 = new Map<number, number>();
   private readonly take: TakeTracker;
   private step: E1Step = 'place';
@@ -132,6 +133,7 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
     super(ctx);
     // Without a microphone every mode degrades to the manual self-check.
     this.mode = ctx.audio ? params.mode : 'manual';
+    this.earFirstOn = params.earFirst;
     this.strings = freshStrings(voicing, ctx.settings.xStringCheck, this.mode);
     for (const n of expectedNotes(voicing, STANDARD_TUNING, 0, ctx.calibration?.tuningCents))
       this.expectedF0.set(n.idx, n.f0);
@@ -142,7 +144,7 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
     return {
       voicingId: this.voicing.id,
       mode: this.mode,
-      earFirst: this.params.earFirst && this.mode === 'pluck',
+      earFirst: this.earFirst,
       step: this.step,
       strings: this.strings.map((s) => ({ ...s })),
       activeIdx: this.activeIdx,
@@ -158,7 +160,25 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
   }
 
   private get earFirst(): boolean {
-    return this.params.earFirst && this.mode === 'pluck';
+    return this.earFirstOn && this.mode === 'pluck';
+  }
+
+  /** Mode and ear-first as they are now (option keys M / E, SPEC v1.1 §11.3, §12.3). */
+  effectiveParams(): E1Params {
+    return { ...this.params, mode: this.mode, earFirst: this.earFirstOn };
+  }
+
+  /** M cycles the mode (pluck → strum beta → manual) and E toggles ear-first, between attempts only. */
+  private changeOption(cmd: 'mark' | 'ear'): void {
+    if (this.step !== 'place' && this.step !== 'release') return;
+    if (cmd === 'ear') this.earFirstOn = !this.earFirstOn;
+    else {
+      if (!this.ctx.audio) return; // without a microphone only the manual check exists
+      const order: E1Params['mode'][] = ['pluck', 'strum', 'manual'];
+      this.mode = order[(order.indexOf(this.mode) + 1) % order.length]!;
+      this.strings = freshStrings(this.voicing, this.ctx.settings.xStringCheck, this.mode);
+    }
+    this.publish();
   }
 
   private awaitingSelf(): boolean {
@@ -169,7 +189,7 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
 
   start(): void {
     const mic = this.ctx.audio;
-    if (mic && this.mode !== 'manual') {
+    if (mic) {
       this.own(mic.onCoarseOnset((t) => this.take.noteCoarse(t)));
       this.own(mic.onJudged((e) => this.onJudged(e)));
       this.own(() => mic.setJob(null));
@@ -183,6 +203,10 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
     if (this.phase !== 'running') return;
     if (cmd === 'abort') {
       this.endBlock();
+      return;
+    }
+    if (cmd === 'mark' || cmd === 'ear') {
+      this.changeOption(cmd);
       return;
     }
     const self = SELF_KEYS[cmd];
@@ -412,6 +436,7 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
       clean,
       strumVerdict: this.mode === 'strum' ? this.strumVerdict : null,
       selfAgreement,
+      mode: this.mode,
     });
     this.consecutiveFailures = clean ? 0 : this.consecutiveFailures + 1;
     const judgements: StringJudgement[] = judged

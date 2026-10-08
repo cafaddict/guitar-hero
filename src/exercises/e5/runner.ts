@@ -24,6 +24,15 @@ export const e5ParamsSchema = z.object({
   cuesHidden: z.boolean(),
   /** The previous run of this pattern was below 70 % (two in a row → step down). */
   previousLow: z.boolean(),
+  /** Dynamics mode (SPEC v1.1 §11.6, Stage 7): 4 bars soft → 4 bars loud, then a self evaluation. */
+  dynamics: z.boolean().optional(),
+  /** Palm-mute instruction (Stage 10; judged by the beta detector only). */
+  palmMute: z.boolean().optional(),
+  /**
+   * The ladder's tempo when a "−10 BPM" prescription started (SPEC v1.1 §7.4): a slowed run never lowers the
+   * stored ladder below it ("사다리 상태는 보존").
+   */
+  ladderBase: z.number().int().optional(),
 });
 export type E5Params = z.infer<typeof e5ParamsSchema>;
 
@@ -60,6 +69,13 @@ export interface E5View {
   > | null;
   ladder: Ladder | null;
   nextBpm: number | null;
+  /** Beat number (1-based) under the play head, count-in included (SPEC v1.1 §11.6 "박 번호를 크게"). */
+  beat: number | null;
+  beatsPerBar: number;
+  dynamics: boolean;
+  /** Dynamics mode: the current bar is played softly (true) or loudly (false); null outside the bars. */
+  soft: boolean | null;
+  awaitingDynamics: boolean;
 }
 
 export function ladderDecision(
@@ -131,6 +147,11 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
   private analysis: E5View['analysis'] = null;
   private selfRate: number | null = null;
   private position: { bar: number; slot: number } | null = null;
+  private countInBeat: number | null = null;
+  private cuesHidden: boolean;
+  /** The cues were visible at some point while the bars ran (the run then does not count as "hidden"). */
+  private cuesShownWhilePlaying = false;
+  private dynamicsRating: 1 | 2 | 3 | null = null;
 
   constructor(
     ctx: ExerciseContext,
@@ -139,6 +160,22 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     super(ctx);
     this.pattern = patternById(params.patternId);
     this.source = ctx.audio ? 'mic' : 'self';
+    this.cuesHidden = params.cuesHidden;
+  }
+
+  /** The run counts as "visual cues hidden" only when they stayed hidden while the bars ran (§7.6-4, §11.6). */
+  private get hiddenThroughout(): boolean {
+    return this.cuesHidden && !this.cuesShownWhilePlaying;
+  }
+
+  /** Visual cues as recorded for this run (V key, SPEC v1.1 §11.6 / §12.3). */
+  effectiveParams(): E5Params {
+    return { ...this.params, cuesHidden: this.hiddenThroughout };
+  }
+
+  /** The dynamics run asks for a self evaluation after scoring (1 clear / 2 a little / 3 not heard). */
+  private get needsDynamics(): boolean {
+    return this.params.dynamics === true && this.dynamicsRating === null;
   }
 
   private get slotS(): number {
@@ -148,7 +185,8 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
   private ladder(): Ladder | null {
     if (this.analysis)
       return ladderDecision(
-        this.analysis.hitRate,
+        // The ladder and pattern passes use the personal-lead-corrected hit rate (SPEC v1.1 §7.1, §11.6).
+        this.analysis.hitRateCorrected,
         this.analysis.misses,
         this.params.previousLow,
         this.params.bars,
@@ -164,7 +202,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       bars: this.params.bars,
       mode: this.params.mode,
       chords: this.params.chords,
-      cuesHidden: this.params.cuesHidden,
+      cuesHidden: this.cuesHidden,
       source: this.source,
       bar: this.position?.bar ?? null,
       slot: this.position?.slot ?? null,
@@ -174,6 +212,15 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       analysis: this.analysis,
       ladder,
       nextBpm: ladder === null ? null : nextBpmFor(this.params.bpm, ladder),
+      beat: this.position
+        ? Math.floor(this.position.slot / slotsPerBeat(this.pattern)) + 1
+        : this.countInBeat,
+      beatsPerBar: this.pattern.slots.length / slotsPerBeat(this.pattern),
+      dynamics: this.params.dynamics === true,
+      soft:
+        this.params.dynamics === true && this.position ? Math.floor(this.position.bar / 4) % 2 === 0 : null,
+      awaitingDynamics:
+        this.phase === 'review' && this.needsDynamics && (this.analysis !== null || this.selfRate !== null),
     };
   }
 
@@ -230,6 +277,19 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       if (this.phase !== 'done') this.setPhase('done');
       return;
     }
+    if (cmd === 'cues' && this.phase !== 'review' && this.phase !== 'done') {
+      this.cuesHidden = !this.cuesHidden;
+      if (!this.cuesHidden && this.phase === 'running') this.cuesShownWhilePlaying = true;
+      this.publish();
+      return;
+    }
+    if (this.phase === 'review' && this.needsDynamics && (this.analysis !== null || this.selfRate !== null)) {
+      const rating = cmd === 'manual1' ? 1 : cmd === 'manual2' ? 2 : cmd === 'manual3' ? 3 : null;
+      if (rating === null) return;
+      this.dynamicsRating = rating;
+      this.setPhase('done');
+      return;
+    }
     if ((this.phase === 'armed' || this.phase === 'ready') && (cmd === 'toggle' || cmd === 'next')) {
       this.begin();
       return;
@@ -251,7 +311,8 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
         meanOffsetMs: null,
         sdOffsetMs: null,
       };
-      this.setPhase('done');
+      if (this.needsDynamics) this.publish();
+      else this.setPhase('done');
     }
   }
 
@@ -259,7 +320,20 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     super.tick();
     const now = this.ctx.output.now();
     if (this.gridStart !== null && (this.phase === 'countIn' || this.phase === 'running')) {
-      if (now >= this.gridStart && this.phase === 'countIn') this.setPhase('running');
+      if (now >= this.gridStart && this.phase === 'countIn') {
+        if (!this.cuesHidden) this.cuesShownWhilePlaying = true;
+        this.setPhase('running');
+      }
+      if (now < this.gridStart) {
+        // Count-in: beats of the bar before bar 1, counted aloud too.
+        const beatS = 60 / this.params.bpm;
+        const beatsPerBar = this.pattern.slots.length / slotsPerBeat(this.pattern);
+        const beat = beatsPerBar - Math.ceil((this.gridStart - now) / beatS) + 1;
+        if (beat !== this.countInBeat) {
+          this.countInBeat = beat >= 1 ? beat : null;
+          this.publish();
+        }
+      } else this.countInBeat = null;
       const index = Math.floor((now - this.gridStart) / this.slotS);
       const perBar = this.pattern.slots.length;
       const next = index >= 0 ? { bar: Math.floor(index / perBar), slot: index % perBar } : null;
@@ -306,7 +380,8 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
           sdOffsetMs: r.sdOffsetMs,
         };
         this.analyzing = false;
-        this.setPhase('done');
+        if (this.needsDynamics) this.publish();
+        else this.setPhase('done');
       })
       .catch(() => {
         this.analyzing = false;
@@ -331,7 +406,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       sdOffsetMs: null,
     };
     const ladder = this.analysis
-      ? ladderDecision(a.hitRate, a.misses, this.params.previousLow, this.params.bars)
+      ? ladderDecision(a.hitRateCorrected, a.misses, this.params.previousLow, this.params.bars)
       : 'stay';
     return {
       patternId: this.params.patternId,
@@ -345,10 +420,13 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       sdOffsetMs: a.sdOffsetMs,
       hitRate: a.hitRate,
       hitRateCorrected: a.hitRateCorrected,
-      cuesHidden: this.params.cuesHidden,
+      cuesHidden: this.hiddenThroughout,
       ladder,
       passed: this.analysis !== null && ladder === 'up',
       source: this.source,
+      ...(this.params.dynamics ? { dynamics: { selfRating: this.dynamicsRating } } : {}),
+      ...(this.params.palmMute ? { palmMute: true } : {}),
+      ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
     };
   }
 }

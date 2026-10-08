@@ -6,6 +6,7 @@ import { generateRoutine, type RoutineInput } from '../../domain/routine';
 import {
   addItem,
   addOptions,
+  editorInput,
   moveItem,
   removeItem,
   resizeItem,
@@ -85,5 +86,30 @@ describe('routine editor (SPEC v1.1 §7.3-9)', () => {
     expect(early.needsCapConfirmation).toBe(true);
     expect(early.totalSec).toBeLessThanOrEqual(1200);
     expect(CURRICULUM.length).toBe(12);
+  });
+
+  it("the editor starts from template times, not from today's pain-halved or review-split plan (§7.3-9)", () => {
+    const painful = input({
+      lastSelfReport: { pain: 7, dangerFlags: [], difficulty: 3, note: '' },
+      dueReviews: [
+        {
+          subjectKey: 'song:s01',
+          kind: 'song',
+          step: 1,
+          due: NOW - 1,
+          enqueuedAt: NOW - 9e8,
+          lastReviewedAt: null,
+          lapses: 0,
+        },
+      ],
+    });
+    expect(
+      generateRoutine(painful)
+        .items.filter((i) => i.exerciseType === 'E1')
+        .map((i) => i.durationSec),
+    ).toEqual([30, 30]);
+    const editable = generateRoutine(editorInput(painful)).items;
+    expect(editable.filter((i) => i.exerciseType === 'E1').map((i) => i.durationSec)).toEqual([60, 60]);
+    expect(editable.filter((i) => i.exerciseType === 'S')).toHaveLength(1);
   });
 });

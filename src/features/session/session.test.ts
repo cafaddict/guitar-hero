@@ -12,9 +12,12 @@ import {
   isFinished,
   itemRemainingSec,
   markRecorded,
+  opensNewBlock,
   pause,
   practiceMs,
   previousItem,
+  REPEATABLE_TYPES,
+  restartItemClock,
   resume,
   sessionKeyCommand,
   skipItem,
@@ -204,5 +207,27 @@ describe('session model', () => {
     s = acknowledgeBreak(s, 31 * 60_000);
     expect(breakDue(s, 45 * 60_000)).toBe(false);
     expect(breakDue(s, 60 * 60_000)).toBe(true);
+  });
+});
+
+describe('SPEC v1.1 §7.3-12·13 block time in the session runner', () => {
+  it('a transition screen opens only when the next item starts another block (not around rests)', () => {
+    const at = (block: RoutineItem['block'], exerciseType = 'E1') => ({ block, exerciseType });
+    expect(opensNewBlock(at('tuning', 'E0'), at('chord'))).toBe(true);
+    expect(opensNewBlock(at('chord'), at('chord'))).toBe(false);
+    expect(opensNewBlock(at('changes', 'E2'), at('rest', 'REST'))).toBe(false);
+    expect(opensNewBlock(at('rest', 'REST'), at('changes', 'E2'))).toBe(false);
+    expect(opensNewBlock(at('chord'), undefined)).toBe(false);
+  });
+
+  it('the block time starts after the transition screen', () => {
+    const items = [item('1', 'E0', {}, 60), item('2', 'E1', {}, 60)];
+    let s = startSession(0);
+    s = completeItem(s, items, 60_000);
+    // 5 s on the transition screen do not count: the clock restarts when the block begins.
+    s = restartItemClock(s, 65_000);
+    expect(itemRemainingSec(s, items, 65_000)).toBe(60);
+    expect(itemRemainingSec(s, items, 125_000)).toBe(0);
+    expect(REPEATABLE_TYPES.has('E5') && REPEATABLE_TYPES.has('S') && !REPEATABLE_TYPES.has('E1')).toBe(true);
   });
 });

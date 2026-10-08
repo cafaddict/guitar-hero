@@ -385,6 +385,22 @@ export function SettingsScreen() {
             checked={settings.leftHanded}
             onChange={(leftHanded) => set({ leftHanded })}
           />
+          <fieldset>
+            <legend className="font-semibold">{ko.settingsScreen.headStyle}</legend>
+            <div className="flex flex-wrap gap-2">
+              {(['3+3', 'inline6'] as const).map((head) => (
+                <label key={head} className="flex min-h-12 items-center gap-2">
+                  <input
+                    type="radio"
+                    name="headStyle"
+                    checked={settings.headStyle === head}
+                    onChange={() => set({ headStyle: head })}
+                  />
+                  {ko.settingsScreen.headStyles[head]}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <label className="flex flex-col gap-1">
             <span className="font-semibold">{ko.settingsScreen.strictness}</span>
             <select
@@ -414,6 +430,12 @@ export function SettingsScreen() {
             checked={settings.micDisabled}
             onChange={(micDisabled) => set({ micDisabled })}
             testId="setting-mic-disabled"
+          />
+          <Toggle
+            label={ko.settingsScreen.blockTransition}
+            checked={settings.blockTransition}
+            onChange={(blockTransition) => set({ blockTransition })}
+            testId="setting-block-transition"
           />
           <Toggle
             label={ko.settingsScreen.sessionLengthTemplate}

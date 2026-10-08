@@ -1,7 +1,7 @@
 node_modules/
 dist/
 dist-e2e/
-data/
+/data/
 bench-results/
 test-results/
 playwright-report/

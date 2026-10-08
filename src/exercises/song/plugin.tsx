@@ -18,13 +18,19 @@ function SongViewComponent({
   const song = view.song;
   const playing = phase === 'running' || phase === 'countIn';
   return (
-    <div className="flex flex-col gap-4" data-testid="song-view" data-phase={phase}>
+    <div
+      className="flex flex-col gap-4"
+      data-testid="song-view"
+      data-phase={phase}
+      data-stage={view.stage}
+      data-bpm={view.bpm}
+    >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-2xl font-bold">{song.title}</h2>
         <p className="text-xl tabular-nums">{view.bpm} BPM</p>
       </div>
       <p className="text-sm text-muted">
-        {ko.exercises.song.modes[view.mode]}
+        {ko.exercises.song.stages[view.stage]}
         {view.loopSection !== null &&
           ` · ${ko.exercises.song.loop(song.sections[view.loopSection]?.name ?? '')}`}
       </p>
@@ -50,6 +56,7 @@ function SongViewComponent({
           ))}
         </ol>
       )}
+      <p className="text-sm text-muted">{ko.exercises.song.optionKeys}</p>
       {phase === 'countIn' && <p>{ko.exercises.e5.countIn}</p>}
       {(phase === 'armed' || phase === 'ready') && (
         <p>{phase === 'armed' ? ko.exercises.e5.armed : ko.exercises.e5.ready}</p>

@@ -8,6 +8,7 @@ import type { Calibration } from '../../domain/records';
 import { DETECTOR_VERSION } from '../../dsp/version';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { EnvironmentGuide } from '../../ui/EnvironmentGuide';
 import { LevelMeter } from '../../ui/LevelMeter';
 import { Screen } from '../../ui/Screen';
 import { CaptureWarnings, MicStatusPanel } from '../mic/MicStatusPanel';
@@ -67,6 +68,9 @@ export function DiagnosticsScreen() {
   const diagnostics = audioEngine.diagnostics ?? stored;
   return (
     <Screen title={ko.diagnostics.title}>
+      <div className="mb-3">
+        <EnvironmentGuide />
+      </div>
       <p>
         {ko.diagnostics.status}:{' '}
         <strong data-testid="mic-status">{ko.diagnostics.statusLabels[status.kind]}</strong>

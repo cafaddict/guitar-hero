@@ -40,6 +40,8 @@ export const chordCheckAttemptSchema = z.object({
   strumVerdict: z.enum(['PASS', 'FAIL', 'RETRY']).nullable(),
   /** Ear-first: share of strings where self-judgement matched the app (null when not in ear-first mode). */
   selfAgreement: z.number().nullable(),
+  /** Mode of this attempt when the mode was changed during the run (SPEC v1.1 §11.3); absent = the run's mode. */
+  mode: z.enum(['pluck', 'strum', 'manual']).optional(),
 });
 export const chordCheckResultSchema = z.object({
   voicingId: z.string(),
@@ -85,6 +87,16 @@ export const strumResultSchema = z.object({
   ladder: z.enum(['up', 'down', 'stay']),
   passed: z.boolean(),
   source: z.enum(['mic', 'self']),
+  /** Dynamics mode (SPEC v1.1 §11.6): the user's own rating 1 clear / 2 a little / 3 not heard (null = skipped). */
+  dynamics: z
+    .object({ selfRating: z.union([z.literal(1), z.literal(2), z.literal(3)]).nullable() })
+    .optional(),
+  /** Palm-mute run (Stage 10). */
+  palmMute: z.boolean().optional(),
+  /** Beta detector readings (SPEC v1.1 §10.11) — reported, never turned into metrics. */
+  beta: z.record(z.string(), z.unknown()).optional(),
+  /** Ladder tempo kept during a −10 BPM prescription (SPEC v1.1 §7.4). */
+  ladderBase: z.number().optional(),
 });
 
 export const oneBeatResultSchema = z.object({
@@ -98,6 +110,10 @@ export const oneBeatResultSchema = z.object({
   missingBarRatio: z.number(),
   passed: z.boolean(),
   source: z.enum(['mic', 'self']),
+  /** Mode C two-way check per chord-changing bar (SPEC v1.1 §11.7; null = not measured). */
+  chordCorrectRatio: z.number().nullable().optional(),
+  /** Ladder tempo kept during a −10 BPM prescription (SPEC v1.1 §7.4). */
+  ladderBase: z.number().optional(),
 });
 
 export const stretchResultSchema = z.object({
@@ -114,12 +130,21 @@ export const altPickResultSchema = z.object({
   ioiCv: z.number().nullable(),
   passed: z.boolean(),
   source: z.enum(['mic', 'self']),
+  /** Ladder tempo kept during a −10 BPM prescription (SPEC v1.1 §7.4). */
+  ladderBase: z.number().optional(),
 });
 
 export const quizResultSchema = z.object({
   questions: z.number().int().min(1),
   correct: z.number().int().min(0),
   meanReactionMs: z.number().nullable(),
+  /** Per-question knowledge-card answers (SPEC v1.1 §7.5: Q3 note cards, Q4 question-type cards). */
+  items: z
+    .array(z.object({ card: z.string(), correct: z.boolean(), reactionMs: z.number().nullable() }))
+    .optional(),
+  /** Q3 range / Q4 kind (SPEC v1.1 §11.15, §11.21); absent on v1 results = open strings / major-minor. */
+  scope: z.enum(['open', 'openPosition', 'strings65']).optional(),
+  kind: z.enum(['majmin', 'interval', 'progression']).optional(),
 });
 
 export const recallResultSchema = z.object({
@@ -143,6 +168,15 @@ export const songResultSchema = z.object({
   stops: z.number().int().min(0),
   memorized: z.boolean(),
   beat1HitRate: z.number().nullable(),
+  /** v1.1 (§11.10): learn / perform / hidden (absent on v1 results: derived from mode and chartHidden). */
+  stage: z.enum(['learn', 'perform', 'hidden']).optional(),
+  /** Mode C two-way chord check per bar (perform/hidden with a microphone; null when not measured). */
+  chordCorrectRatio: z.number().nullable().optional(),
+  /** Play-along on; on speakers (not earphones) the chord check is "참고" only (§8.6). */
+  backingOn: z.boolean().optional(),
+  backingAudible: z.boolean().optional(),
+  /** Without a microphone the hidden-chart completion is self-reported (§7.6-5). */
+  memorizedSelfReport: z.boolean().optional(),
 });
 
 export const examResultSchema = z.object({
@@ -186,6 +220,8 @@ export const riffResultSchema = z.object({
   cycles: z.array(sequenceCycleSchema),
   ladder: z.enum(['up', 'down', 'stay']),
   source: z.enum(['mic', 'self']),
+  /** Ladder tempo kept during a −10 BPM prescription (SPEC v1.1 §7.4). */
+  ladderBase: z.number().optional(),
 });
 
 export type TuningResult = z.infer<typeof tuningResultSchema>;
@@ -210,6 +246,10 @@ export type RiffResult = z.infer<typeof riffResultSchema>;
 export const SONG_COMPLETE_MAX_STOPS = 2;
 export const SONG_MEMORIZED_MAX_STOPS = 1;
 
+/** A Q3 range graduation run (SPEC v1.1 §11.15): 20 questions, median answer under 3 s. */
+export const QUIZ_RUN_QUESTIONS = 20;
+export const QUIZ_RUN_MEDIAN_MS = 3000;
+
 /** Recall must be answered within this time to count as a pass (SPEC §7.1, §7.6-2). */
 export const RECALL_LIMIT_MS = 3000;
 
@@ -226,6 +266,12 @@ const BPM_MAX = 240;
 export function ladderNextBpm(bpm: number, ladder: 'up' | 'down' | 'stay'): number {
   const next = ladder === 'up' ? bpm + LADDER_STEP : ladder === 'down' ? bpm - LADDER_STEP : bpm;
   return Math.min(BPM_MAX, Math.max(BPM_MIN, next));
+}
+
+/** The ladder after a run; a run slowed by a −10 BPM prescription keeps at least the ladder it started from. */
+function storedLadder(bpm: number, ladder: 'up' | 'down' | 'stay', base: number | undefined): number {
+  const next = ladderNextBpm(bpm, ladder);
+  return base === undefined ? next : Math.max(base, next);
 }
 
 /** Changes per minute from a one-minute-change result: corrected ?? tap/detected, scaled to 60 s. */
@@ -253,13 +299,14 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
     const key = `chord:${r.voicingId}`;
     const out: MetricSampleInput[] = [];
     for (const attempt of r.attempts) {
-      if (r.mode === 'strum') {
+      const mode = attempt.mode ?? r.mode;
+      if (mode === 'strum') {
         if (attempt.strumVerdict) out.push(m(key, 'strumPass', attempt.strumVerdict === 'PASS' ? 1 : 0));
         continue;
       }
       out.push(m(key, 'clean', attempt.clean ? 1 : 0));
       for (const s of attempt.perString) {
-        const judged = r.mode === 'manual' ? s.selfStatus : s.status;
+        const judged = mode === 'manual' ? s.selfStatus : s.status;
         if (judged === null || judged === 'WEAK' || judged === 'NOT_PLAYED' || judged === 'UNVERIFIABLE')
           continue;
         const ok = judged === 'OK' || judged === 'clean';
@@ -294,7 +341,8 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
       out.push(m(base, 'passBpm', r.bpm), m(`${base}:${r.mode}`, 'passBpm', r.bpm));
       if (r.cuesHidden) out.push(m(`${base}:hidden`, 'passBpm', r.bpm));
     }
-    out.push(m(`${base}:${r.mode}`, 'ladderBpm', ladderNextBpm(r.bpm, r.ladder)));
+    if (r.dynamics?.selfRating) out.push(m('strum:dynamics', 'selfRating', r.dynamics.selfRating));
+    out.push(m(`${base}:${r.mode}`, 'ladderBpm', storedLadder(r.bpm, r.ladder, r.ladderBase)));
     return out;
   },
   E6: (raw) => {
@@ -302,7 +350,8 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
     const key = `onebeat:${r.progression.join('-')}`;
     const out = [m(key, 'barSuccess', r.bars > 0 ? r.barsInWindow / r.bars : 0)];
     if (r.passed) out.push(m(key, 'passBpm', r.bpm));
-    out.push(m(key, 'ladderBpm', ladderNextBpm(r.bpm, r.passed ? 'up' : 'stay')));
+    out.push(m(key, 'ladderBpm', storedLadder(r.bpm, r.passed ? 'up' : 'stay', r.ladderBase)));
+    if (typeof r.chordCorrectRatio === 'number') out.push(m(key, 'chordCorrect', r.chordCorrectRatio));
     return out;
   },
   E7: (raw) => {
@@ -317,7 +366,7 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
     const out = [m(key, 'hitRate', r.hitRate)];
     if (r.ioiCv !== null) out.push(m(key, 'ioiCv', r.ioiCv));
     if (r.passed) out.push(m(key, 'passBpm', r.bpm), m('altpick:any', 'passBpm', r.bpm));
-    out.push(m(key, 'ladderBpm', ladderNextBpm(r.bpm, r.passed ? 'up' : 'stay')));
+    out.push(m(key, 'ladderBpm', storedLadder(r.bpm, r.passed ? 'up' : 'stay', r.ladderBase)));
     return out;
   },
   Q1: (raw) => {
@@ -335,12 +384,22 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
   },
   Q3: (raw) => {
     const r = quizResultSchema.parse(raw);
-    return [m('quiz:opennotes', 'accuracy', r.correct / r.questions)];
+    const scope = r.scope ?? 'open';
+    const accuracy = r.correct / r.questions;
+    const out = [m(`quiz:notes:${scope}`, 'accuracy', accuracy)];
+    if (scope === 'open') out.push(m('quiz:opennotes', 'accuracy', accuracy));
+    // A "range graduation" run (SPEC v1.1 §11.15): ≥ 20 questions, median answer under 3 s.
+    const times = (r.items ?? []).map((i) => i.reactionMs).filter((t): t is number => t !== null);
+    const medianMs = times.length ? [...times].sort((a, b) => a - b)[Math.floor(times.length / 2)]! : null;
+    if (r.questions >= QUIZ_RUN_QUESTIONS && medianMs !== null && medianMs < QUIZ_RUN_MEDIAN_MS)
+      out.push(m(`quiz:notes:${scope}`, 'qualifiedAccuracy', accuracy));
+    return out;
   },
   Q4: (raw) => {
     const r = quizResultSchema.parse(raw);
-    const out = [m('ear:majmin', 'accuracy', r.correct / r.questions)];
-    if (r.meanReactionMs !== null) out.push(m('ear:majmin', 'reactionMs', r.meanReactionMs));
+    const key = `ear:${r.kind ?? 'majmin'}`;
+    const out = [m(key, 'accuracy', r.correct / r.questions)];
+    if (r.meanReactionMs !== null) out.push(m(key, 'reactionMs', r.meanReactionMs));
     return out;
   },
   S: (raw) => {
@@ -377,7 +436,7 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
     const key = `riff:${r.riffId}`;
     const out = [
       m(key, 'flawlessCycles', r.cycles.filter((c) => c.flawless).length),
-      m(key, 'ladderBpm', ladderNextBpm(r.bpm, r.ladder)),
+      m(key, 'ladderBpm', storedLadder(r.bpm, r.ladder, r.ladderBase)),
     ];
     if (r.ladder === 'up') out.push(m(key, 'passBpm', r.bpm));
     return out;

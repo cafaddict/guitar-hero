@@ -122,8 +122,10 @@ export function practiceHistory(
   attempts: readonly Pick<Attempt, 'sessionId' | 'exerciseType' | 'result' | 'routineKey'>[],
   now: number,
 ): PracticeHistory {
+  // A session left without the self report still counts once it holds an attempt (its practice happened).
+  const withAttempts = new Set(attempts.map((a) => a.sessionId).filter((id): id is string => id !== null));
   const counted = sessions
-    .filter(isCountedSession)
+    .filter((s) => isCountedSession(s) || withAttempts.has(s.id))
     .sort((a, b) => a.startedAt - b.startedAt || (a.id < b.id ? -1 : 1));
   const dayOrdinal = new Map<string, number>();
   for (const session of counted) {

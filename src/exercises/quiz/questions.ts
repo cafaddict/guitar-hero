@@ -98,15 +98,25 @@ export type OpenNotePrompt =
 
 const OPEN_NAMES = STANDARD_TUNING.openMidi.map((m) => pitchClassName(m));
 
+/** Knowledge card of an open-string note question: `card:note:<idx>:0` (SPEC v1.1 §7.5). */
+export const openNoteCard = (prompt: OpenNotePrompt) => `card:note:${prompt.idx}:0`;
+
 export function openNoteQuestions(
   seed: number,
   mode: 'name' | 'pluck',
   count = QUIZ_LENGTH,
+  /** Due card keys asked first (SPEC v1.1 §7.5 "due 카드를 먼저 묻는다"). */
+  focus: readonly string[] = [],
 ): ChoiceQuestion<OpenNotePrompt>[] {
   const rng = mulberry32(seed);
   const distinct = [...new Set(OPEN_NAMES)];
-  return Array.from({ length: count }, () => {
-    const idx = Math.floor(rng() * 6);
+  const focusIdx = focus
+    .map((card) => /^card:note:(\d):0$/.exec(card)?.[1])
+    .filter((x): x is string => x !== undefined)
+    .map(Number)
+    .filter((idx) => idx >= 0 && idx < 6);
+  return Array.from({ length: count }, (_, k) => {
+    const idx = k < focusIdx.length ? focusIdx[k]! : Math.floor(rng() * 6);
     const name = OPEN_NAMES[idx]!;
     if (mode === 'pluck') {
       return {
@@ -127,10 +137,20 @@ export interface EarPrompt {
   seed: number;
 }
 
-export function earQuestions(seed: number, count = QUIZ_LENGTH): ChoiceQuestion<EarPrompt>[] {
+/** Knowledge card of a major/minor question: `card:ear:majmin:<quality>` (SPEC v1.1 §11.21, §7.5). */
+export const earCard = (prompt: EarPrompt) => `card:ear:majmin:${prompt.quality}`;
+
+export function earQuestions(
+  seed: number,
+  count = QUIZ_LENGTH,
+  focus: readonly string[] = [],
+): ChoiceQuestion<EarPrompt>[] {
   const rng = mulberry32(seed);
+  const focusQualities = focus
+    .map((card) => /^card:ear:majmin:(major|minor)$/.exec(card)?.[1] as 'major' | 'minor' | undefined)
+    .filter((x): x is 'major' | 'minor' => x !== undefined);
   return Array.from({ length: count }, (_, k) => {
-    const quality = rng() < 0.5 ? 'major' : 'minor';
+    const quality = k < focusQualities.length ? focusQualities[k]! : rng() < 0.5 ? 'major' : 'minor';
     const prompt: EarPrompt = { rootMidi: 48 + Math.floor(rng() * 10), quality, seed: seed * 100 + k };
     return {
       prompt,

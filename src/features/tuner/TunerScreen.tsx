@@ -9,6 +9,7 @@ import { Button } from '../../ui/Button';
 import { CentsNeedle } from '../../ui/CentsNeedle';
 import { LevelMeter } from '../../ui/LevelMeter';
 import { Screen } from '../../ui/Screen';
+import { TuningDirection } from '../../ui/TuningDirection';
 import { MicStatusPanel } from '../mic/MicStatusPanel';
 import {
   displayFor,
@@ -26,6 +27,7 @@ export function TunerScreen() {
   const status = useEngineStatus();
   const settings = useSettingsStore((s) => s.settings);
   const [target, setTarget] = useState<TunerTarget>({ kind: 'auto' });
+  const headStyle = useSettingsStore((s) => s.settings?.headStyle ?? '3+3');
   const [display, setDisplay] = useState<TunerDisplay | null>(null);
   const [inTune, setInTune] = useState(false);
   const tracker = useRef(new InTuneTracker());
@@ -101,6 +103,13 @@ export function TunerScreen() {
         </p>
         <div className="mt-3">
           <CentsNeedle cents={display?.cents ?? null} passCents={IN_TUNE_CENTS} label={ko.tuner.title} />
+        </div>
+        <div className="mt-3 flex justify-center">
+          <TuningDirection
+            cents={display?.cents ?? null}
+            stringIdx={target.kind === 'string' ? target.idx : null}
+            head={headStyle}
+          />
         </div>
         <p
           className={`mt-3 text-center text-xl font-bold ${inTune ? 'text-ok' : 'text-retry'}`}

@@ -11,8 +11,30 @@ import { type E5Params, nextBpmFor, type E5View as View } from './runner';
 /** A slot's identity is its position in the bar (patterns repeat 'D'/'U' symbols). */
 const toSlotCell = (slot: 'D' | 'U' | '-', position: number) => ({ slot, position });
 
+/** Beat numbers 1–4 (6/8: 1–2) in large type, the current one highlighted (SPEC v1.1 §11.6, research 01:307). */
+function BeatCount({ beat, beatsPerBar }: { beat: number | null; beatsPerBar: number }) {
+  return (
+    <ol
+      className="flex justify-center gap-3"
+      aria-hidden="true"
+      data-testid="e5-beats"
+      data-beat={beat ?? ''}
+    >
+      {Array.from({ length: beatsPerBar }, (_, i) => i + 1).map((n) => (
+        <li
+          key={n}
+          className={`flex h-16 w-16 items-center justify-center rounded-full text-4xl font-black ${n === beat ? 'bg-accent text-accent-fg' : 'bg-surface text-muted'}`}
+        >
+          {n}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function E5ViewComponent({
   runner,
+  ctx,
 }: {
   runner: ExerciseRunner<StrumResult, View>;
   params: E5Params;
@@ -55,7 +77,22 @@ export function E5ViewComponent({
           );
         })}
       </ol>
+      <BeatCount beat={view.beat} beatsPerBar={view.beatsPerBar} />
+      <p className="text-center" data-testid="e5-count-hint">
+        {ko.exercises.e5.countAloud}
+        {ctx.content.stage === 2 && ` ${ko.exercises.e5.footTap}`}
+      </p>
+      {view.dynamics && (
+        <p className="text-center text-2xl font-bold" data-testid="e5-dynamics" data-soft={view.soft ?? ''}>
+          {view.soft === null
+            ? ko.exercises.e5.dynamicsHow
+            : view.soft
+              ? ko.exercises.e5.soft
+              : ko.exercises.e5.loud}
+        </p>
+      )}
       {view.cuesHidden && <p className="text-sm text-muted">{ko.exercises.e5.cuesHidden}</p>}
+      <p className="text-sm text-muted">{ko.exercises.e5.optionKeys}</p>
       <p className="text-sm text-muted">
         {ko.exercises.e5.modes[view.mode]} · {ko.exercises.e5.keepGoing} {ko.exercises.e5.directionNote}
       </p>
@@ -63,6 +100,18 @@ export function E5ViewComponent({
       <div aria-live="polite">
         {view.analyzing && <p>{ko.exercises.e5.analyzing}</p>}
         {view.analysisFailed && <p className="text-retry">{ko.exercises.e5.analysisFailed}</p>}
+        {view.awaitingDynamics && (
+          <div data-testid="e5-dynamics-rating">
+            <p>{ko.exercises.e5.dynamicsPrompt}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
+                <Button key={cmd} large variant="secondary" onClick={() => runner.command(cmd)}>
+                  {k + 1} {ko.exercises.e5.dynamicsSelf[cmd]}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
         {view.awaitingSelf && (
           <div>
             <p>{ko.exercises.e5.selfPrompt}</p>

@@ -206,3 +206,54 @@ describe('stage time templates (§7.3-2)', () => {
     expect(stageTemplate(7).splitAfterRow).toBeNull();
   });
 });
+
+describe('review fixes (M10 code review)', () => {
+  const T = new Date(2026, 9, 5, 19).getTime();
+  const strum = (id: string, startedAt: number, reviewOf: string | null): Attempt => ({
+    id,
+    sessionId: 's',
+    exerciseType: 'E5',
+    exerciseVersion: 1,
+    startedAt,
+    endedAt: startedAt + 60_000,
+    params: {},
+    result: {
+      patternId: 'P3',
+      bpm: 80,
+      bars: 8,
+      mode: 'progression',
+      hits: 30,
+      misses: 0,
+      extras: 0,
+      meanOffsetMs: 0,
+      sdOffsetMs: 8,
+      hitRate: 0.95,
+      hitRateCorrected: 0.95,
+      cuesHidden: false,
+      ladder: 'up',
+      passed: true,
+      source: 'mic',
+    },
+    detectorVersion: null,
+    processingMs: 0,
+    reviewOf,
+  });
+
+  it('a due review moves one step per due date: repeating the block the same day does not move it again (§7.5)', () => {
+    // Two days of progression passes graduate P3 into the review queue; the review is due a day later.
+    const day = 86_400_000;
+    const attempts = [strum('a', T, null), strum('b', T + day, null)];
+    const graduated = deriveAll(attempts).reviews.get('strum:P3')!;
+    expect(graduated).toBeDefined();
+    const at = graduated.due + 1000;
+    const once = deriveAll([...attempts, strum('c', at, 'strum:P3')]).reviews.get('strum:P3')!;
+    const thrice = deriveAll([
+      ...attempts,
+      strum('c', at, 'strum:P3'),
+      strum('d', at + 120_000, 'strum:P3'),
+      strum('e', at + 240_000, 'strum:P3'),
+    ]).reviews.get('strum:P3')!;
+    expect(thrice.step).toBe(once.step);
+    expect(thrice.due).toBe(once.due);
+  });
+});

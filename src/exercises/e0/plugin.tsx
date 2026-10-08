@@ -1,9 +1,11 @@
+import { useSettingsStore } from '../../app/settingsStore';
 import { extractMetrics, type TuningResult, tuningResultSchema } from '../../domain/exerciseResults';
 import { STRING_INDICES, stringNumber } from '../../domain/strings';
 import { midiName, STANDARD_TUNING } from '../../domain/theory';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { CentsNeedle } from '../../ui/CentsNeedle';
+import { TuningDirection } from '../../ui/TuningDirection';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { type E0Params, type E0View, e0ParamsSchema, TuningRunner } from './runner';
@@ -13,6 +15,7 @@ const note = (idx: number) => midiName(STANDARD_TUNING.openMidi[idx]!);
 function E0ViewComponent({ runner }: { runner: ExerciseRunner<TuningResult, E0View>; params: E0Params }) {
   const { view, phase } = useRunnerSnapshot(runner);
   const idx = Math.min(view.idx, 5);
+  const headStyle = useSettingsStore((st) => st.settings?.headStyle ?? '3+3');
   return (
     <div className="flex flex-col gap-4" data-testid="e0-view">
       <ol className="grid grid-cols-6 gap-2">
@@ -39,6 +42,7 @@ function E0ViewComponent({ runner }: { runner: ExerciseRunner<TuningResult, E0Vi
                 {view.cents === null ? '—' : ko.common.cents(view.cents)}
               </p>
               <CentsNeedle cents={view.cents} passCents={3} label={ko.tuner.title} />
+              <TuningDirection cents={view.cents} stringIdx={idx} head={headStyle} />
             </>
           )}
           <Button

@@ -109,10 +109,12 @@ describe('graduation exam rules (SPEC §7.6)', () => {
     expect(exam4Passed(r(0.92, false), r(0.95, false))).toBe(false);
   });
 
-  it('5: songs completed with the chart hidden', () => {
+  it('5: songs played from memory — hidden stage completed with ≤ 1 stop (v1.1 §7.6-5, §11.10)', () => {
     const skills = new Map([
-      skill('song:s01', 'hiddenCompleted', [1]),
-      skill('song:s02', 'hiddenCompleted', [0]),
+      skill('song:s01', 'hiddenMemorized', [1]),
+      skill('song:s02', 'hiddenMemorized', [0]),
+      // Completed with the chart hidden but with 2 stops is not "from memory" in v1.1.
+      skill('song:s04', 'hiddenCompleted', [1]),
       skill('song:s03', 'completed', [1]),
     ]);
     expect(exam5Songs(skills)).toBe(1);

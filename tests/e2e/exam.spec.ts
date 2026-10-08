@@ -49,7 +49,7 @@ test('graduation exam: items are checked one by one, attempts recorded, passes k
       subjectKey: `song:${id}`,
       lastPracticedAt: 1,
       due: null,
-      metrics: { hiddenCompleted: summary(1), completed: summary(1) },
+      metrics: { hiddenMemorized: summary(1), hiddenCompleted: summary(1), completed: summary(1) },
     })),
   );
   await page.reload();

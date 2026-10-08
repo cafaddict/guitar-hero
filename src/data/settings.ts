@@ -1,0 +1,71 @@
+/**
+ * User settings (stored in meta['settings']). Defaults follow SPEC (dark theme, lenient strictness, 20 min).
+ */
+import { z } from 'zod';
+
+export const KEY_ACTIONS = [
+  'toggle',
+  'next',
+  'prev',
+  'inc',
+  'dec',
+  'abort',
+  'mark',
+  'manual1',
+  'manual2',
+  'manual3',
+  // v1.1 practice options inside the session runner (SPEC v1.1 §12.3): ear-first, visual cues, loop, hide.
+  'ear',
+  'cues',
+  'loop',
+  'hide',
+] as const;
+export type KeyAction = (typeof KEY_ACTIONS)[number];
+
+export const settingsSchema = z.object({
+  theme: z.enum(['dark', 'light', 'contrast']),
+  leftHanded: z.boolean(),
+  strictness: z.enum(['lenient', 'normal', 'strict']),
+  visualOnlyMetronome: z.boolean(),
+  sessionMinutes: z.number().int().min(5).max(90),
+  /** 'template' = the stage template's length (20 min, Stage 8+ 30 min); 'custom' = `sessionMinutes` (§7.3-1). */
+  sessionLengthMode: z.enum(['template', 'custom']),
+  confirmedOverCap: z.boolean(),
+  preferredInputDeviceId: z.string().nullable(),
+  preferredOutputLabel: z.string().nullable(),
+  xStringCheck: z.boolean(),
+  /** Extra key → action bindings learned with the pedal-learning mode (code → action). */
+  customKeys: z.record(z.string(), z.enum(KEY_ACTIONS)),
+  micOnboardingDone: z.boolean(),
+  /** 5-second transition screen between blocks (SPEC v1.1 §7.3-13). */
+  blockTransition: z.boolean(),
+  /** Headstock shape for the tuning-peg direction picture (SPEC v1.1 §9.3). */
+  headStyle: z.enum(['3+3', 'inline6']),
+  micDisabled: z.boolean(),
+});
+export type Settings = z.infer<typeof settingsSchema>;
+
+export const DEFAULT_SETTINGS: Settings = {
+  theme: 'dark',
+  leftHanded: false,
+  strictness: 'lenient',
+  visualOnlyMetronome: false,
+  sessionMinutes: 20,
+  sessionLengthMode: 'template',
+  confirmedOverCap: false,
+  preferredInputDeviceId: null,
+  preferredOutputLabel: null,
+  xStringCheck: false,
+  customKeys: {},
+  micOnboardingDone: false,
+  blockTransition: true,
+  headStyle: '3+3',
+  micDisabled: false,
+};
+
+/** Fills missing keys from defaults (forward compatible with older exports). */
+export function normalizeSettings(raw: unknown): Settings {
+  const merged = { ...DEFAULT_SETTINGS, ...(typeof raw === 'object' && raw !== null ? raw : {}) };
+  const parsed = settingsSchema.safeParse(merged);
+  return parsed.success ? parsed.data : DEFAULT_SETTINGS;
+}

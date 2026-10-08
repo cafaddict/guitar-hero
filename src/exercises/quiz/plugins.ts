@@ -17,6 +17,7 @@ import {
   type DiagramPrompt,
   diagramQuestions,
   type EarPrompt,
+  earCard,
   earQuestions,
   type OpenNotePrompt,
   quizVoicings,
@@ -72,7 +73,7 @@ export const q3Plugin: ExercisePlugin<Q3Params, QuizResult, QuizView<OpenNotePro
   titleKey: 'Q3',
   paramsSchema: q3ParamsSchema,
   resultSchema: quizResultSchema,
-  defaultParams: () => ({ mode: 'name', seed: 0 }),
+  defaultParams: () => ({ mode: 'name', seed: 0, scope: 'open', questions: 10, focus: [] }),
   createRunner: (ctx, params) => new OpenNotesRunner(ctx, params),
   View: Q3View,
   Summary: QuizSummary,
@@ -81,16 +82,30 @@ export const q3Plugin: ExercisePlugin<Q3Params, QuizResult, QuizView<OpenNotePro
   usesMicrophone: true,
 };
 
-export const q4Plugin: ExercisePlugin<SeedParams, QuizResult, QuizView<EarPrompt>> = {
+const q4ParamsSchema = z.object({
+  seed: z.number().int().min(0),
+  /** Question kind (SPEC v1.1 §11.21); major/minor until intervals and progressions arrive. */
+  kind: z.enum(['majmin', 'interval', 'progression']).default('majmin'),
+  questions: z.number().int().min(1).max(40).default(10),
+  /** Due question-type cards to ask first (SPEC v1.1 §7.5). */
+  focus: z.array(z.string()).default([]),
+});
+type Q4Params = z.infer<typeof q4ParamsSchema>;
+
+export const q4Plugin: ExercisePlugin<Q4Params, QuizResult, QuizView<EarPrompt>> = {
   type: 'Q4',
   version: 1,
   titleKey: 'Q4',
-  paramsSchema: seedParams,
+  paramsSchema: q4ParamsSchema,
   resultSchema: quizResultSchema,
-  defaultParams: () => ({ seed: 0 }),
+  defaultParams: () => ({ seed: 0, kind: 'majmin', questions: 10, focus: [] }),
   createRunner: (ctx, params) =>
-    new ChoiceQuizRunner(ctx, earQuestions(seedOf(params.seed, ctx.clock.now())), (q) =>
-      ctx.output.playSamples(renderEarChord(q.prompt, ctx.output.sampleRate())),
+    new ChoiceQuizRunner(
+      ctx,
+      earQuestions(seedOf(params.seed, ctx.clock.now()), params.questions, params.focus),
+      (q) => ctx.output.playSamples(renderEarChord(q.prompt, ctx.output.sampleRate())),
+      earCard,
+      { kind: 'majmin' },
     ),
   View: Q4View,
   Summary: QuizSummary,

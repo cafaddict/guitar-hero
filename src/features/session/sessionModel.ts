@@ -75,6 +75,42 @@ export function skipItem(state: SessionState, items: readonly RoutineItem[], now
   return moveTo({ ...state, skipped: [...state.skipped, item.id] }, state.index + 1, now);
 }
 
+/** The item's block time starts now (after the block transition screen, which is not block time, §7.3-13). */
+export function restartItemClock(state: SessionState, now: number): SessionState {
+  return { ...state, itemStartedAtMs: practiceMs(state, now) };
+}
+
+/**
+ * Bar- and question-based items repeat while their block time lasts (SPEC v1.1 §7.3-12): after a run with block
+ * time left, "이어서 한 번 더" (Space) is offered at the ladder's next tempo.
+ */
+export const REPEATABLE_TYPES: ReadonlySet<string> = new Set([
+  'E5',
+  'E6',
+  'E8',
+  'E9',
+  'E10',
+  'E11',
+  'E17',
+  'Q1',
+  'Q2',
+  'Q3',
+  'Q4',
+  'Q5',
+  'S',
+]);
+
+/** A 5-second transition screen shows when the next item opens a different block (rests excluded, §7.3-13). */
+export function opensNewBlock(
+  previous: Pick<RoutineItem, 'block' | 'exerciseType'> | undefined,
+  next: Pick<RoutineItem, 'block' | 'exerciseType'> | undefined,
+): boolean {
+  if (!next || next.exerciseType === 'REST' || previous?.exerciseType === 'REST') return false;
+  return previous === undefined || previous.block !== next.block;
+}
+
+export const BLOCK_TRANSITION_MS = 5000;
+
 export function previousItem(state: SessionState, now: number): SessionState {
   return state.index === 0 ? state : moveTo(state, state.index - 1, now);
 }

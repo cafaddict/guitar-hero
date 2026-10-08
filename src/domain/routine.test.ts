@@ -309,4 +309,53 @@ describe('AC-R1 routine generation (SPEC §7.3)', () => {
     const due = generateRoutine(input({ stage: 4, prescriptions }));
     expect(due.items.find((i) => i.block === 'technique')?.exerciseType).not.toBe('E4');
   });
+
+  it("rule 6 (cards): due note cards share the Q2 block when Q3 is not in today's rotation; else Q3 asks them first", () => {
+    const card = (subjectKey: string): ReviewItem => ({
+      subjectKey,
+      kind: 'card',
+      step: 1,
+      due: NOW - 1000,
+      enqueuedAt: NOW - 5 * DAY_MS,
+      lastReviewedAt: NOW - 3 * DAY_MS,
+      lapses: 0,
+    });
+    const dueReviews = [card('card:note:0:0'), card('card:note:5:0')];
+    const split = generateRoutine(input({ stage: 4, dueReviews }));
+    const recall = split.items.filter((i) => i.block === 'recall');
+    expect(recall.map((i) => [i.exerciseType, i.durationSec])).toEqual([
+      ['Q2', 30],
+      ['Q3', 30],
+    ]);
+    expect(recall[1]!.params.focus).toEqual(['card:note:0:0', 'card:note:5:0']);
+    expect(split.totalSec).toBe(1200);
+    // Stage 5 rotates Q3 through its technique list; on a Q3 day the cards go into that run instead.
+    const q3Day = generateRoutine(input({ stage: 5, dueReviews }));
+    const q3 = q3Day.items.find((i) => i.exerciseType === 'Q3');
+    if (q3 && q3.block === 'technique') {
+      expect(q3.params.focus).toEqual(['card:note:0:0', 'card:note:5:0']);
+      expect(q3Day.items.filter((i) => i.block === 'recall').map((i) => i.exerciseType)).toEqual(['Q2']);
+    }
+  });
+
+  it('rule 1 (L < T): the song block gives time first (to 300 s), then knowledge and technique; Stage 7+ too', () => {
+    const t = (stage: number, minutes: number) =>
+      generateRoutine(
+        input({ stage, sessionMinutes: minutes, sessionsInStage: 9, firstPracticeAt: NOW - 90 * DAY_MS }),
+      );
+    const eight = t(8, 20);
+    expect(eight.items.find((i) => i.block === 'song')?.durationSec).toBe(300);
+    expect(eight.items.some((i) => i.block === 'knowledge')).toBe(false);
+    expect(eight.items.find((i) => i.block === 'repertoire')?.durationSec).toBe(300);
+    // Song −240, knowledge −60, technique rotation −120 (−60 on a self-check day, whose K1 card stays).
+    expect(eight.totalSec).toBe(eight.selfChecks.length > 0 ? 1800 - 240 - 60 - 60 : 1800 - 240 - 60 - 120);
+    // Longer sessions add to the repertoire block from Stage 7.
+    expect(t(8, 35).items.find((i) => i.block === 'repertoire')?.durationSec).toBe(600);
+  });
+
+  it('rule 5 notice only when a previous-stage review item is placed (Stage 7 has no new-chord slot)', () => {
+    const seven = generateRoutine(input({ stage: 7, lastPracticeAt: NOW - 5 * DAY_MS }));
+    expect(seven.items.some((i) => i.block === 'stageReview')).toBe(false);
+    expect(seven.notices.some((n) => n.code === 'gapReview')).toBe(false);
+  });
 });

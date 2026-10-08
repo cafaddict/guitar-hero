@@ -154,9 +154,21 @@ export function ladderTempo(
   subject: string,
   startBpm: number,
 ): number {
+  return ladderStart(input, subject, startBpm).bpm;
+}
+
+/**
+ * The tempo to start at and, under a −10 BPM prescription, the ladder tempo the slowed run must keep
+ * (SPEC v1.1 §7.4 "1주 동안 시작 BPM을 현재 −10으로(사다리 상태는 보존)").
+ */
+export function ladderStart(
+  input: Pick<RoutineInput, 'skills' | 'prescriptions'>,
+  subject: string,
+  startBpm: number,
+): { bpm: number; ladderBase?: number } {
   const current = input.skills.get(subject)?.metrics.ladderBpm?.last ?? startBpm;
   const slower = input.prescriptions.some((p) => p.kind === 'slowerTempo' && p.subjectKey === subject);
-  return slower ? Math.max(30, current - SLOWER_TEMPO_BPM) : current;
+  return slower ? { bpm: Math.max(30, current - SLOWER_TEMPO_BPM), ladderBase: current } : { bpm: current };
 }
 
 /** K1 (§11.12): every stage item in the first three sessions of the stage; afterwards "아직" items every 3rd session. */
@@ -188,13 +200,15 @@ function takeDue(
   return review;
 }
 
-/** Marks a due review served by an item with the same subject (rule 6 "같은 subjectKey면 복습으로 인정"). */
+/**
+ * Marks a due review served by an item with the same subject (rule 6 "같은 subjectKey면 복습으로 인정") — only the
+ * head of its kind's queue, so reviews are still assigned in due order (FIFO, §14.9-4).
+ */
 function serveSameSubject(ctx: Ctx, draft: Draft): Draft {
   if (draft.reviewOf || !draft.subjectKey) return draft;
   for (const list of ctx.due.values()) {
-    const index = list.findIndex((r) => r.subjectKey === draft.subjectKey);
-    if (index >= 0) {
-      list.splice(index, 1);
+    if (list[0]?.subjectKey === draft.subjectKey) {
+      list.shift();
       return { ...draft, reviewOf: draft.subjectKey };
     }
   }
@@ -318,6 +332,8 @@ interface ChangePlan {
   slot1: string | null;
   slot2: string | null;
   pfc: string | null;
+  /** A due pair review served by slot 1 (its pair is due — same subject, §7.3-6). */
+  slot1Review: string | null;
   /** A due pair review served by slot 2. */
   slot2Review: string | null;
 }
@@ -336,6 +352,10 @@ function planChanges(ctx: Ctx): ChangePlan {
   const withNew = universe.filter((id) => parsePairId(id).some((c) => ctx.newClasses.includes(c)));
   const slot1 = firstFree(byOldest(withNew)) ?? firstFree(rotation);
   if (slot1) taken.add(slot1);
+  // Slot 1's pair being due counts as its review (same subject), so slot 2 moves on to the next due pair.
+  const headPair = ctx.due.get('pair')?.[0];
+  const slot1Review =
+    slot1 && headPair?.subjectKey === `pair:${slot1}` ? takeDue(ctx, 'pair')!.subjectKey : null;
 
   // PFC slot (Stage 8–11): an OMC → PFC prescription, else a stage pair not graduated in E3.
   let pfc: string | null = null;
@@ -378,7 +398,7 @@ function planChanges(ctx: Ctx): ChangePlan {
     required.filter((id) => !taken.has(id)).sort((a, b) => pairMedian(input, a) - pairMedian(input, b))[0] ??
     null;
   slot2 ??= firstFree(rotation) ?? slot1;
-  return { slot1, slot2, pfc, slot2Review };
+  return { slot1, slot2, pfc, slot1Review, slot2Review };
 }
 
 // --- rotation lists (rule 2 ①–④) ---------------------------------------------------------------------------------
@@ -465,7 +485,7 @@ function entryDraft(
           patternId,
           mode,
           chords,
-          bpm: ladderTempo(input, `strum:${patternId}:${mode}`, STRUM_START_BPM),
+          ...ladderStart(input, `strum:${patternId}:${mode}`, STRUM_START_BPM),
           bars: 8,
           cuesHidden: p.cuesHidden === true,
           ...(p.dynamics === true ? { dynamics: true } : {}),
@@ -480,7 +500,7 @@ function entryDraft(
       return {
         ...base,
         exerciseType: 'E6',
-        params: { progression, patternId: 'P0', bpm: ladderTempo(input, subject, STRUM_START_BPM) },
+        params: { progression, patternId: 'P0', ...ladderStart(input, subject, STRUM_START_BPM) },
         subjectKey: subject,
       };
     }
@@ -497,7 +517,7 @@ function entryDraft(
       return {
         ...base,
         exerciseType: 'E8',
-        params: { stringIdx, bpm: ladderTempo(input, subject, STRUM_START_BPM) },
+        params: { stringIdx, ...ladderStart(input, subject, STRUM_START_BPM) },
         subjectKey: subject,
       };
     }
@@ -507,8 +527,20 @@ function entryDraft(
       return {
         ...base,
         exerciseType: 'E17',
-        params: { riffId: riff.id, bpm: ladderTempo(input, subject, riff.bpm), tabHidden: false },
+        params: { riffId: riff.id, ...ladderStart(input, subject, riff.bpm), tabHidden: false },
         subjectKey: subject,
+      };
+    }
+    case 'Q3':
+    case 'Q4': {
+      // Due knowledge cards of this quiz are asked first (SPEC v1.1 §7.5).
+      const prefix = entry.type === 'Q3' ? 'card:note:' : `card:ear:${String(p.kind ?? 'majmin')}:`;
+      const focus = takeDueCards(ctx, prefix);
+      return {
+        ...base,
+        exerciseType: entry.type,
+        params: { ...p, ...(focus.length > 0 ? { focus } : {}) },
+        subjectKey: key.slice(key.indexOf('|') + 1),
       };
     }
     default:
@@ -519,6 +551,57 @@ function entryDraft(
         subjectKey: key.slice(key.indexOf('|') + 1),
       };
   }
+}
+
+/** Takes every due knowledge card whose key starts with `prefix` (they are asked inside one quiz run). */
+function takeDueCards(ctx: Ctx, prefix: string): string[] {
+  const cards = ctx.due.get('card') ?? [];
+  const taken = cards.filter((r) => r.subjectKey.startsWith(prefix));
+  ctx.due.set(
+    'card',
+    cards.filter((r) => !r.subjectKey.startsWith(prefix)),
+  );
+  return taken.map((r) => r.subjectKey);
+}
+
+/**
+ * Rule 6 (knowledge cards): on a day without Q3/Q4 in the rotation, due note or ear cards share the Q2 block —
+ * Q2 30 s + that quiz's due cards 30 s.
+ */
+function splitRecallForCards(ctx: Ctx, drafts: Draft[]): Draft[] {
+  if (drafts.some((d) => d.exerciseType === 'Q3' || d.exerciseType === 'Q4')) return drafts;
+  const index = drafts.findIndex((d) => d.exerciseType === 'Q2');
+  if (index < 0) return drafts;
+  const recall = drafts[index]!;
+  const notes = takeDueCards(ctx, 'card:note:');
+  const ear = notes.length === 0 ? takeDueCards(ctx, 'card:ear:') : [];
+  if (notes.length === 0 && ear.length === 0) return drafts;
+  const half = Math.round(recall.durationSec / 2);
+  const quiz: Draft =
+    notes.length > 0
+      ? {
+          exerciseType: 'Q3',
+          params: { scope: 'open', focus: notes, questions: Math.max(3, notes.length) },
+          durationSec: recall.durationSec - half,
+          block: 'recall',
+          subjectKey: 'quiz:notes:open',
+          key: itemKey('Q3', 'quiz:notes:open'),
+          ...(recall.slot ? { slot: recall.slot } : {}),
+          note: 'cards',
+        }
+      : {
+          exerciseType: 'Q4',
+          params: { kind: 'majmin', focus: ear, questions: Math.max(3, ear.length) },
+          durationSec: recall.durationSec - half,
+          block: 'recall',
+          subjectKey: 'ear:majmin',
+          key: itemKey('Q4', 'ear:majmin'),
+          ...(recall.slot ? { slot: recall.slot } : {}),
+          note: 'cards',
+        };
+  const out = [...drafts];
+  out.splice(index, 1, { ...recall, durationSec: half }, quiz);
+  return out;
 }
 
 /** Technique slot ② (Stage 1–7): an OMC → PFC prescription becomes an anchor/air drill on that pair. */
@@ -777,9 +860,9 @@ function buildSlot(ctx: Ctx, slot: TemplateSlot, sec: number, changes: ChangePla
       // The same pair in both slots (a one-pair stage) → the second run takes the other direction (rule 3).
       const avoid = slot.rule === 'slot2' && id === changes.slot1 ? directionOf(input, id) : undefined;
       const draft = changeDraft(type, directionOf(input, id, avoid), slot);
-      return [
-        slot.rule === 'slot2' && changes.slot2Review ? { ...draft, reviewOf: changes.slot2Review } : draft,
-      ];
+      const reviewOf =
+        slot.rule === 'slot2' ? changes.slot2Review : slot.rule === 'slot1' ? changes.slot1Review : null;
+      return [reviewOf ? { ...draft, reviewOf } : draft];
     }
     case 'rest':
       return [{ exerciseType: 'REST', params: {}, durationSec: sec, block: 'rest', slot: slotKey(slot) }];
@@ -881,20 +964,23 @@ function applyPainReduction(drafts: Draft[]): Draft[] {
 function applySessionLength(drafts: Draft[], stage: number, targetSec: number): Draft[] {
   const total = drafts.reduce((sum, d) => sum + d.durationSec, 0);
   let diff = targetSec - total;
-  const elasticIndex = drafts.findLastIndex((d) =>
-    stage === 0 ? d.block === 'rhythm' : stage >= 7 ? d.block === 'repertoire' : d.block === 'song',
-  );
-  if (diff === 0 || elasticIndex < 0) return drafts;
+  if (diff === 0) return drafts;
   const out = drafts.map((d) => ({ ...d }));
-  const elastic = out[elasticIndex]!;
   if (diff > 0) {
-    elastic.durationSec += diff;
+    // Longer: Stage 7+ adds to the repertoire block, Stage 1–6 to the song, Stage 0 (no song) to the rhythm block.
+    const grow = out.findLast((d) =>
+      stage === 0 ? d.block === 'rhythm' : stage >= 7 ? d.block === 'repertoire' : d.block === 'song',
+    );
+    if (grow) grow.durationSec += diff;
     return out;
   }
-  const floor = stage === 0 ? 60 : SONG_BLOCK_MIN_SEC;
-  const take = Math.min(-diff, Math.max(0, elastic.durationSec - floor));
-  elastic.durationSec -= take;
-  diff += take;
+  // Shorter: the song block gives time down to 300 s (Stage 0 has none) …
+  const song = stage === 0 ? undefined : out.findLast((d) => d.block === 'song');
+  if (song) {
+    const take = Math.min(-diff, Math.max(0, song.durationSec - SONG_BLOCK_MIN_SEC));
+    song.durationSec -= take;
+    diff += take;
+  }
   const droppable = (d: Draft) =>
     stage === 0
       ? d.block === 'technique'
@@ -958,7 +1044,6 @@ export function generateRoutine(input: RoutineInput): RoutinePlan {
   const gapDays = input.lastPracticeAt === null ? 0 : Math.floor((input.now - input.lastPracticeAt) / DAY_MS);
   const previous = input.curriculum.find((s) => s.stage === input.stage - 1);
   const gap = gapDays > GAP_REVIEW_DAYS && previous !== undefined && previous.newChords.length > 0;
-  if (gap) notices.push({ code: 'gapReview', days: gapDays });
   if (input.userTemplate) notices.push({ code: 'userTemplate' });
 
   const due = new Map<string, ReviewItem[]>();
@@ -989,6 +1074,10 @@ export function generateRoutine(input: RoutineInput): RoutinePlan {
     if (sec > 0) drafts.push(...buildSlot(ctx, r.slot, sec, changes));
   }
 
+  // Rule 5 notice only when a previous-stage review item was actually placed.
+  if (gap && drafts.some((d) => d.block === 'stageReview'))
+    notices.unshift({ code: 'gapReview', days: gapDays });
+  drafts = splitRecallForCards(ctx, drafts);
   const painDay = advice === 'reduceFingertipLoad';
   const allowed = Math.max(
     0,
