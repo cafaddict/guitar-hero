@@ -5,8 +5,10 @@ import { repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
 import { loadStoredState } from '../../app/storedState';
 import { stageDef } from '../../content/curriculum';
+import type { GVoicing } from '../../content/voicings';
 import { promote } from '../../domain/progression';
 import { generateRoutine, type RoutinePlan } from '../../domain/routine';
+import { prepareSession } from '../../domain/sessionPrep';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { Screen } from '../../ui/Screen';
@@ -65,7 +67,9 @@ function RoutineCard({
                   ? ko.safety.painReduced
                   : n.code === 'changesCapReached'
                     ? ko.home.notices.changesCapReached
-                    : ''}
+                    : n.code === 'userTemplate'
+                      ? ko.home.notices.userTemplate
+                      : ''}
           </li>
         ))}
       </ul>
@@ -97,13 +101,18 @@ function RoutineCard({
           {ko.home.doneToday}
         </p>
       )}
-      <Link
-        to="/session"
-        className={`${linkClass} mt-4 min-h-16 bg-accent px-6 text-lg text-accent-fg`}
-        data-testid="start-session"
-      >
-        {done ? ko.home.again : ko.home.start}
-      </Link>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Link
+          to="/session"
+          className={`${linkClass} min-h-16 bg-accent px-6 text-lg text-accent-fg`}
+          data-testid="start-session"
+        >
+          {done ? ko.home.again : ko.home.start}
+        </Link>
+        <Link to="/routine/edit" className={`${linkClass} bg-surface-2`} data-testid="edit-routine">
+          {ko.home.editRoutine}
+        </Link>
+      </div>
     </section>
   );
 }
@@ -129,13 +138,28 @@ export function HomeScreen() {
   if (!data) return <Screen title={ko.app.title}>{null}</Screen>;
 
   const now = Date.now();
-  const plan = generateRoutine(routineInputFrom(data, now));
-  const checklist = stageChecklist(data, now);
-  const def = stageDef(Math.min(data.progression.stage, 7));
+  // What the next session start will do (expired / new prescriptions, G switch) — shown, saved at session start.
+  const prep = prepareSession({
+    progression: data.progression,
+    skills: data.skills,
+    recentSamples: data.recentSamples,
+    sessionNumber: data.history.sessionNumber,
+    now,
+  });
+  const stored = { ...data, progression: prep.progression };
+  const plan = generateRoutine(routineInputFrom(stored, now));
+  const checklist = stageChecklist(stored, now);
+  const def = stageDef(data.progression.stage);
   const nextStage = data.progression.stage + 1;
   const promoteNow = async (conditional: boolean) => {
-    const drills = conditional && checklist ? checklist.plateauedPairs : [];
-    await repo.saveProgression(promote(data.progression, Date.now(), conditional, drills));
+    const pairs = conditional && checklist ? checklist.plateauedPairs : [];
+    await repo.saveProgression(
+      promote(prep.progression, Date.now(), conditional, pairs, data.history.sessionNumber),
+    );
+    reload();
+  };
+  const switchG = async (to: GVoicing) => {
+    await repo.saveProgression({ ...prep.progression, gVoicing: to });
     reload();
   };
 
@@ -167,6 +191,30 @@ export function HomeScreen() {
           }}
         />
         <div className="flex flex-col gap-4">
+          {(prep.gSuggestion !== null || prep.progression.prescriptions.length > 0) && (
+            <section className="rounded-lg bg-surface p-4" data-testid="recommendations">
+              <h2 className="text-lg font-bold">{ko.home.recommendations}</h2>
+              {prep.gSuggestion !== null && (
+                <div className="mt-2" data-testid="g-switch">
+                  <p>{ko.home.gSwitch(prep.gSuggestion)}</p>
+                  <Button
+                    className="mt-2"
+                    variant="secondary"
+                    onClick={() => void switchG(prep.gSuggestion!)}
+                  >
+                    {ko.home.gSwitchYes}
+                  </Button>
+                </div>
+              )}
+              <ul className="mt-2 space-y-1 text-sm">
+                {prep.progression.prescriptions.map((p) => (
+                  <li key={p.subjectKey} data-testid="prescription">
+                    {ko.home.prescription[p.kind](p.subjectKey.slice(p.subjectKey.indexOf(':') + 1))}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <section className="rounded-lg bg-surface p-4" data-testid="stage-card">
             <h2 className="text-lg font-bold">{ko.home.stage(data.progression.stage, def.name)}</h2>
             {data.progression.completedBeginner1 && <p className="text-ok">{ko.home.completedBeginner}</p>}

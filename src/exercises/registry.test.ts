@@ -12,7 +12,9 @@ import type { RunnerCommand } from './types';
 
 registerAllExercises();
 
-const EXPECTED_TYPES = ['E0', 'E1', 'E2', 'E4', 'E5', 'E6', 'E7', 'E8', 'Q1', 'Q2', 'Q3', 'Q4', 'S'];
+const V1_TYPES = ['E0', 'E1', 'E2', 'E4', 'E5', 'E6', 'E7', 'E8', 'Q1', 'Q2', 'Q3', 'Q4', 'S'];
+/** v1 types plus the v1.1 exercises registered so far (SPEC v1.1 §11.2). */
+const EXPECTED_TYPES = [...V1_TYPES, 'K1', 'E16', 'E17', 'Q5'];
 /** A "keyboard only" user: start, confirm, self-judge clean, adjust, confirm again. */
 const SCRIPT: RunnerCommand[] = ['toggle', 'next', 'manual1', 'manual1', 'inc', 'next'];
 const flush = async () => {
@@ -22,6 +24,7 @@ const flush = async () => {
 describe('exercise registry (SPEC §11.1)', () => {
   it('registers every v1 exercise once', () => {
     expect(registeredExerciseTypes().sort()).toEqual([...EXPECTED_TYPES].sort());
+    for (const type of V1_TYPES) expect(registeredExerciseTypes()).toContain(type);
   });
 
   it.each(EXPECTED_TYPES)('%s runs to the end without a microphone', async (type) => {

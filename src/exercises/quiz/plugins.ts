@@ -12,7 +12,7 @@ import type { ExercisePlugin } from '../types';
 import { ChoiceQuizRunner, type QuizView } from './choiceQuiz';
 import { renderEarChord } from './earAudio';
 import { OpenNotesRunner, type Q3Params, q3ParamsSchema } from './openNotes';
-import { Q1View, Q2Summary, Q2ViewComponent, Q3View, Q4View, QuizSummary } from './QuizViews';
+import { Q1View, Q2Summary, Q2ViewComponent, Q3View, Q4View, Q5View, QuizSummary } from './QuizViews';
 import {
   type DiagramPrompt,
   diagramQuestions,
@@ -20,6 +20,8 @@ import {
   earQuestions,
   type OpenNotePrompt,
   quizVoicings,
+  type TabPrompt,
+  tabQuestions,
 } from './questions';
 import { type Q2Params, type Q2View, q2ParamsSchema, RecallRunner } from './recall';
 
@@ -93,5 +95,20 @@ export const q4Plugin: ExercisePlugin<SeedParams, QuizResult, QuizView<EarPrompt
   View: Q4View,
   Summary: QuizSummary,
   toMetrics: (result) => extractMetrics('Q4', result),
+  usesMicrophone: false,
+};
+
+export const q5Plugin: ExercisePlugin<SeedParams, QuizResult, QuizView<TabPrompt>> = {
+  type: 'Q5',
+  version: 1,
+  titleKey: 'Q5',
+  paramsSchema: seedParams,
+  resultSchema: quizResultSchema,
+  defaultParams: () => ({ seed: 0 }),
+  createRunner: (ctx, params) =>
+    new ChoiceQuizRunner(ctx, tabQuestions(seedOf(params.seed, ctx.clock.now()))),
+  View: Q5View,
+  Summary: QuizSummary,
+  toMetrics: (result) => extractMetrics('Q5', result),
   usesMicrophone: false,
 };

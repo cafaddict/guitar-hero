@@ -2,7 +2,7 @@
  * Seeded question generators for the quizzes (Q1 diagram reading, Q3 open-string names, Q4 major/minor).
  * Option texts come from i18n; correct answers are placed at a seeded random position.
  */
-import { BEGINNER_CHORD_CLASSES, voicingForClass } from '../../content/voicings';
+import { BEGINNER_CHORD_CLASSES, type GVoicing, voicingForClass } from '../../content/voicings';
 import { mulberry32, type Rng, shuffled } from '../../domain/prng';
 import { STRING_INDICES, stringNumber } from '../../domain/strings';
 import { midiToHz, pitchClassName, STANDARD_TUNING } from '../../domain/theory';
@@ -83,7 +83,7 @@ export function diagramQuestions(
 export function quizVoicings(
   all: readonly ChordVoicing[],
   unlockedClasses: readonly string[],
-  gVoicing: 'G-2f' | 'G-3f',
+  gVoicing: GVoicing,
 ): ChordVoicing[] {
   const classes = unlockedClasses.length > 0 ? unlockedClasses : BEGINNER_CHORD_CLASSES;
   const ids = new Set(classes.map((c) => voicingForClass(c, gVoicing)));
@@ -144,4 +144,40 @@ export function earQuestions(seed: number, count = QUIZ_LENGTH): ChoiceQuestion<
 export function earChordHz(prompt: EarPrompt): number[] {
   const third = prompt.quality === 'major' ? 4 : 3;
   return [0, 7, 12, 12 + third].map((s) => midiToHz(prompt.rootMidi + s));
+}
+
+// --- Q5 TAB reading (SPEC v1.1 §11.20) -----------------------------------------------------------------------
+
+export interface TabPrompt {
+  /** tab → position: a TAB cell is shown, pick the fretboard position; position → tab: the reverse. */
+  kind: 'tabToPos' | 'posToTab';
+  /** Guitar string number 1 (high E) … 6 (low E). */
+  string: number;
+  fret: number;
+}
+
+/**
+ * TAB questions over strings 1–6 and frets 0–5. Distractors cover the usual misreading (TAB upside down: string
+ * 7 − n) and a neighbouring fret.
+ */
+export function tabQuestions(seed: number, count = QUIZ_LENGTH): ChoiceQuestion<TabPrompt>[] {
+  const rng = mulberry32(seed);
+  const out: ChoiceQuestion<TabPrompt>[] = [];
+  while (out.length < count) {
+    const string = 1 + Math.floor(rng() * 6);
+    const fret = Math.floor(rng() * 6);
+    const kind: TabPrompt['kind'] = rng() < 0.5 ? 'tabToPos' : 'posToTab';
+    const flipped = 7 - string === string ? (string % 6) + 1 : 7 - string;
+    const otherFret = fret === 0 ? 1 : fret - 1;
+    const label = kind === 'tabToPos' ? ko.exercises.q5.position : ko.exercises.q5.tabCell;
+    out.push(
+      withAnswer(
+        { kind, string, fret },
+        label(string, fret),
+        [label(flipped, fret), label(string, otherFret)],
+        rng,
+      ),
+    );
+  }
+  return out;
 }

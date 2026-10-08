@@ -84,13 +84,19 @@ export const ko = {
     longer: '그래도 더 길게 하기',
     blocks: {
       tuning: '튜닝',
+      repertoire: '레퍼토리',
       warmup: '워밍업',
+      selfCheck: '자가 체크',
       stageReview: '지난 단계 복습',
       chord: '코드',
       changes: '체인지',
       rest: '휴식',
+      drill: '드릴',
       rhythm: '리듬',
+      scale: '스케일',
       technique: '기술',
+      recall: '코드 기억',
+      knowledge: '지식',
       review: '복습',
       song: '연습곡',
     },
@@ -99,7 +105,25 @@ export const ko = {
       gapReview: (days: number) => `${days}일 만이에요. 지난 단계를 먼저 복습해요.`,
       capApplied: (minutes: number) => `처음 4주는 하루 ${minutes}분으로 맞췄어요.`,
       changesCapReached: '오늘 1분 체인지는 충분히 했어요(하루 6회).',
+      userTemplate: '내가 편집한 루틴 구성으로 짰어요.',
     },
+    editRoutine: '루틴 편집',
+    recommendations: '추천',
+    prescription: {
+      omcToPfc: (pair: string) =>
+        `${pair}: 2주째 제자리예요. 앵커·공중 드릴과 정확 빠른 체인지로 바꿔 연습해요.`,
+      pfcToOmc: (pair: string) =>
+        `${pair}: 정확 빠른 체인지가 제자리예요. 1분 체인지로 돌아가 속도를 올려요.`,
+      pluckMode: (chord: string) =>
+        `${chord}: 2주째 제자리예요. 한 줄씩 튕겨 확인하며 코칭 팁을 따라 해 보세요.`,
+      slowerTempo: (subject: string) =>
+        `${subject}: 2주째 템포가 그대로예요. 일주일 동안 10 BPM 낮춰 시작해요.`,
+    },
+    gSwitch: (to: string) =>
+      to === 'G-3f'
+        ? '두 손가락 G를 익혔어요. 세 손가락 G로 바꿔 볼까요?'
+        : '세 손가락 G를 익혔어요. 네 손가락 G로 바꿔 볼까요?',
+    gSwitchYes: '바꾸기',
     promote: (stage: number) => `진급 조건을 모두 채웠어요! Stage ${stage}(으)로 올라갈까요?`,
     promoteConditional:
       '쌍 몇 개가 3주째 제자리예요. 앵커·공중 체인지 드릴을 처방받고 조건부로 진급할 수 있어요.',
@@ -136,7 +160,20 @@ export const ko = {
       `${subject} ${value} 이상, 서로 다른 ${days}일`,
     unlockedPairsAtLeast: (value: number, days: number) =>
       `배운 코드 쌍 모두 1분 체인지 ${value}회 이상(서로 다른 ${days}일)`,
-    recallUnlocked: '배운 코드 모두 기억 퀴즈 3초 안에 통과',
+    recallPassed: (chords: string) => `코드 기억 퀴즈 3초 안에 정답(서로 다른 2일): ${chords}`,
+    pairsPassedAtLeast: (count: number, total: number) =>
+      `이 단계 쌍 ${total}개 중 ${count}개 이상 1분 체인지 30회(서로 다른 2일)`,
+    daysInStageAtLeast: (days: number) => `이 단계에서 ${days}일 이상`,
+    songsCompletedAtLeast: (count: number, stage: number | null) =>
+      stage === null
+        ? `F가 들어간 곡 ${count}곡 연주 모드 완주`
+        : `Stage ${stage} 곡 ${count}곡 연주 모드 완주`,
+    scaleStepGraduated: (scale: string, step: number, bpm: number) => `${scale} ${step}단계 ${bpm} BPM 졸업`,
+    scaleMemorized: (scale: string) => `${scale} 외워서 치기(TAB 숨김)`,
+    chordCleanRatioAtLeast: (chords: string, ratio: number) =>
+      `${chords} 중 하나 최근 10회 깨끗한 비율 ${(ratio * 100).toFixed(0)}% 이상`,
+    quizRunAtLeast: (questions: number, accuracy: number) =>
+      `6·5번 줄 음이름 ${questions}문항 정답률 ${(accuracy * 100).toFixed(0)}% 이상, 응답 3초 안`,
     sessionsInStageAtLeast: (count: number) => `이 단계에서 ${count}세션 이상 연습`,
     examPassed: '초급 1 졸업 시험 통과',
     missing: (items: string) => `남은 것: ${items}`,
@@ -270,8 +307,66 @@ export const ko = {
     saved: '세션을 저장했어요.',
     noRoutine: '오늘은 쉬는 날이에요.',
   },
+  routineEditor: {
+    title: '루틴 편집',
+    intro:
+      '항목을 빼거나 더하고 블록 시간을 바꿔 저장하면, 다음 세션부터 이 단계에서 이 구성으로 짜요. 쌍·코드·템포는 앱이 그날 맞게 채워요.',
+    seconds: (sec: number) => `${Math.round(sec / 60) >= 1 && sec % 60 === 0 ? `${sec / 60}분` : `${sec}초`}`,
+    moveUp: '위로',
+    moveDown: '아래로',
+    shorter: '30초 줄이기',
+    longer: '30초 늘리기',
+    remove: '빼기',
+    addLabel: '항목 더하기',
+    add: '더하기',
+    save: '이 구성으로 저장',
+    reset: '기본으로 되돌리기',
+    cancel: '취소',
+    rotation: {
+      rhythm: '리듬(순환)',
+      scales: '스케일·크로매틱(순환)',
+      technique: '기술(순환)',
+      knowledge: '지식 퀴즈(순환)',
+    },
+    change: { slot1: '1분 체인지(새 코드 쌍)', slot2: '1분 체인지(약한 쌍·복습)', pfc: '정확 빠른 체인지' },
+    slots: {
+      tuning: '튜닝',
+      repertoire: '레퍼토리',
+      strumFixed: '스트러밍(뮤트)',
+      stretch: '손가락 스트레칭',
+      selfCheck: '자가 체크',
+      chordFixed: '코드 정밀 체크',
+      chordNew: '코드 정밀 체크(새 코드)',
+      chordWeak: '코드 정밀 체크(약한 코드·복습)',
+      rest: '휴식',
+      drillFixed: '앵커·공중 체인지 드릴',
+      oneBeatFixed: '박 1 체인지',
+      recall: '코드 기억 퀴즈',
+      song: '연습곡',
+      songMemorize: '연습곡 외워서 치기',
+    },
+  },
+  selfChecks: {
+    posture: {
+      title: '자세',
+      body: '허리를 펴고 앉아요. 기타 몸통은 오른 허벅지에, 넥은 수평보다 조금 위로. 왼손 엄지는 넥 뒤 가운데에 두고, 손목을 심하게 꺾지 않아요.',
+    },
+    pick: {
+      title: '피크 잡기',
+      body: '피크를 엄지 끝과 검지 옆면 사이에 잡고, 끝이 2–3 mm만 나오게 해요. 힘은 빼요.',
+    },
+    countAloud: { title: '박 소리 내어 세기', body: '"하나, 둘, 셋, 넷"을 소리 내어 세면서 쳐요.' },
+    footTap: { title: '발로 박 세기', body: '발뒤꿈치는 바닥에 두고, 앞꿈치로 박마다 바닥을 가볍게 쳐요.' },
+    deliberateMute: {
+      title: '의도적 뮤트',
+      body: '왼손 힘을 살짝 빼서 소리를 끊어요. 줄에서 손가락을 떼지는 않아요.',
+    },
+    palmMute: { title: '팜뮤트', body: '오른손 날을 브리지 바로 앞 줄 위에 살짝 대고 쳐요.' },
+  },
   curriculum: {
     title: '커리큘럼',
+    practicedBy: (names: string) => `연습: ${names}`,
+    variantDynamics: '셈여림',
     locked: '다음 버전에서 열립니다',
     current: '현재 단계',
     passed: '통과',
@@ -336,6 +431,7 @@ export const ko = {
     visualOnly: '시각 전용 메트로놈(소리 없이)',
     xStringCheck: 'x줄 확인(치지 않는 줄이 조용한지 확인)',
     sessionMinutes: '세션 길이(분)',
+    sessionLengthTemplate: '세션 길이는 단계 기본값(20분, 단계 8부터 30분)',
     micDisabled: '마이크 없이 쓰기',
     micNotice: '마이크 판정은 보조 수단이에요. 내 귀가 먼저예요.',
     backup: '백업',
@@ -442,6 +538,15 @@ export const ko = {
       Q3: '개방현 음이름 퀴즈',
       Q4: '메이저/마이너 귀 훈련',
       S: '연습곡',
+      E3: '정확 빠른 체인지',
+      E9: '크로매틱 1-2-3-4',
+      E10: '스케일 사다리',
+      E11: '해머온 손가락 운동',
+      E12: '새끼손가락 운동',
+      E16: '프렛 위치 비교',
+      E17: '단음 리프',
+      K1: '자가 체크',
+      Q5: 'TAB 읽기 퀴즈',
     },
     common: {
       start: '시작',
@@ -548,6 +653,63 @@ export const ko = {
       namePrompt: (stringNo: number) => `${stringNo}번 줄 개방현의 음이름은?`,
       pluckPrompt: (note: string) => `${note} 음이 나는 개방현을 튕기세요`,
       heard: (note: string) => `들린 음: ${note}`,
+    },
+    q5: {
+      topLine: 'TAB의 맨 위 선이 1번 줄(가장 얇은 줄)이에요. 숫자는 누를 프렛, 0은 개방현이에요.',
+      tabToPosPrompt: '이 TAB은 어디를 누르라는 뜻일까요?',
+      posToTabPrompt: (stringNo: number, fret: number) =>
+        `${stringNo}번 줄 ${fret === 0 ? '개방현' : `${fret}프렛`}을 TAB으로 쓰면?`,
+      position: (stringNo: number, fret: number) =>
+        `${stringNo}번 줄 ${fret === 0 ? '개방현' : `${fret}프렛`}`,
+      tabCell: (stringNo: number, fret: number) => `위에서 ${stringNo}번째 선에 ${fret}`,
+    },
+    k1: {
+      progress: (n: number, total: number) => `${n} / ${total}`,
+      done: '1 됐어요',
+      notYet: '2 아직',
+      keys: '키 1 = 됐어요, 2 = 아직, ← = 이전 카드',
+    },
+    e16: {
+      intro: '2번 줄 1프렛(도)을 같은 가벼운 힘으로, 세 위치에서 두 번씩 튕겨 소리를 비교해요.',
+      instruction: (position: string, pluck: number, total: number) =>
+        `${position} — ${pluck}/${total}번째 튕기기`,
+      positions: { behind: '프렛 바로 뒤', middle: '칸 가운데', onFret: '프렛 쇠 위' },
+      position: '위치',
+      result: '판정',
+      clarity: '명료도',
+      retry: '잘 안 들렸어요. 같은 위치에서 한 번 더 튕겨 주세요.',
+      status: {
+        OK: '깨끗',
+        WEAK: '약함',
+        MUTED: '막힘',
+        WRONG_NOTE: '다른 음',
+        clean: '깨끗',
+        muted: '막힘',
+        buzz: '버징',
+      },
+      self: { clean: '1 깨끗', muted: '2 막힘', buzz: '3 버징' },
+      takeaway: '프렛 바로 뒤를 누를 때 가장 적은 힘으로 깨끗하게 울려요.',
+    },
+    e17: {
+      bpm: (bpm: number) => `${bpm} BPM`,
+      tabLabel: (id: string) => `리프 ${id} TAB`,
+      tabTopLine: 'TAB의 맨 위 선이 1번 줄이에요.',
+      palmMute: '팜뮤트: 오른손 날을 브리지 바로 앞 줄 위에 살짝 대고 쳐요.',
+      ready:
+        'Space로 메트로놈을 켜고 리프를 반복해요. 한 바퀴가 끝날 때마다 1(실수 없음) 또는 2(실수 있음)를 눌러요.',
+      cycles: (n: number, flawless: number, streak: number) =>
+        `${n}바퀴 · 실수 없음 ${flawless} · 연속 ${streak}`,
+      flawless: '1 실수 없음',
+      mistake: '2 실수 있음',
+      showTab: 'TAB 보이기',
+      hideTab: 'TAB 숨기기',
+      finish: '마치기',
+      summary: (n: number, flawless: number) => `${n}바퀴 중 실수 없이 ${flawless}바퀴`,
+      ladder: {
+        up: (bpm: number) => `4바퀴 연속 실수 없음! 다음엔 ${bpm} BPM으로 올려요.`,
+        down: (bpm: number) => `실수가 많았어요. 다음엔 ${bpm} BPM으로 낮춰요.`,
+        stay: (bpm: number) => `다음에도 ${bpm} BPM으로 해요.`,
+      },
     },
     q4: {
       prompt: '들려준 코드는 메이저일까요, 마이너일까요?',

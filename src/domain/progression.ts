@@ -1,20 +1,35 @@
 /**
- * Progression engine (SPEC §7.4): evaluates data-defined unlock rules, conditional promotion,
- * plateau (stagnation) detection and graduation into the review queue. Pure.
+ * Progression engine (SPEC v1.1 §7.4): evaluates data-defined unlock rules, conditional promotion (3-week pair
+ * plateau), stagnation detection (2 weeks → prescriptions), G voicing switches and graduation into the review
+ * queue. Pure: time and the recent metric samples are arguments.
  */
-import type { StageDef, UnlockRule } from '../content/schemas';
-import { classOfVoicing } from '../content/voicings';
+import { modeOpenBpm, STRUM_MODES } from '../content/patterns';
+import type { PracticeSong, StageDef, UnlockRule } from '../content/schemas';
+import { classOfVoicing, type GVoicing } from '../content/voicings';
 import { pairKey, pairsAmong, parsePairId } from './pairs';
-import { DAY_MS, type ProgressionState, type ReviewKind, type SkillState } from './records';
-import { chordLevel, daysReaching, median } from './skills';
+import {
+  DAY_MS,
+  type MetricSample,
+  type Prescription,
+  type PrescriptionKind,
+  type ProgressionState,
+  type ReviewKind,
+  type SkillState,
+  startOfDay,
+} from './records';
+import { chordLevel, cleanRatio, daysReaching, median } from './skills';
 
 export interface RuleContext {
   stage: number;
   curriculum: readonly StageDef[];
+  songs: readonly PracticeSong[];
   skills: ReadonlyMap<string, SkillState>;
   sessionsInStage: number;
+  stageEnteredAt: number;
   examPassed: boolean;
   now: number;
+  /** Metric samples of (at least) the last 21 days, for the 3-week pair plateau. */
+  recentSamples: readonly MetricSample[];
 }
 
 export interface RuleEvaluation {
@@ -25,6 +40,11 @@ export interface RuleEvaluation {
   /** Subjects still missing (e.g. pair ids or chord classes). */
   missing: string[];
 }
+
+/** Per-minute criteria count only runs of at least 55 s (SPEC v1.1 §7.1). */
+export const PAIR_METRIC = 'cpmQualified';
+export const PAIR_PASS_CPM = 30;
+export const PAIR_PASS_DAYS = 2;
 
 /** Chord classes unlocked up to and including `stage`. */
 export function unlockedChordClasses(curriculum: readonly StageDef[], stage: number): string[] {
@@ -39,8 +59,44 @@ export function unlockedChordClasses(curriculum: readonly StageDef[], stage: num
   return classes;
 }
 
+/** Core pairs (§6.5) among the chords unlocked up to `stage` (Stage 0–7 pair universe). */
 export function unlockedPairIds(curriculum: readonly StageDef[], stage: number): string[] {
   return pairsAmong(unlockedChordClasses(curriculum, stage));
+}
+
+/** Pairs a stage rotates through: Stage 0–7 the unlocked core pairs, Stage 8–11 that stage's own pairs. */
+export function stagePairUniverse(curriculum: readonly StageDef[], stage: number): string[] {
+  const def = curriculum.find((d) => d.stage === stage);
+  if (def && def.stagePairs.length > 0) return [...def.stagePairs];
+  return unlockedPairIds(curriculum, stage);
+}
+
+/** A pair is passed when it reached ≥ 30 qualified changes/min on two different days (§7.1 "쌍 ≥30"). */
+export function pairPassed(skills: ReadonlyMap<string, SkillState>, id: string): boolean {
+  const [a, b] = parsePairId(id);
+  return daysReaching(skills.get(pairKey(a, b)), PAIR_METRIC, PAIR_PASS_CPM) >= PAIR_PASS_DAYS;
+}
+
+/** §7.1 "Q2: X 3초 안 정답": the recall card passed (correct within 3 s) on two different days. */
+export function recallPassed(skills: ReadonlyMap<string, SkillState>, chordClass: string): boolean {
+  return daysReaching(skills.get(`recall:${chordClass}`), 'pass', 1) >= 2;
+}
+
+/** Songs completed in perform (or hidden) stage with ≤ 2 stops (§11.10 "완주"). */
+export function songCompleted(skills: ReadonlyMap<string, SkillState>, songId: string): boolean {
+  return (skills.get(`song:${songId}`)?.metrics.performCompleted?.best ?? 0) >= 1;
+}
+
+export function songMatches(
+  song: PracticeSong,
+  filter: { stage?: number | undefined; anyChords?: readonly string[] | undefined },
+): boolean {
+  if (filter.stage !== undefined && song.stage !== filter.stage) return false;
+  if (filter.anyChords) {
+    const chords = new Set(song.sections.flatMap((s) => s.bars));
+    if (!filter.anyChords.some((c) => chords.has(c))) return false;
+  }
+  return true;
 }
 
 function subjectsMatching(skills: ReadonlyMap<string, SkillState>, subject: string): SkillState[] {
@@ -65,6 +121,18 @@ function countAtLeast(skills: SkillState[], metric: string, minValue: number): n
   }
   return n;
 }
+
+/** Calendar days since entering the stage (day of entry = day 0). */
+export function daysInStage(stageEnteredAt: number, now: number): number {
+  return Math.round((startOfDay(now) - startOfDay(stageEnteredAt)) / DAY_MS);
+}
+
+const fromList = (rule: UnlockRule, total: number, missing: string[]): RuleEvaluation => ({
+  rule,
+  met: missing.length === 0,
+  progress: total > 0 ? 1 - missing.length / total : 1,
+  missing,
+});
 
 export function evaluateRule(rule: UnlockRule, ctx: RuleContext): RuleEvaluation {
   switch (rule.kind) {
@@ -101,25 +169,22 @@ export function evaluateRule(rule: UnlockRule, ctx: RuleContext): RuleEvaluation
       const pairs = unlockedPairIds(ctx.curriculum, ctx.stage);
       const missing = pairs.filter((id) => {
         const [a, b] = parsePairId(id);
-        return daysReaching(ctx.skills.get(pairKey(a, b)), 'cpm', rule.value) < rule.days;
+        return daysReaching(ctx.skills.get(pairKey(a, b)), PAIR_METRIC, rule.value) < rule.days;
       });
-      return {
-        rule,
-        met: missing.length === 0,
-        progress: pairs.length ? 1 - missing.length / pairs.length : 1,
-        missing,
-      };
+      return fromList(rule, pairs.length, missing);
     }
-    case 'recallUnlocked': {
-      const classes = unlockedChordClasses(ctx.curriculum, ctx.stage);
-      const missing = classes.filter((c) => (ctx.skills.get(`recall:${c}`)?.metrics.pass?.best ?? 0) < 1);
-      return {
-        rule,
-        met: missing.length === 0,
-        progress: classes.length ? 1 - missing.length / classes.length : 1,
-        missing,
-      };
+    case 'pairsPassedAtLeast': {
+      const missing = rule.pairs.filter((id) => !pairPassed(ctx.skills, id));
+      const passed = rule.pairs.length - missing.length;
+      const met = passed >= rule.minCount;
+      return { rule, met, progress: Math.min(1, passed / rule.minCount), missing: met ? [] : missing };
     }
+    case 'recallPassed':
+      return fromList(
+        rule,
+        rule.voicingIds.length,
+        rule.voicingIds.filter((id) => !recallPassed(ctx.skills, classOfVoicing(id))),
+      );
     case 'sessionsInStageAtLeast': {
       const met = ctx.sessionsInStage >= rule.count;
       return {
@@ -128,6 +193,55 @@ export function evaluateRule(rule: UnlockRule, ctx: RuleContext): RuleEvaluation
         progress: Math.min(1, ctx.sessionsInStage / rule.count),
         missing: met ? [] : ['sessions'],
       };
+    }
+    case 'daysInStageAtLeast': {
+      const days = daysInStage(ctx.stageEnteredAt, ctx.now);
+      return {
+        rule,
+        met: days >= rule.days,
+        progress: Math.min(1, days / rule.days),
+        missing: days >= rule.days ? [] : ['days'],
+      };
+    }
+    case 'songsCompletedAtLeast': {
+      const candidates = ctx.songs.filter((song) => songMatches(song, rule.filter));
+      const done = candidates.filter((song) => songCompleted(ctx.skills, song.id)).length;
+      const met = done >= rule.count;
+      return {
+        rule,
+        met,
+        progress: Math.min(1, done / rule.count),
+        missing: met ? [] : candidates.filter((song) => !songCompleted(ctx.skills, song.id)).map((s) => s.id),
+      };
+    }
+    case 'scaleStepGraduated': {
+      const best = ctx.skills.get(`scale:${rule.scaleId}:s${rule.step}`)?.metrics.streakBpm?.best ?? 0;
+      const met = best >= rule.bpm;
+      return { rule, met, progress: Math.min(1, best / rule.bpm), missing: met ? [] : [rule.scaleId] };
+    }
+    case 'scaleMemorized': {
+      const met = (ctx.skills.get(`scale:${rule.scaleId}:memorized`)?.metrics.memorized?.best ?? 0) >= 1;
+      return { rule, met, progress: met ? 1 : 0, missing: met ? [] : [rule.scaleId] };
+    }
+    case 'chordCleanRatioAtLeast': {
+      const ratios = rule.voicingIds.map((id) => {
+        const skill = ctx.skills.get(`chord:${id}`);
+        const recent = skill?.metrics.clean?.recent ?? [];
+        return recent.length >= rule.window ? (cleanRatio(skill) ?? 0) : 0;
+      });
+      const best = Math.max(0, ...ratios);
+      const met = best >= rule.ratio;
+      return {
+        rule,
+        met,
+        progress: Math.min(1, best / rule.ratio),
+        missing: met ? [] : [...rule.voicingIds],
+      };
+    }
+    case 'quizRunAtLeast': {
+      const best = ctx.skills.get(`quiz:notes:${rule.scope}`)?.metrics.qualifiedAccuracy?.best ?? 0;
+      const met = best >= rule.accuracy;
+      return { rule, met, progress: Math.min(1, best / rule.accuracy), missing: met ? [] : [rule.scope] };
     }
     case 'examPassed':
       return {
@@ -139,61 +253,87 @@ export function evaluateRule(rule: UnlockRule, ctx: RuleContext): RuleEvaluation
   }
 }
 
-const PLATEAU_WINDOW_DAYS = 21;
-const PLATEAU_MIN_GAIN = 2;
+// --- 3-week pair plateau (conditional promotion) ---------------------------------------------------------
+
+export const PLATEAU_WINDOW_DAYS = 21;
+export const PLATEAU_MIN_RUNS = 6;
+export const PLATEAU_MIN_ELAPSED_DAYS = 14;
+export const PLATEAU_MIN_GAIN = 2;
 
 /**
- * "3주 동안 중앙값이 +2 미만으로만 오름" (SPEC §7.4): the pair has been practiced for at least 21 days and
- * the median of its last 3 sessions is less than 2 changes/min above the median of its first 3 sessions
- * inside the window start. Uses per-day bests so one long day does not dominate.
+ * SPEC v1.1 §7.4 "쌍 정체(3주)": in the 21 days ending today the pair has ≥ 6 qualified runs, the first of them
+ * at least 14 days before today, and the median of the last 3 rose less than 2 over the median of the first 3.
  */
-export function isPairPlateaued(skill: SkillState | undefined, now: number): boolean {
-  const summary = skill?.metrics.cpm;
-  if (!summary) return false;
-  if (now - summary.firstAt < PLATEAU_WINDOW_DAYS * DAY_MS) return false;
-  const days = Object.keys(summary.dayBest).sort();
-  if (days.length < 4) return false;
-  const values = days.map((d) => summary.dayBest[d]!);
-  const baseline = median(values.slice(0, 3))!;
-  const current = median(values.slice(-3))!;
-  return current - baseline < PLATEAU_MIN_GAIN;
+export function isPairPlateaued(samples: readonly MetricSample[], id: string, now: number): boolean {
+  const from = now - PLATEAU_WINDOW_DAYS * DAY_MS;
+  const [a, b] = parsePairId(id);
+  const key = pairKey(a, b);
+  const inWindow = samples
+    .filter((s) => s.subjectKey === key && s.metric === PAIR_METRIC && s.at >= from && s.at <= now)
+    .sort((x, y) => x.at - y.at);
+  if (inWindow.length < PLATEAU_MIN_RUNS) return false;
+  if (inWindow[0]!.at > now - PLATEAU_MIN_ELAPSED_DAYS * DAY_MS) return false;
+  const values = inWindow.map((s) => s.value);
+  return median(values.slice(-3))! - median(values.slice(0, 3))! < PLATEAU_MIN_GAIN;
 }
 
 export interface StageEvaluation {
   stage: number;
   rules: RuleEvaluation[];
   allMet: boolean;
-  /** Pair rules are the only unmet ones and every missing pair is plateaued for 3 weeks. */
+  /** Every non-pair rule is met and the missing pairs (up to the shortfall) are plateaued for 3 weeks. */
   conditionalAvailable: boolean;
-  /** Pair ids to drill (anchor/air) after a conditional promotion. */
+  /** Pair ids to prescribe after a conditional promotion. */
   plateauedPairs: string[];
   progress: number;
 }
+
+const PAIR_RULE_KINDS: ReadonlySet<UnlockRule['kind']> = new Set([
+  'unlockedPairsAtLeast',
+  'pairsPassedAtLeast',
+]);
 
 export function evaluateStage(def: StageDef, ctx: RuleContext): StageEvaluation {
   const rules = def.unlockRules.map((rule) => evaluateRule(rule, ctx));
   const allMet = rules.length > 0 && rules.every((r) => r.met);
   const unmet = rules.filter((r) => !r.met);
-  const pairOnly = unmet.length > 0 && unmet.every((r) => r.rule.kind === 'unlockedPairsAtLeast');
-  const missingPairs = unmet.flatMap((r) => (r.rule.kind === 'unlockedPairsAtLeast' ? r.missing : []));
-  const plateauedPairs = missingPairs.filter((id) => {
-    const [a, b] = parsePairId(id);
-    return isPairPlateaued(ctx.skills.get(pairKey(a, b)), ctx.now);
-  });
-  const conditionalAvailable =
-    pairOnly && missingPairs.length > 0 && plateauedPairs.length === missingPairs.length;
+  const pairOnly = unmet.length > 0 && unmet.every((r) => PAIR_RULE_KINDS.has(r.rule.kind));
+  const plateauedPairs: string[] = [];
+  let pairRulesSatisfiable = pairOnly;
+  for (const r of unmet) {
+    if (!PAIR_RULE_KINDS.has(r.rule.kind)) continue;
+    const plateaued = r.missing.filter((id) => isPairPlateaued(ctx.recentSamples, id, ctx.now));
+    plateauedPairs.push(...plateaued);
+    if (r.rule.kind === 'unlockedPairsAtLeast') {
+      if (plateaued.length !== r.missing.length) pairRulesSatisfiable = false;
+    } else if (r.rule.kind === 'pairsPassedAtLeast') {
+      const passed = r.rule.pairs.length - r.missing.length;
+      if (plateaued.length < r.rule.minCount - passed) pairRulesSatisfiable = false;
+    }
+  }
+  const conditionalAvailable = pairRulesSatisfiable && plateauedPairs.length > 0;
   const progress = rules.length ? rules.reduce((sum, r) => sum + r.progress, 0) / rules.length : 0;
   return { stage: def.stage, rules, allMet, conditionalAvailable, plateauedPairs, progress };
 }
 
+/** Last stage a user can be promoted into today (Stage 8–11 open in M13, SPEC v1.1 §7.2). */
 export const LAST_PLAYABLE_STAGE = 7;
 
-/** Moves to the next stage (or marks Beginner 1 complete after Stage 7). */
+/** Conditional-promotion and stagnation prescriptions run for 8 sessions (D-060); −10 BPM runs one week. */
+export const PRESCRIPTION_SESSIONS = 8;
+export const SLOWER_TEMPO_DAYS = 7;
+export const SLOWER_TEMPO_BPM = 10;
+
+/**
+ * Moves to the next stage (or marks Beginner 1 complete after the last playable stage). A conditional
+ * promotion adds the plateaued pairs' prescriptions (precise fast changes + anchor/air drill) to the next stage.
+ */
 export function promote(
   state: ProgressionState,
   now: number,
   conditional: boolean,
-  drills: readonly string[] = [],
+  pairs: readonly string[] = [],
+  sessionNumber = 0,
 ): ProgressionState {
   const history = [
     ...state.history,
@@ -202,65 +342,179 @@ export function promote(
   if (state.stage >= LAST_PLAYABLE_STAGE) {
     return { ...state, history, completedBeginner1: true };
   }
+  const added: Prescription[] = conditional
+    ? pairs.map((id) => ({
+        kind: 'omcToPfc',
+        subjectKey: `pair:${id}`,
+        startedSession: sessionNumber,
+        startedAt: now,
+        expiresAfterSessions: PRESCRIPTION_SESSIONS,
+        reason: 'conditionalPromotion',
+      }))
+    : [];
+  const kept = state.prescriptions.filter((p) => !added.some((a) => a.subjectKey === p.subjectKey));
   return {
     ...state,
     stage: state.stage + 1,
     stageEnteredAt: now,
     sessionsInStage: 0,
     history,
-    prescribedDrills: conditional ? [...drills] : [],
+    prescriptions: [...kept, ...added],
   };
 }
 
-const STAGNATION_DAYS = 14;
+// --- 2-week stagnation (prescriptions) --------------------------------------------------------------------
+
+export const STAGNATION_WINDOW_DAYS = 14;
+export const STAGNATION_MIN_RUNS = 4;
+export const STAGNATION_MIN_ELAPSED_DAYS = 9;
 
 export interface Stagnation {
   subjectKey: string;
-  metric: string;
-  prescription: 'anchorDrill' | 'pluckMode' | 'slowerTempo';
+  prescription: PrescriptionKind;
+}
+
+/** Ladder subjects and the tempo at which they stop being judged for stagnation (SPEC v1.1 §7.4). */
+export interface LadderTargets {
+  /** Graduated, or the ladder reached its goal → not stagnant by definition. */
+  done(subjectKey: string, currentBpm: number): boolean;
+}
+
+const LADDER_PREFIXES = ['strum:', 'scale:', 'riff:', 'altpick:'] as const;
+
+function isLadderSubject(key: string): boolean {
+  if (key === 'altpick:any') return false;
+  if (key.startsWith('strum:')) return key.split(':').length === 3;
+  return LADDER_PREFIXES.some((p) => key.startsWith(p));
+}
+
+/** Groups window samples per subject, oldest first. */
+function windowSamples(samples: readonly MetricSample[], metric: string, from: number, now: number) {
+  const bySubject = new Map<string, MetricSample[]>();
+  for (const s of samples) {
+    if (s.metric !== metric || s.at < from || s.at > now) continue;
+    const list = bySubject.get(s.subjectKey) ?? [];
+    list.push(s);
+    bySubject.set(s.subjectKey, list);
+  }
+  for (const list of bySubject.values()) list.sort((a, b) => a.at - b.at);
+  return bySubject;
 }
 
 /**
- * "2주 동안 핵심 지표 개선 없음" (SPEC §7.4): practiced both before and during the last 14 days, and the best
- * value of the last 14 days does not exceed the best before. Returns a prescription per stagnant subject.
+ * SPEC v1.1 §7.4 "정체 감지" (research 01:389 "2주"): over the 14 days ending today, a subject with ≥ 4 runs whose
+ * first run is ≥ 9 days old and whose key metric did not improve enough:
+ * - pair (E2): median of the last 3 vs the first 3 qualified runs, + 2 → OMC → PFC
+ * - pair (E3): clean rate below 0.5 rising < 0.1 → PFC → OMC
+ * - chord (E1): clean ratio of the last 10 vs the first 10 checks, + 0.1 → pluck mode
+ * - pattern / scale / riff / alternate picking: ladder tempo, + 5 → one week at −10 BPM
+ * Passed pairs and acquired chords are not watched; neither are ladders that graduated or reached their goal.
  */
-export function detectStagnation(skills: ReadonlyMap<string, SkillState>, now: number): Stagnation[] {
-  const cutoff = now - STAGNATION_DAYS * DAY_MS;
-  const watched: { prefix: string; metric: string; prescription: Stagnation['prescription'] }[] = [
-    { prefix: 'pair:', metric: 'cpm', prescription: 'anchorDrill' },
-    { prefix: 'chord:', metric: 'clean', prescription: 'pluckMode' },
-    { prefix: 'strum:', metric: 'hitRate', prescription: 'slowerTempo' },
-  ];
+export function detectStagnation(
+  skills: ReadonlyMap<string, SkillState>,
+  samples: readonly MetricSample[],
+  now: number,
+  ladders: LadderTargets,
+): Stagnation[] {
+  const from = now - STAGNATION_WINDOW_DAYS * DAY_MS;
+  const oldEnough = (list: readonly MetricSample[]) =>
+    list[0]!.at <= now - STAGNATION_MIN_ELAPSED_DAYS * DAY_MS;
   const out: Stagnation[] = [];
-  for (const skill of skills.values()) {
-    const rule = watched.find(
-      (w) => skill.subjectKey.startsWith(w.prefix) && skill.subjectKey.split(':').length === 2,
-    );
-    if (!rule) continue;
-    const summary = skill.metrics[rule.metric];
-    if (!summary || summary.firstAt >= cutoff || summary.lastAt < cutoff) continue;
-    const before: number[] = [];
-    const recent: number[] = [];
-    for (const [day, value] of Object.entries(summary.dayBest)) {
-      (new Date(`${day}T12:00:00`).getTime() < cutoff ? before : recent).push(value);
-    }
-    if (before.length === 0 || recent.length === 0) continue;
-    if (Math.max(...recent) <= Math.max(...before)) {
-      out.push({ subjectKey: skill.subjectKey, metric: rule.metric, prescription: rule.prescription });
-    }
+
+  for (const [key, list] of windowSamples(samples, PAIR_METRIC, from, now)) {
+    if (!key.startsWith('pair:') || list.length < STAGNATION_MIN_RUNS || !oldEnough(list)) continue;
+    if (pairPassed(skills, key.slice('pair:'.length))) continue;
+    const values = list.map((s) => s.value);
+    if (median(values.slice(-3))! - median(values.slice(0, 3))! < PLATEAU_MIN_GAIN)
+      out.push({ subjectKey: key, prescription: 'omcToPfc' });
   }
+
+  for (const [key, list] of windowSamples(samples, 'cleanRate', from, now)) {
+    if (!key.startsWith('pfc:') || list.length < STAGNATION_MIN_RUNS || !oldEnough(list)) continue;
+    const first = list[0]!.value;
+    const last = list.at(-1)!.value;
+    if (last < 0.5 && last - first < 0.1)
+      out.push({ subjectKey: `pair:${key.slice('pfc:'.length)}`, prescription: 'pfcToOmc' });
+  }
+
+  for (const [key, list] of windowSamples(samples, 'clean', from, now)) {
+    if (!key.startsWith('chord:') || !oldEnough(list)) continue;
+    const runs = new Set(list.map((s) => s.attemptId)).size;
+    if (runs < STAGNATION_MIN_RUNS) continue;
+    const level = chordLevel(skills.get(key));
+    if (level === 'acquired' || level === 'mastered') continue;
+    const ratio = (values: readonly MetricSample[]) =>
+      values.filter((s) => s.value >= 1).length / values.length;
+    if (ratio(list.slice(-10)) - ratio(list.slice(0, 10)) < 0.1)
+      out.push({ subjectKey: key, prescription: 'pluckMode' });
+  }
+
+  for (const [key, list] of windowSamples(samples, 'ladderBpm', from, now)) {
+    if (!isLadderSubject(key) || list.length < STAGNATION_MIN_RUNS || !oldEnough(list)) continue;
+    const current = list.at(-1)!.value;
+    if (ladders.done(key, current)) continue;
+    if (current - list[0]!.value < 5) out.push({ subjectKey: key, prescription: 'slowerTempo' });
+  }
+
   return out.sort((a, b) => a.subjectKey.localeCompare(b.subjectKey));
 }
 
-/** Switch from the two-finger G to the three-finger G once the two-finger G is acquired (Stage 6 "후반"). */
+// --- G voicing ---------------------------------------------------------------------------------------------
+
+/**
+ * SPEC v1.1 §6.4: two-finger G acquired (Stage 6+) → suggest the three-finger G; three-finger G acquired at
+ * Stage 8+ → suggest the four-finger G. Returns the suggested voicing (equal to the current one = no card).
+ */
 export function suggestedGVoicing(
-  state: ProgressionState,
+  state: Pick<ProgressionState, 'stage' | 'gVoicing'>,
   skills: ReadonlyMap<string, SkillState>,
-): 'G-2f' | 'G-3f' {
-  if (state.gVoicing === 'G-3f') return 'G-3f';
-  const level = chordLevel(skills.get('chord:G-2f'));
-  return state.stage >= 6 && (level === 'acquired' || level === 'mastered') ? 'G-3f' : 'G-2f';
+): GVoicing {
+  const acquired = (id: string) => {
+    const level = chordLevel(skills.get(`chord:${id}`));
+    return level === 'acquired' || level === 'mastered';
+  };
+  if (state.gVoicing === 'G-2f' && state.stage >= 6 && acquired('G-2f')) return 'G-3f';
+  if (state.gVoicing === 'G-3f' && state.stage >= 8 && acquired('G-3f')) return 'G-4f';
+  return state.gVoicing;
 }
+
+// --- strum mode ladder ---------------------------------------------------------------------------------------
+
+/**
+ * Two practice days in a row (among the days this subject was practised) with a pass at ≥ `bpm`
+ * (SPEC v1.1 §6.10 / §7.1 "연속한 두 연습일", research 01:309).
+ */
+export function passedOnConsecutiveDays(skill: SkillState | undefined, bpm: number): boolean {
+  const practiced = Object.keys(skill?.metrics.hitRate?.dayBest ?? {}).sort();
+  const passes = skill?.metrics.passBpm?.dayBest ?? {};
+  for (let i = 1; i < practiced.length; i++) {
+    if ((passes[practiced[i - 1]!] ?? 0) >= bpm && (passes[practiced[i]!] ?? 0) >= bpm) return true;
+  }
+  return false;
+}
+
+export function modeGraduated(
+  skills: ReadonlyMap<string, SkillState>,
+  patternId: string,
+  mode: (typeof STRUM_MODES)[number],
+): boolean {
+  return passedOnConsecutiveDays(skills.get(`strum:${patternId}:${mode}`), modeOpenBpm(patternId));
+}
+
+/** Open modes of a pattern, in order: mute is always open; each graduation opens the next (§6.10). */
+export function openModes(
+  skills: ReadonlyMap<string, SkillState>,
+  patternId: string,
+): (typeof STRUM_MODES)[number][] {
+  const open: (typeof STRUM_MODES)[number][] = ['mute'];
+  for (let i = 0; i < STRUM_MODES.length - 1; i++) {
+    if (!modeGraduated(skills, patternId, STRUM_MODES[i]!)) break;
+    open.push(STRUM_MODES[i + 1]!);
+  }
+  return open;
+}
+
+// --- graduation into the review queue -------------------------------------------------------------------------
 
 export interface Graduation {
   subjectKey: string;
@@ -268,29 +522,26 @@ export interface Graduation {
 }
 
 /**
- * Items that have graduated and belong in the review queue (SPEC §7.5): acquired chords, pairs at ≥ 30 on
- * two days, patterns passed at their target tempo on two days, completed songs.
+ * Items that have graduated and belong in the review queue (SPEC v1.1 §7.5): acquired chords, pairs passed
+ * (≥ 30 on two days), patterns whose progression mode graduated (§6.10), songs played through without a stop
+ * in perform / hidden stage (repertoire, §11.10).
  */
-export function graduatedItems(
-  skills: ReadonlyMap<string, SkillState>,
-  patternTargets: Readonly<Record<string, number>>,
-): Graduation[] {
+export function graduatedItems(skills: ReadonlyMap<string, SkillState>): Graduation[] {
   const out: Graduation[] = [];
   for (const skill of skills.values()) {
     const key = skill.subjectKey;
     const parts = key.split(':');
-    if (parts.length !== 2) continue;
-    if (key.startsWith('chord:')) {
+    if (key.startsWith('chord:') && parts.length === 2) {
       const level = chordLevel(skill);
       if (level === 'acquired' || level === 'mastered') out.push({ subjectKey: key, kind: 'chord' });
-    } else if (key.startsWith('pair:')) {
-      if (daysReaching(skill, 'cpm', 30) >= 2) out.push({ subjectKey: key, kind: 'pair' });
-    } else if (key.startsWith('strum:')) {
-      const target = patternTargets[parts[1]!];
-      if (target !== undefined && daysReaching(skill, 'passBpm', target) >= 2)
-        out.push({ subjectKey: key, kind: 'pattern' });
-    } else if (key.startsWith('song:')) {
-      if ((skill.metrics.completed?.best ?? 0) >= 1) out.push({ subjectKey: key, kind: 'song' });
+    } else if (key.startsWith('pair:') && parts.length === 2) {
+      if (daysReaching(skill, PAIR_METRIC, PAIR_PASS_CPM) >= PAIR_PASS_DAYS)
+        out.push({ subjectKey: key, kind: 'pair' });
+    } else if (key.startsWith('strum:') && parts.length === 3 && parts[2] === 'progression') {
+      if (passedOnConsecutiveDays(skill, modeOpenBpm(parts[1]!)))
+        out.push({ subjectKey: `strum:${parts[1]}`, kind: 'pattern' });
+    } else if (key.startsWith('song:') && parts.length === 2) {
+      if ((skill.metrics.repertoire?.best ?? 0) >= 1) out.push({ subjectKey: key, kind: 'song' });
     }
   }
   return out.sort((a, b) => a.subjectKey.localeCompare(b.subjectKey));

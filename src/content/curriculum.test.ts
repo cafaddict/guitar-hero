@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CORE_PAIRS, pairId, parseDirected } from '../domain/pairs';
+import { pairId } from '../domain/pairs';
 import { unlockedChordClasses } from '../domain/progression';
 import { CURRICULUM } from './curriculum';
 import { patternById } from './patterns';
@@ -34,29 +34,46 @@ describe('AC-D3 curriculum data', () => {
     for (const s of CURRICULUM) for (const id of s.newChords) expect(hasVoicing(id)).toBe(true);
   });
 
-  it('expresses unlock rules as data (rule kinds only, no per-stage code)', () => {
+  it('expresses unlock rules as data (rule kinds only, no per-stage code; v1.1 §7.4 kinds)', () => {
     const kinds = new Set(CURRICULUM.flatMap((s) => s.unlockRules.map((r) => r.kind)));
     expect([...kinds].sort()).toEqual([
+      'chordCleanRatioAtLeast',
       'countAtLeast',
+      'daysInStageAtLeast',
       'examPassed',
       'metricAtLeast',
-      'recallUnlocked',
+      'pairsPassedAtLeast',
+      'quizRunAtLeast',
+      'recallPassed',
+      'scaleMemorized',
+      'scaleStepGraduated',
       'sessionsInStageAtLeast',
+      'songsCompletedAtLeast',
       'unlockedPairsAtLeast',
     ]);
     expect(CURRICULUM[7]!.unlockRules).toContainEqual({ kind: 'examPassed' });
+    // §7.1 / §7.2: Stage 8–11 stay at least 8 sessions and 14 days.
+    for (const s of CURRICULUM.filter((x) => x.stage >= 8)) {
+      expect(s.unlockRules).toContainEqual({ kind: 'sessionsInStageAtLeast', count: 8 });
+      expect(s.unlockRules).toContainEqual({ kind: 'daysInStageAtLeast', days: 14 });
+    }
   });
 
-  it('focus pairs are core pairs among chords unlocked at that stage', () => {
-    const core = new Set(CORE_PAIRS.map(([a, b]) => pairId(a, b)));
+  it('pairs and E5 progressions (v1.1 §6.5, §6.10): Stage 8–11 own pair sets, progressions of ≥ 2 chords', () => {
+    expect(CURRICULUM.map((s) => s.stagePairs.length)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 5, 8]);
+    for (const s of CURRICULUM) {
+      for (const id of s.stagePairs)
+        expect(id, `${id} sorted`).toBe(pairId(...(id.split('|') as [string, string])));
+      if (s.stage === 0) expect(s.rhythmProgression).toEqual([]);
+      else
+        expect(new Set(s.rhythmProgression).size, `stage ${s.stage} progression`).toBeGreaterThanOrEqual(2);
+    }
     for (const s of CURRICULUM.filter((x) => !x.locked)) {
       const unlocked = new Set(unlockedChordClasses(CURRICULUM, s.stage));
-      for (const dir of s.focusPairs) {
-        const [a, b] = parseDirected(dir);
-        expect(core.has(pairId(a, b)), `${dir} is a core pair`).toBe(true);
-        expect(unlocked.has(a) && unlocked.has(b), `${dir} unlocked at stage ${s.stage}`).toBe(true);
-      }
-      for (const r of s.rhythm) expect(() => patternById(r.patternId)).not.toThrow();
+      for (const chord of s.rhythmProgression)
+        expect(unlocked.has(chord), `${chord} at stage ${s.stage}`).toBe(true);
+      for (const entry of [...s.rotation.rhythm])
+        if (entry.type === 'E5') expect(() => patternById(String(entry.params.patternId))).not.toThrow();
     }
   });
 

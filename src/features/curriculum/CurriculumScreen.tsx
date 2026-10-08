@@ -8,6 +8,7 @@ import { ko } from '../../i18n/ko';
 import { Screen } from '../../ui/Screen';
 import { type StoredState, stageChecklist } from '../home/homeModel';
 import { RuleChecklist } from '../home/RuleChecklist';
+import { practiceRefLabel } from './practiceRefLabel';
 
 const linkClass = 'inline-flex min-h-12 items-center rounded-lg bg-surface-2 px-4 font-semibold';
 
@@ -87,7 +88,12 @@ export function StageScreen() {
       <h2 className="mt-4 text-lg font-bold">{ko.curriculum.learn}</h2>
       <ul className="list-disc pl-6">
         {def.learn.map((l) => (
-          <li key={l}>{l}</li>
+          <li key={l.text}>
+            {l.text}
+            <span className="block text-sm text-muted">
+              {ko.curriculum.practicedBy(l.practicedBy.map(practiceRefLabel).join(', '))}
+            </span>
+          </li>
         ))}
       </ul>
       <h2 className="mt-4 text-lg font-bold">{ko.curriculum.tips}</h2>

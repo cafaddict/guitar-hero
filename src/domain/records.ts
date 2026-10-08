@@ -2,6 +2,7 @@
  * Record types shared by the data layer and the pure domain engines (SPEC §13).
  * Attempts are facts (append-only); metric samples and skill states are caches derived from them.
  */
+import type { GVoicing } from '../content/voicings';
 
 export interface MetricSampleInput {
   subjectKey: string;
@@ -39,6 +40,8 @@ export interface Session {
   stage: number;
   /** Practice time without pauses (§8.5 clock differences); absent on sessions stored before it existed. */
   practiceMs?: number;
+  /** Second half of a split 30-minute session: the id of the first half (SPEC v1.1 §7.3-11). */
+  splitOf?: string;
 }
 
 /** Practice time of a finished session: the paused-excluded time when stored, else start → end. */
@@ -64,6 +67,8 @@ export interface Attempt {
   processingMs: number;
   /** Review subject when the attempt was scheduled from the review queue. */
   reviewOf: string | null;
+  /** Key of the routine item that started this attempt (`<exercise>|<subject>`, SPEC v1.1 §7.3); absent otherwise. */
+  routineKey?: string | null;
 }
 
 export interface MetricSummary {
@@ -84,7 +89,17 @@ export interface SkillState {
   metrics: Record<string, MetricSummary>;
 }
 
-export type ReviewKind = 'chord' | 'pair' | 'pattern' | 'song';
+/** Review queue kinds (SPEC v1.1 §7.5, §13.2): graduated items plus knowledge cards. */
+export type ReviewKind = 'chord' | 'pair' | 'pattern' | 'song' | 'scale' | 'riff' | 'card';
+export const REVIEW_KINDS: readonly ReviewKind[] = [
+  'chord',
+  'pair',
+  'pattern',
+  'song',
+  'scale',
+  'riff',
+  'card',
+];
 
 export interface ReviewItem {
   subjectKey: string;
@@ -96,19 +111,48 @@ export interface ReviewItem {
   lapses: number;
 }
 
+/**
+ * Prescriptions (SPEC v1.1 §7.4): added by stagnation detection (2 weeks) or a conditional promotion (3 weeks).
+ * They are extra routine items; they never displace rotation guarantees. One prescription per subject.
+ */
+export type PrescriptionKind =
+  /** One-minute changes stagnated → precise fast changes (E3) + anchor/air drill (E4) on that pair. */
+  | 'omcToPfc'
+  /** Precise fast changes stagnated → back to one-minute changes (E2) on that pair. */
+  | 'pfcToOmc'
+  /** Chord precision stagnated → pluck mode (Mode A) + that chord's coaching tip card. */
+  | 'pluckMode'
+  /** Tempo ladder stagnated → start one week at the current ladder tempo − 10. */
+  | 'slowerTempo';
+
+export interface Prescription {
+  kind: PrescriptionKind;
+  subjectKey: string;
+  /** Session number (the user's n-th session) in which it was added. */
+  startedSession: number;
+  startedAt: number;
+  /** Expires once `currentSession − startedSession ≥ expiresAfterSessions` (also on `expiresAt`, if set). */
+  expiresAfterSessions: number;
+  expiresAt?: number;
+  reason: 'stagnation' | 'conditionalPromotion';
+}
+
 export interface ProgressionState {
   key: 'current';
   stage: number;
   stageEnteredAt: number;
   /** Sessions completed since entering the current stage. */
   sessionsInStage: number;
-  gVoicing: 'G-2f' | 'G-3f';
+  gVoicing: GVoicing;
   history: { stage: number; enteredAt: number; leftAt: number; conditional: boolean }[];
   /** Graduation exam (SPEC §7.6) items '1'..'5' → time passed. */
   exam: Record<string, number>;
   completedBeginner1: boolean;
-  /** Conditional promotion prescriptions carried into the next stage (pair ids needing anchor/air drills). */
-  prescribedDrills: string[];
+  /** Stage 11 rules met (SPEC v1.1 §7.7). */
+  completedBeginner2: boolean;
+  beginner2CompletedAt?: number;
+  /** Active prescriptions (v1 `prescribedDrills` replaced, schema v2). */
+  prescriptions: Prescription[];
 }
 
 export const RECENT_LIMIT = 10;
@@ -140,7 +184,8 @@ export function initialProgression(now: number): ProgressionState {
     history: [],
     exam: {},
     completedBeginner1: false,
-    prescribedDrills: [],
+    completedBeginner2: false,
+    prescriptions: [],
   };
 }
 

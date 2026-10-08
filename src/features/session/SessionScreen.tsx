@@ -9,6 +9,7 @@ import type { RoutineItem } from '../../content/schemas';
 import { newId } from '../../domain/ids';
 import type { SelfReport } from '../../domain/records';
 import { generateRoutine } from '../../domain/routine';
+import { prepareSession } from '../../domain/sessionPrep';
 import { contentContextFor } from '../../exercises/contentContext';
 import { exerciseDefinition } from '../../exercises/registry';
 import type { ContentContext } from '../../exercises/types';
@@ -172,8 +173,18 @@ export function SessionScreen() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const stored = await loadStoredState(Date.now());
-      const plan = generateRoutine(routineInputFrom(stored, Date.now()));
+      const loadedAt = Date.now();
+      const stored = await loadStoredState(loadedAt);
+      // Session start (SPEC v1.1 §7.4): expire prescriptions, detect stagnation, then plan the routine.
+      const prep = prepareSession({
+        progression: stored.progression,
+        skills: stored.skills,
+        recentSamples: stored.recentSamples,
+        sessionNumber: stored.history.sessionNumber,
+        now: loadedAt,
+      });
+      if (prep.added.length > 0 || prep.expired.length > 0) await repo.saveProgression(prep.progression);
+      const plan = generateRoutine(routineInputFrom({ ...stored, progression: prep.progression }, loadedAt));
       if (cancelled) return;
       const items = plan.kind === 'rest' ? [] : plan.items;
       setLoaded({
@@ -323,7 +334,8 @@ export function SessionScreen() {
           definition={definition}
           params={rerun.params ?? pluginParamsFor(item, definition, loaded.content)}
           sessionId={sessionId}
-          reviewOf={item.block === 'review' ? (item.subjectKey ?? null) : null}
+          reviewOf={item.reviewOf ?? null}
+          routineKey={item.key ?? null}
           autoFocusStart
           onActiveChange={setRunActive}
           onFinished={(attempt) => {

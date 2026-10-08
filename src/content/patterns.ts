@@ -55,3 +55,15 @@ export function patternById(id: string): StrumPattern {
 export function slotsPerBeat(pattern: StrumPattern): number {
   return pattern.timeSignature === '6/8' ? 3 : 2;
 }
+
+/** Pattern practice modes, opened in this order (SPEC v1.1 §6.10 "뮤트 → 단일 코드 → 진행"). */
+export const STRUM_MODES = ['mute', 'single', 'progression'] as const;
+export type StrumMode = (typeof STRUM_MODES)[number];
+
+/** A mode graduates at this tempo (P3·P4 80, the others 70 — SPEC v1.1 §6.10, design value). */
+export function modeOpenBpm(patternId: string): number {
+  return patternId === 'P3' || patternId === 'P4' ? 80 : 70;
+}
+
+/** A newly opened mode (and every pattern ladder) starts here (SPEC §11.6). */
+export const STRUM_START_BPM = 60;

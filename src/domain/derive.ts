@@ -2,12 +2,12 @@
  * Derived state from attempts (SPEC §13.1-3): metric samples, skill states and the review queue are caches
  * that can always be recomputed by replaying attempts in order through applyAttempt().
  */
-import { patternById, STRUM_PATTERNS } from '../content/patterns';
-import { extractMetrics } from './exerciseResults';
+import { modeOpenBpm } from '../content/patterns';
+import { extractMetrics, recallResultSchema } from './exerciseResults';
 import { graduatedItems } from './progression';
 import { type Attempt, dayKey, type MetricSample, type ReviewItem, type SkillState } from './records';
 import { applySample } from './skills';
-import { enqueueReview, recordReview } from './srs';
+import { enqueueReview, recordCardAnswer, recordReview } from './srs';
 
 export interface DerivedState {
   skills: Map<string, SkillState>;
@@ -20,10 +20,6 @@ export interface AttemptDerivation {
   changedReviews: ReviewItem[];
 }
 
-export const PATTERN_TARGETS: Readonly<Record<string, number>> = Object.fromEntries(
-  STRUM_PATTERNS.filter((p) => p.targetBpm !== undefined).map((p) => [p.id, p.targetBpm!]),
-);
-
 /** Whether a review attempt passed, judged from the attempt's own samples. */
 export function reviewPassed(reviewOf: string, samples: readonly MetricSample[]): boolean {
   const mine = samples.filter((s) => s.subjectKey === reviewOf);
@@ -33,21 +29,44 @@ export function reviewPassed(reviewOf: string, samples: readonly MetricSample[])
     return mine.some((s) => s.metric === 'cpm' && s.value >= 30);
   }
   if (reviewOf.startsWith('strum:')) {
-    const target = patternById(reviewOf.slice('strum:'.length)).targetBpm ?? 0;
+    // A pattern review passes at the tempo its modes graduate at (SPEC v1.1 §6.10).
+    const target = modeOpenBpm(reviewOf.slice('strum:'.length));
     return mine.some((s) => s.metric === 'passBpm' && s.value >= target);
   }
-  if (reviewOf.startsWith('song:')) return mine.some((s) => s.metric === 'completed' && s.value >= 1);
+  // A song review is a perform-stage run to the end with ≤ 2 stops (SPEC v1.1 §11.10 "완주").
+  if (reviewOf.startsWith('song:')) return mine.some((s) => s.metric === 'performCompleted' && s.value >= 1);
   return false;
 }
 
-/** Applies one attempt to the derived state (mutates `state`) and reports what changed. */
-export function applyAttempt(state: DerivedState, attempt: Attempt): AttemptDerivation {
-  const samples: MetricSample[] = extractMetrics(attempt.exerciseType, attempt.result).map((input) => ({
+/** Knowledge-card answers carried by an attempt (SPEC v1.1 §7.5): Q2 chord cards for now. */
+export function cardAnswers(
+  attempt: Pick<Attempt, 'exerciseType' | 'result'>,
+): { subjectKey: string; correct: boolean; reactionMs: number | null }[] {
+  if (attempt.exerciseType !== 'Q2') return [];
+  const parsed = recallResultSchema.safeParse(attempt.result);
+  if (!parsed.success) return [];
+  return parsed.data.items.map((item) => ({
+    subjectKey: `card:recall:${item.chordClass}`,
+    correct: item.correct,
+    reactionMs: item.reactionMs,
+  }));
+}
+
+/** The metric samples one attempt produces (the same extraction rebuilds and increments use). */
+export function samplesOf(
+  attempt: Pick<Attempt, 'id' | 'exerciseType' | 'result' | 'endedAt'>,
+): MetricSample[] {
+  return extractMetrics(attempt.exerciseType, attempt.result).map((input) => ({
     ...input,
     at: attempt.endedAt,
     day: dayKey(attempt.endedAt),
     attemptId: attempt.id,
   }));
+}
+
+/** Applies one attempt to the derived state (mutates `state`) and reports what changed. */
+export function applyAttempt(state: DerivedState, attempt: Attempt): AttemptDerivation {
+  const samples = samplesOf(attempt);
   const touched = new Map<string, SkillState>();
   for (const sample of samples) {
     const next = applySample(state.skills.get(sample.subjectKey), sample);
@@ -63,7 +82,18 @@ export function applyAttempt(state: DerivedState, attempt: Attempt): AttemptDeri
       changedReviews.set(item.subjectKey, next);
     }
   }
-  for (const graduation of graduatedItems(touched, PATTERN_TARGETS)) {
+  for (const answer of cardAnswers(attempt)) {
+    const next = recordCardAnswer(
+      state.reviews.get(answer.subjectKey),
+      answer.subjectKey,
+      answer.correct,
+      answer.reactionMs,
+      attempt.endedAt,
+    );
+    state.reviews.set(next.subjectKey, next);
+    changedReviews.set(next.subjectKey, next);
+  }
+  for (const graduation of graduatedItems(touched)) {
     if (state.reviews.has(graduation.subjectKey)) continue;
     const item = enqueueReview(graduation.subjectKey, graduation.kind, attempt.endedAt);
     state.reviews.set(item.subjectKey, item);

@@ -5,10 +5,11 @@ import { midiName, STANDARD_TUNING } from '../../domain/theory';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { ChordDiagram } from '../../ui/ChordDiagram';
+import { Tab } from '../../ui/Tab';
 import type { ExerciseContext, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import type { QuizView } from './choiceQuiz';
-import type { DiagramPrompt, EarPrompt, OpenNotePrompt } from './questions';
+import type { DiagramPrompt, EarPrompt, OpenNotePrompt, TabPrompt } from './questions';
 import type { Q2View } from './recall';
 
 function Choices<P>({
@@ -200,5 +201,39 @@ export function Q2Summary({ result }: { result: RecallResult; params: unknown })
     <p className="text-xl font-bold" data-testid="q2-summary">
       {ko.exercises.q2.passed(passed, result.items.length)}
     </p>
+  );
+}
+
+export function Q5View({
+  runner,
+}: {
+  runner: ExerciseRunner<QuizResult, QuizView<TabPrompt>>;
+  params: unknown;
+  ctx: ExerciseContext;
+}) {
+  const { view } = useRunnerSnapshot(runner);
+  const q = view.question;
+  if (!q) return null;
+  return (
+    <div className="flex flex-col gap-3" data-testid="q5-view">
+      <p className="text-sm text-muted">{ko.exercises.quiz.progress(view.index + 1, view.total)}</p>
+      <p className="rounded-lg bg-surface p-3 text-sm">{ko.exercises.q5.topLine}</p>
+      {q.prompt.kind === 'tabToPos' ? (
+        <>
+          <p className="text-xl font-semibold">{ko.exercises.q5.tabToPosPrompt}</p>
+          <div className="max-w-40">
+            <Tab
+              notes={[{ string: q.prompt.string, fret: q.prompt.fret }]}
+              current={0}
+              label={ko.exercises.q5.tabCell(q.prompt.string, q.prompt.fret)}
+            />
+          </div>
+        </>
+      ) : (
+        <p className="text-2xl font-bold">{ko.exercises.q5.posToTabPrompt(q.prompt.string, q.prompt.fret)}</p>
+      )}
+      <Choices runner={runner} view={view} />
+      <Feedback runner={runner} view={view} />
+    </div>
   );
 }

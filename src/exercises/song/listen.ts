@@ -1,5 +1,5 @@
 /** "들어 보기" audio: one down strum per beat of each bar's chord, from the shared synthesizer. */
-import { voicingById, voicingForClass } from '../../content/voicings';
+import { type GVoicing, voicingById, voicingForClass } from '../../content/voicings';
 import { STANDARD_TUNING } from '../../domain/theory';
 import { expectedNotes } from '../../domain/voicing';
 import { randomTimbre } from '../../dsp/synth/note';
@@ -9,7 +9,7 @@ export function renderChordProgression(
   chords: readonly string[],
   bpm: number,
   sampleRate: number,
-  gVoicing: 'G-2f' | 'G-3f',
+  gVoicing: GVoicing,
   beatsPerBar = 4,
 ): Float32Array {
   const beatS = 60 / bpm;

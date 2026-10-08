@@ -2,7 +2,7 @@
  * Beginner 1 graduation exam (SPEC §7.6) as measurable, separately passable items. Pure rules over exercise
  * results and stored skills; the screen runs the exercises and records passes in progression.exam.
  */
-import { BEGINNER_CHORD_CLASSES, voicingForClass } from '../../content/voicings';
+import { BEGINNER_CHORD_CLASSES, type GVoicing, voicingForClass } from '../../content/voicings';
 import {
   changesPerMinute,
   type OneMinuteResult,
@@ -36,7 +36,7 @@ export function exam1Passed(result: TuningResult): boolean {
 export function exam2Passed(
   recall: RecallResult,
   skills: ReadonlyMap<string, SkillState>,
-  gVoicing: 'G-2f' | 'G-3f',
+  gVoicing: GVoicing,
 ): { passed: boolean; clean: Record<string, number | null> } {
   const clean: Record<string, number | null> = {};
   for (const cls of BEGINNER_CHORD_CLASSES)
@@ -88,7 +88,7 @@ export function exam5Songs(skills: ReadonlyMap<string, SkillState>): number {
 export function evaluateExamItem(
   item: '1' | '2' | '3' | '4' | '5',
   results: readonly unknown[],
-  state: { skills: ReadonlyMap<string, SkillState>; gVoicing: 'G-2f' | 'G-3f' },
+  state: { skills: ReadonlyMap<string, SkillState>; gVoicing: GVoicing },
 ): { passed: boolean; detail: Record<string, unknown> } {
   if (results.some((r) => r === null || r === undefined)) return { passed: false, detail: { aborted: true } };
   switch (item) {

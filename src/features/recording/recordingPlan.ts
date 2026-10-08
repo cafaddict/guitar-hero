@@ -4,7 +4,7 @@
  * one-minute-change clip (the user enters the count) and 8 bars against the metronome. labels.json matches
  * tools/bench/real.ts (`bench:real`).
  */
-import { voicingById, voicingForClass } from '../../content/voicings';
+import { type GVoicing, voicingById, voicingForClass } from '../../content/voicings';
 import type { Calibration, RecordingMeta } from '../../domain/records';
 import { STANDARD_TUNING } from '../../domain/theory';
 import { partialCollisionMap } from '../../domain/voicing';
@@ -28,7 +28,7 @@ export interface PlannedClip {
 
 export const STRUM_GRID = { patternId: 'P0', bpm: 70, bars: 8 } as const;
 
-export function recordingPlan(chordClasses: readonly string[], gVoicing: 'G-2f' | 'G-3f'): PlannedClip[] {
+export function recordingPlan(chordClasses: readonly string[], gVoicing: GVoicing): PlannedClip[] {
   const classes = chordClasses.length > 0 ? chordClasses.slice(-3) : ['C', 'D', 'G'];
   const clips: PlannedClip[] = [];
   for (const cls of classes) {

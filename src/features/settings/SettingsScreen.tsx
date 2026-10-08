@@ -415,10 +415,16 @@ export function SettingsScreen() {
             onChange={(micDisabled) => set({ micDisabled })}
             testId="setting-mic-disabled"
           />
+          <Toggle
+            label={ko.settingsScreen.sessionLengthTemplate}
+            checked={settings.sessionLengthMode === 'template'}
+            onChange={(byStage) => set({ sessionLengthMode: byStage ? 'template' : 'custom' })}
+            testId="setting-session-template"
+          />
           <MinutesInput
             label={ko.settingsScreen.sessionMinutes}
             value={settings.sessionMinutes}
-            onCommit={(v) => set({ sessionMinutes: v })}
+            onCommit={(v) => set({ sessionMinutes: v, sessionLengthMode: 'custom' })}
           />
         </section>
         <KeysSection />

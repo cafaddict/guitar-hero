@@ -1,9 +1,11 @@
 /**
- * Review queue (spaced repetition) and weekly streak (SPEC §7.5). Pure.
+ * Review queue (spaced repetition) and weekly streak (SPEC v1.1 §7.5). Pure.
+ * Graduated items (chords, pairs, patterns, scale steps, riffs) and knowledge cards use the fixed ladder
+ * 1 → 3 → 7 → 14 → 30 → 90 days (research 01:269, 01:353; D-055); songs use 1 week … 1 year (01:363).
  */
 import { DAY_MS, dayKey, type ReviewItem, type ReviewKind } from './records';
 
-/** Graduated chords, pairs and patterns: 1 → 3 → 7 → 14 → 30 → 90 days. */
+/** Graduated chords, pairs, patterns, scale steps, riffs and knowledge cards: 1 → 3 → 7 → 14 → 30 → 90 days. */
 export const REVIEW_INTERVALS_DAYS: readonly number[] = [1, 3, 7, 14, 30, 90];
 /** Songs: 1 week → 2 weeks → 1 month → 3 months → 6 months → 1 year. */
 export const SONG_REVIEW_INTERVALS_DAYS: readonly number[] = [7, 14, 30, 90, 180, 365];
@@ -34,6 +36,43 @@ export function recordReview(item: ReviewItem, passed: boolean, now: number): Re
     due: now + intervals[step]! * DAY_MS,
     lastReviewedAt: now,
     lapses: item.lapses + (passed ? 0 : 1),
+  };
+}
+
+/** A knowledge card answer counts as "fast" under this reaction time (SPEC v1.1 §7.5). */
+export const CARD_FAST_MS = 3000;
+
+/**
+ * Knowledge cards (Q2 chord cards, Q3 note cards, Q4 question types — SPEC v1.1 §7.5): a new card starts at
+ * 1 day; correct and < 3 s → next interval, correct but slow → same interval, wrong → back to 1 day.
+ */
+export function recordCardAnswer(
+  card: ReviewItem | undefined,
+  subjectKey: string,
+  correct: boolean,
+  reactionMs: number | null,
+  now: number,
+): ReviewItem {
+  const intervals = intervalsFor('card');
+  if (!card) {
+    return {
+      subjectKey,
+      kind: 'card',
+      step: 0,
+      due: now + intervals[0]! * DAY_MS,
+      enqueuedAt: now,
+      lastReviewedAt: now,
+      lapses: correct ? 0 : 1,
+    };
+  }
+  const fast = correct && reactionMs !== null && reactionMs < CARD_FAST_MS;
+  const step = !correct ? 0 : fast ? Math.min(card.step + 1, intervals.length - 1) : card.step;
+  return {
+    ...card,
+    step,
+    due: now + intervals[step]! * DAY_MS,
+    lastReviewedAt: now,
+    lapses: card.lapses + (correct ? 0 : 1),
   };
 }
 

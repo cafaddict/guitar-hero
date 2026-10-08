@@ -12,17 +12,31 @@ export function ruleText(evaluation: RuleEvaluation): string {
       return ko.rules.distinctDaysAtLeast(rule.subject, rule.value, rule.days);
     case 'unlockedPairsAtLeast':
       return ko.rules.unlockedPairsAtLeast(rule.value, rule.days);
-    case 'recallUnlocked':
-      return ko.rules.recallUnlocked;
+    case 'pairsPassedAtLeast':
+      return ko.rules.pairsPassedAtLeast(rule.minCount, rule.pairs.length);
+    case 'recallPassed':
+      return ko.rules.recallPassed(rule.voicingIds.join(', '));
     case 'sessionsInStageAtLeast':
       return ko.rules.sessionsInStageAtLeast(rule.count);
+    case 'daysInStageAtLeast':
+      return ko.rules.daysInStageAtLeast(rule.days);
+    case 'songsCompletedAtLeast':
+      return ko.rules.songsCompletedAtLeast(rule.count, rule.filter.stage ?? null);
+    case 'scaleStepGraduated':
+      return ko.rules.scaleStepGraduated(rule.scaleId, rule.step, rule.bpm);
+    case 'scaleMemorized':
+      return ko.rules.scaleMemorized(rule.scaleId);
+    case 'chordCleanRatioAtLeast':
+      return ko.rules.chordCleanRatioAtLeast(rule.voicingIds.join('·'), rule.ratio);
+    case 'quizRunAtLeast':
+      return ko.rules.quizRunAtLeast(rule.questions, rule.accuracy);
     case 'examPassed':
       return ko.rules.examPassed;
   }
 }
 
 /** Rules whose `missing` entries are meaningful to show (pairs, chord classes); others only name the subject. */
-const LISTS_MISSING = new Set(['unlockedPairsAtLeast', 'recallUnlocked']);
+const LISTS_MISSING = new Set(['unlockedPairsAtLeast', 'pairsPassedAtLeast', 'recallPassed']);
 
 /** Stage criteria with progress; met rules carry a check mark and text (not colour alone). */
 export function RuleChecklist({ rules }: { rules: readonly RuleEvaluation[] }) {

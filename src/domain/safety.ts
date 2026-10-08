@@ -35,7 +35,7 @@ export function decideSessionLength(
 
 export type PainAdvice = 'none' | 'reduceFingertipLoad' | 'restDay';
 
-/** Rule 7: danger symptoms → rest day; pain ≥ 5/10 → halve fingertip-load items (E1, E2). */
+/** Rule 7: danger symptoms → rest day; pain ≥ 5/10 → halve fingertip-load items (E1, E2, E3), drop E11/E12. */
 export function painAdvice(lastReport: SelfReport | null): PainAdvice {
   if (!lastReport) return 'none';
   if (lastReport.dangerFlags.length > 0) return 'restDay';
@@ -43,8 +43,11 @@ export function painAdvice(lastReport: SelfReport | null): PainAdvice {
   return 'none';
 }
 
-/** Exercise types that load the fingertips (rule 7). */
-export const FINGERTIP_LOAD_TYPES: ReadonlySet<string> = new Set(['E1', 'E2']);
+/** Exercise types that load the fingertips (rule 7): halved after a pain report. */
+export const FINGERTIP_LOAD_TYPES: ReadonlySet<string> = new Set(['E1', 'E2', 'E3']);
+
+/** Exercise types left out entirely the day after a pain report (SPEC v1.1 §7.3-7: hammer-ons, pinky). */
+export const REMOVED_ON_PAIN_TYPES: ReadonlySet<string> = new Set(['E11', 'E12']);
 
 /**
  * Rule 8: break reminder after 30 minutes of continuous practice. `continuousMs` is measured from the
@@ -59,4 +62,17 @@ export function nextStretchStartFret(currentStartFret: number, recentPains: read
   const lastThree = recentPains.slice(-3);
   if (lastThree.length === 3 && lastThree.every((p) => p <= 2)) return Math.max(1, currentStartFret - 1);
   return currentStartFret;
+}
+
+/** E7 default start fret (SPEC §11.8). */
+export const STRETCH_DEFAULT_START_FRET = 5;
+
+/**
+ * Today's E7 start fret from the stretch records, oldest first (SPEC v1.1 §7.4): the fret of the latest run, one
+ * lower once the last three runs at that fret all had pain ≤ 2 (`nextStretchStartFret`); 1 = graduated.
+ */
+export function stretchStartFretFrom(runs: readonly { startFret: number; pain: number | null }[]): number {
+  const current = runs.at(-1)?.startFret ?? STRETCH_DEFAULT_START_FRET;
+  const pains = runs.filter((r) => r.startFret === current && r.pain !== null).map((r) => r.pain as number);
+  return nextStretchStartFret(current, pains);
 }

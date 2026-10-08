@@ -40,6 +40,16 @@ async function playItem(page: Page): Promise<string> {
         await page.keyboard.press('1');
         await page.keyboard.press('Enter');
       }
+    } else if (type === 'K1') {
+      // v1.1 Stage 0 self-check cards (posture, pick, counting aloud): 1 = 됐어요 on each card.
+      for (let card = 0; card < 3; card++) {
+        await expect(page.getByTestId('k1-view')).toBeVisible();
+        await page.keyboard.press('1');
+      }
+    } else if (type === 'E16') {
+      // v1.1 fret-position comparison without a microphone: rate each of the 6 plucks (1 = clean).
+      await expect(page.getByTestId('e16-view')).toBeVisible();
+      for (let pluck = 0; pluck < 6; pluck++) await page.keyboard.press('1');
     } else {
       throw new Error(`unexpected stage-0 item ${type}`);
     }

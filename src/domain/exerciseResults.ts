@@ -151,6 +151,43 @@ export const examResultSchema = z.object({
   detail: z.record(z.string(), z.unknown()),
 });
 
+/** K1 self-check cards (SPEC v1.1 §11.12): "됐어요 / 아직" per item, no score. */
+export const selfCheckResultSchema = z.object({
+  items: z.array(z.object({ id: z.string(), status: z.enum(['done', 'notYet']) })).min(1),
+});
+
+/** E16 fret-position comparison (SPEC v1.1 §11.18): the same note plucked at three positions, no pass/fail. */
+export const fretPositionResultSchema = z.object({
+  positions: z.array(
+    z.object({
+      pos: z.enum(['behind', 'middle', 'onFret']),
+      statuses: z.array(z.enum(['OK', 'WEAK', 'MUTED', 'WRONG_NOTE', 'clean', 'muted', 'buzz'])),
+      clarity: z.number().nullable(),
+      decayRatio: z.number().nullable(),
+    }),
+  ),
+  source: z.enum(['mic', 'self']),
+});
+
+/** One cycle of a single-note sequence exercise (SPEC v1.1 §10.10): flawless, uncertain, or with mistakes. */
+export const sequenceCycleSchema = z.object({
+  flawless: z.boolean(),
+  uncertain: z.boolean(),
+  stops: z.number().int().min(0),
+  /** Share of OK notes (null when self-reported). */
+  okRatio: z.number().nullable(),
+});
+
+/** E17 single-note riff (SPEC v1.1 §11.19): ladder over flawless cycles. */
+export const riffResultSchema = z.object({
+  riffId: z.string(),
+  bpm: z.number(),
+  tabHidden: z.boolean(),
+  cycles: z.array(sequenceCycleSchema),
+  ladder: z.enum(['up', 'down', 'stay']),
+  source: z.enum(['mic', 'self']),
+});
+
 export type TuningResult = z.infer<typeof tuningResultSchema>;
 export type ChordCheckResult = z.infer<typeof chordCheckResultSchema>;
 export type ChordCheckAttempt = z.infer<typeof chordCheckAttemptSchema>;
@@ -164,9 +201,32 @@ export type QuizResult = z.infer<typeof quizResultSchema>;
 export type RecallResult = z.infer<typeof recallResultSchema>;
 export type SongResult = z.infer<typeof songResultSchema>;
 export type ExamResult = z.infer<typeof examResultSchema>;
+export type SelfCheckResult = z.infer<typeof selfCheckResultSchema>;
+export type FretPositionResult = z.infer<typeof fretPositionResultSchema>;
+export type SequenceCycle = z.infer<typeof sequenceCycleSchema>;
+export type RiffResult = z.infer<typeof riffResultSchema>;
+
+/** Song stage thresholds (SPEC v1.1 §11.10). */
+export const SONG_COMPLETE_MAX_STOPS = 2;
+export const SONG_MEMORIZED_MAX_STOPS = 1;
 
 /** Recall must be answered within this time to count as a pass (SPEC §7.1, §7.6-2). */
 export const RECALL_LIMIT_MS = 3000;
+
+/**
+ * Only runs of at least 55 s count toward per-minute criteria (SPEC v1.1 §7.1 "쌍 ≥30", §11.4): pain-reduced
+ * 30 s runs and runs stopped early are stored but never scaled up into a pass.
+ */
+export const QUALIFIED_RUN_MS = 55_000;
+export const LADDER_STEP = 5;
+const BPM_MIN = 30;
+const BPM_MAX = 240;
+
+/** Tempo the ladder starts from next time after a run (SPEC v1.1 §7.4 "사다리 현재 BPM"). */
+export function ladderNextBpm(bpm: number, ladder: 'up' | 'down' | 'stay'): number {
+  const next = ladder === 'up' ? bpm + LADDER_STEP : ladder === 'down' ? bpm - LADDER_STEP : bpm;
+  return Math.min(BPM_MAX, Math.max(BPM_MIN, next));
+}
 
 /** Changes per minute from a one-minute-change result: corrected ?? tap/detected, scaled to 60 s. */
 export function changesPerMinute(r: OneMinuteResult): number {
@@ -213,7 +273,10 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
     const r = oneMinuteResultSchema.parse(raw);
     const cpm = changesPerMinute(r);
     const [from, to] = parseDirected(r.direction);
-    return [m(pairDirKey(from, to), 'cpm', cpm), m(pairKey(from, to), 'cpm', cpm)];
+    const out = [m(pairDirKey(from, to), 'cpm', cpm), m(pairKey(from, to), 'cpm', cpm)];
+    if (r.durationMs >= QUALIFIED_RUN_MS)
+      out.push(m(pairDirKey(from, to), 'cpmQualified', cpm), m(pairKey(from, to), 'cpmQualified', cpm));
+    return out;
   },
   E4: (raw) => {
     const r = anchorDrillResultSchema.parse(raw);
@@ -231,6 +294,7 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
       out.push(m(base, 'passBpm', r.bpm), m(`${base}:${r.mode}`, 'passBpm', r.bpm));
       if (r.cuesHidden) out.push(m(`${base}:hidden`, 'passBpm', r.bpm));
     }
+    out.push(m(`${base}:${r.mode}`, 'ladderBpm', ladderNextBpm(r.bpm, r.ladder)));
     return out;
   },
   E6: (raw) => {
@@ -238,6 +302,7 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
     const key = `onebeat:${r.progression.join('-')}`;
     const out = [m(key, 'barSuccess', r.bars > 0 ? r.barsInWindow / r.bars : 0)];
     if (r.passed) out.push(m(key, 'passBpm', r.bpm));
+    out.push(m(key, 'ladderBpm', ladderNextBpm(r.bpm, r.passed ? 'up' : 'stay')));
     return out;
   },
   E7: (raw) => {
@@ -252,6 +317,7 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
     const out = [m(key, 'hitRate', r.hitRate)];
     if (r.ioiCv !== null) out.push(m(key, 'ioiCv', r.ioiCv));
     if (r.passed) out.push(m(key, 'passBpm', r.bpm), m('altpick:any', 'passBpm', r.bpm));
+    out.push(m(key, 'ladderBpm', ladderNextBpm(r.bpm, r.passed ? 'up' : 'stay')));
     return out;
   },
   Q1: (raw) => {
@@ -287,7 +353,38 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
     ];
     if (r.chartHidden) out.push(m(key, 'hiddenCompleted', r.completed ? 1 : 0));
     if (r.beat1HitRate !== null) out.push(m(key, 'beat1HitRate', r.beat1HitRate));
+    // Song stages (SPEC v1.1 §11.10): a full learn run opens perform after two; "완주" = perform (or hidden)
+    // to the end with ≤ 2 stops; memorized = hidden with ≤ 1 stop; repertoire = perform/hidden with no stop.
+    if (r.mode === 'learn' && r.completed) out.push(m(key, 'learnFull', 1));
+    if (r.mode === 'perform') {
+      out.push(m(key, 'performCompleted', r.completed && r.stops <= SONG_COMPLETE_MAX_STOPS ? 1 : 0));
+      if (r.completed && r.stops === 0) out.push(m(key, 'repertoire', 1));
+      if (r.chartHidden)
+        out.push(m(key, 'hiddenMemorized', r.completed && r.stops <= SONG_MEMORIZED_MAX_STOPS ? 1 : 0));
+    }
     return out;
+  },
+  K1: (raw) => {
+    const r = selfCheckResultSchema.parse(raw);
+    return r.items.map((item) => m(`check:${item.id}`, 'done', item.status === 'done' ? 1 : 0));
+  },
+  E16: (raw) => {
+    fretPositionResultSchema.parse(raw);
+    return [m('fretpos', 'done', 1)];
+  },
+  E17: (raw) => {
+    const r = riffResultSchema.parse(raw);
+    const key = `riff:${r.riffId}`;
+    const out = [
+      m(key, 'flawlessCycles', r.cycles.filter((c) => c.flawless).length),
+      m(key, 'ladderBpm', ladderNextBpm(r.bpm, r.ladder)),
+    ];
+    if (r.ladder === 'up') out.push(m(key, 'passBpm', r.bpm));
+    return out;
+  },
+  Q5: (raw) => {
+    const r = quizResultSchema.parse(raw);
+    return [m('quiz:tab', 'accuracy', r.correct / r.questions)];
   },
   EXAM: (raw) => {
     const r = examResultSchema.parse(raw);

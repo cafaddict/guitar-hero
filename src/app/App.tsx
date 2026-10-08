@@ -9,6 +9,7 @@ import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { PracticeScreen } from '../features/practice/PracticeScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
 import { RecordingKitScreen } from '../features/recording/RecordingKitScreen';
+import { RoutineEditorScreen } from '../features/routineEditor/RoutineEditorScreen';
 import { SessionScreen } from '../features/session/SessionScreen';
 import { DiagnosticsScreen } from '../features/settings/DiagnosticsScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
@@ -86,6 +87,7 @@ const router = createHashRouter([
       { path: '/settings/recording', element: <RecordingKitScreen /> },
       { path: '/practice/:type', element: <PracticeScreen /> },
       { path: '/session', element: <SessionScreen /> },
+      { path: '/routine/edit', element: <RoutineEditorScreen /> },
       { path: '/curriculum', element: <CurriculumScreen /> },
       { path: '/curriculum/:stage', element: <StageScreen /> },
       { path: '/exam', element: <ExamScreen /> },

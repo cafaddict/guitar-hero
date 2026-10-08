@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CURRICULUM } from '../../content/curriculum';
 import { PRACTICE_SONGS } from '../../content/songs';
 import { DEFAULT_SETTINGS } from '../../data/settings';
+import { EMPTY_HISTORY } from '../../domain/history';
 import { DAY_MS, initialProgression, type Session, type SkillState } from '../../domain/records';
 import { generateRoutine } from '../../domain/routine';
 import {
@@ -37,6 +38,10 @@ function state(partial: Partial<StoredState> = {}): StoredState {
     changesDoneToday: 0,
     curriculum: CURRICULUM,
     songs: PRACTICE_SONGS,
+    history: EMPTY_HISTORY,
+    recentSamples: [],
+    stretchStartFret: 5,
+    userTemplates: [],
     ...partial,
   };
 }

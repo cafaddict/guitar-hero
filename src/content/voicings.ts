@@ -105,7 +105,7 @@ export const SEED_VOICINGS: readonly ChordVoicing[] = ROWS.map((row) => {
     fingers: parseFingers(row.fingers),
     baseFret: baseFretOf(frets),
     stage: row.stage,
-    tags: [...(row.tags ?? []), ...(row.stage <= 7 ? ['open', 'beginner1'] : ['preview'])],
+    tags: [...(row.tags ?? []), ...(row.stage <= 7 ? ['open', 'beginner1'] : ['beginner2'])],
     ...(row.nameKo ? { nameKo: row.nameKo } : {}),
     ...(row.barres ? { barres: row.barres } : {}),
   };
@@ -128,12 +128,23 @@ export function hasVoicing(id: string): boolean {
 export const BEGINNER_CHORD_CLASSES = ['D', 'A', 'E', 'Em', 'Am', 'Dm', 'C', 'G'] as const;
 export type BeginnerChordClass = (typeof BEGINNER_CHORD_CLASSES)[number];
 
-/** Chord class → voicing id, resolving G to the user's current G voicing (SPEC §6.5). */
-export function voicingForClass(chordClass: string, gVoicing: 'G-2f' | 'G-3f'): string {
+/** The user's current G voicing (SPEC v1.1 §6.4): two-finger → three-finger → four-finger. */
+export type GVoicing = 'G-2f' | 'G-3f' | 'G-4f';
+export const G_VOICINGS: readonly GVoicing[] = ['G-2f', 'G-3f', 'G-4f'];
+
+/**
+ * Chord class → voicing id, resolving class G to the user's current G voicing (SPEC v1.1 §6.4–6.5). The
+ * four-finger G is also its own class ('G-4f', Stage 8 pairs), which always resolves to itself.
+ */
+export function voicingForClass(chordClass: string, gVoicing: GVoicing): string {
   return chordClass === 'G' ? gVoicing : chordClass;
 }
 
-/** Voicing id → chord class ('G-2f' → 'G'). */
+/**
+ * Voicing id → chord class used in pair and recall keys (SPEC v1.1 §6.5): the two- and three-finger G share
+ * class 'G' so records continue across the switch; every other voicing (G-4f and F-small included) is its own
+ * class.
+ */
 export function classOfVoicing(id: string): string {
-  return id.startsWith('G-') ? 'G' : id;
+  return id === 'G-2f' || id === 'G-3f' ? 'G' : id;
 }

@@ -23,6 +23,18 @@ export type Q2Params = z.infer<typeof q2ParamsSchema>;
 
 type Item = RecallResult['items'][number];
 
+/** Root note of a chord symbol ('Am7' → 'A', 'F#m' → 'F#'). */
+export function chordRoot(symbol: string): string {
+  return /^[A-G][#b]?/.exec(symbol)?.[0] ?? symbol;
+}
+
+/** Every class once per round, each round shuffled, until `count` questions (each candidate asked at least once). */
+export function recallOrder(rng: () => number, classes: readonly string[], count: number): string[] {
+  const out: string[] = [];
+  while (out.length < count) out.push(...shuffled(rng, classes));
+  return out.slice(0, Math.max(count, classes.length));
+}
+
 export interface Q2View {
   index: number;
   total: number;
@@ -50,6 +62,8 @@ export class RecallRunner extends BaseRunner<RecallResult, Q2View> {
   private readonly items: Item[] = [];
   private advanceAt: number | null = null;
   private shownCountdown: number | null = null;
+  /** Classification candidates of the question on screen. */
+  private asked: ChordVoicing[] = [];
 
   constructor(ctx: ExerciseContext, params: Q2Params, voicingOf: (id: string) => ChordVoicing) {
     super(ctx);
@@ -57,9 +71,20 @@ export class RecallRunner extends BaseRunner<RecallResult, Q2View> {
     const classes = unlocked.length >= 2 ? [...unlocked] : ['Em', 'E', 'A', 'D'];
     this.candidates = classes.map((c) => voicingOf(voicingForClass(c, ctx.content.gVoicing)));
     const seed = params.seed === 0 ? Math.floor(ctx.clock.now()) : params.seed;
-    const rng = mulberry32(seed);
-    this.order = Array.from({ length: params.count }, (_, k) => shuffled(rng, classes)[k % classes.length]!);
+    this.order = recallOrder(mulberry32(seed), classes, params.count);
     this.take = new TakeTracker(() => ctx.output.now());
+  }
+
+  /**
+   * Classification candidates of the current question (SPEC v1.1 §11.9): the asked chord plus every candidate
+   * whose root differs — chords sharing a root (A / Am / A7 …) share most partials and are left out.
+   */
+  private questionCandidates(): ChordVoicing[] {
+    const target = this.chordClass;
+    if (!target) return this.candidates;
+    const targetId = voicingForClass(target, this.ctx.content.gVoicing);
+    const targetRoot = chordRoot(this.candidates.find((v) => v.id === targetId)?.symbol ?? target);
+    return this.candidates.filter((v) => v.id === targetId || chordRoot(v.symbol) !== targetRoot);
   }
 
   private get chordClass(): string | null {
@@ -84,7 +109,6 @@ export class RecallRunner extends BaseRunner<RecallResult, Q2View> {
   start(): void {
     const mic = this.ctx.audio;
     if (mic) {
-      mic.setJob({ kind: 'set', voicings: this.candidates, deltaCents: this.ctx.calibration?.tuningCents });
       this.own(() => mic.setJob(null));
       this.own(mic.onCoarseOnset((t) => this.take.noteCoarse(t)));
       this.own(mic.onJudged((e) => this.onJudged(e)));
@@ -94,6 +118,12 @@ export class RecallRunner extends BaseRunner<RecallResult, Q2View> {
   }
 
   private show(): void {
+    this.asked = this.questionCandidates();
+    this.ctx.audio?.setJob({
+      kind: 'set',
+      voicings: this.asked,
+      deltaCents: this.ctx.calibration?.tuningCents,
+    });
     this.shownMs = this.ctx.clock.now();
     this.shownAudio = this.ctx.output.now();
     this.heard = null;
@@ -120,7 +150,7 @@ export class RecallRunner extends BaseRunner<RecallResult, Q2View> {
       return;
     }
     const result = event.result as SetClassification;
-    const top = this.candidates[result.top];
+    const top = this.asked[result.top];
     const heardClass = top ? classOfVoicing(top.id) : null;
     this.heard = heardClass;
     this.record({

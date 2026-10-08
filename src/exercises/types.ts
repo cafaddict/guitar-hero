@@ -3,10 +3,12 @@
  * exercise types: a plugin bundles params/result schemas, a pure runner, its views and metric extraction.
  * Runners work without a microphone (manual mode) and are unit-tested with a fake clock and scripted events.
  */
+
 import type { ComponentType } from 'react';
 import type { z } from 'zod';
 import type { MetronomeConfig, ScheduledClick } from '../audio/metronome';
 import type { Job } from '../audio/worker/protocol';
+import type { GVoicing } from '../content/voicings';
 import type { Calibration, MetricSampleInput } from '../domain/records';
 import type { ChordVoicing } from '../domain/voicing';
 import type { TimingAnalysis, TimingSlot } from '../dsp/timing';
@@ -123,7 +125,7 @@ export interface ContentContext {
   /** Chord classes unlocked so far (stage progression; both G voicings are class 'G'). */
   unlockedChordClasses: readonly string[];
   /** The user's current G voicing (SPEC §6.5). */
-  gVoicing: 'G-2f' | 'G-3f';
+  gVoicing: GVoicing;
   stage: number;
 }
 
@@ -178,4 +180,13 @@ export type ExerciseTitleKey =
   | 'Q2'
   | 'Q3'
   | 'Q4'
-  | 'S';
+  | 'Q5'
+  | 'S'
+  | 'E3'
+  | 'E9'
+  | 'E10'
+  | 'E11'
+  | 'E12'
+  | 'E16'
+  | 'E17'
+  | 'K1';

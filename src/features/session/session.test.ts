@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RoutineItem } from '../../content/schemas';
+import { EMPTY_HISTORY } from '../../domain/history';
 import { registerAllExercises } from '../../exercises/catalog';
 import { exerciseDefinition } from '../../exercises/registry';
 import { TEST_CONTENT } from '../../exercises/testing/fakes';
@@ -75,7 +76,11 @@ describe('pluginParamsFor', () => {
         confirmedOverCap: false,
         dueReviews: [],
         changesDoneToday: 0,
-        prescribedDrills: [],
+        prescriptions: [],
+        history: EMPTY_HISTORY,
+        sessionsInStage: 0,
+        stretchStartFret: 5,
+        userTemplate: null,
         seed: stage,
       });
       const content = contentContextFor({ stage, gVoicing: 'G-2f' });
@@ -109,7 +114,11 @@ describe('pluginParamsFor', () => {
       confirmedOverCap: false,
       dueReviews: [],
       changesDoneToday: 0,
-      prescribedDrills: [],
+      prescriptions: [],
+      history: EMPTY_HISTORY,
+      sessionsInStage: 4,
+      stretchStartFret: 5,
+      userTemplate: null,
       seed: 3,
     };
     const content = contentContextFor({ stage: 3, gVoicing: 'G-2f' });

@@ -1,15 +1,17 @@
 /**
- * Pure assembly of what the home screen and the session runner need (SPEC §12.1 홈, §7.3): the routine input
+ * Pure assembly of what the home screen and the session runner need (SPEC v1.1 §12.1 홈, §7.3): the routine input
  * from stored state, this week's practice time, weak pairs, the backup reminder and the stage checklist.
  */
-import type { PracticeSong, StageDef } from '../../content/schemas';
+import type { PracticeSong, RoutineTemplate, StageDef } from '../../content/schemas';
 import type { Settings } from '../../data/settings';
+import type { PracticeHistory } from '../../domain/history';
 import { pairKey, parsePairId } from '../../domain/pairs';
 import { deriveSeed } from '../../domain/prng';
 import { evaluateStage, type StageEvaluation, unlockedPairIds } from '../../domain/progression';
 import {
   DAY_MS,
   dayKey,
+  type MetricSample,
   type ProgressionState,
   type ReviewItem,
   type Session,
@@ -22,6 +24,8 @@ import { dueReviews, weekIndex, weeklyStreak } from '../../domain/srs';
 
 export const BACKUP_REMINDER_DAYS = 7;
 export const EXAM_ITEMS = ['1', '2', '3', '4', '5'] as const;
+/** Metric samples this many days back are loaded for stagnation (14 days) and plateau (21 days) windows. */
+export const RECENT_SAMPLE_DAYS = 22;
 
 export interface StoredState {
   progression: ProgressionState;
@@ -29,13 +33,29 @@ export interface StoredState {
   skills: ReadonlyMap<string, SkillState>;
   reviews: readonly ReviewItem[];
   sessions: readonly Session[];
-  /** One-minute-change attempts started today. */
+  /** One-minute-change / PFC attempts started today. */
   changesDoneToday: number;
   curriculum: readonly StageDef[];
   songs: readonly PracticeSong[];
+  /** Session numbers, practice days and last appearances (SPEC v1.1 §7.3 input). */
+  history: PracticeHistory;
+  /** Metric samples of the last RECENT_SAMPLE_DAYS days (stagnation, conditional promotion). */
+  recentSamples: readonly MetricSample[];
+  /** Today's E7 start fret from the stretch records. */
+  stretchStartFret: number;
+  /** Saved user routine templates (one per stage, §7.3-9). */
+  userTemplates: readonly RoutineTemplate[];
 }
 
 const finished = (sessions: readonly Session[]) => sessions.filter((s) => s.endedAt !== null);
+
+/** The user's saved template for a stage, if any. */
+export function userTemplateFor(
+  templates: readonly RoutineTemplate[],
+  stage: number,
+): RoutineTemplate | null {
+  return templates.find((t) => t.source === 'user' && t.stage === stage) ?? null;
+}
 
 export function examPassed(progression: ProgressionState): boolean {
   return EXAM_ITEMS.every((item) => progression.exam[item] !== undefined);
@@ -54,12 +74,16 @@ export function routineInputFrom(state: StoredState, now: number): RoutineInput 
     lastPracticeAt: last?.startedAt ?? null,
     firstPracticeAt: done[0]?.startedAt ?? null,
     lastSelfReport: last?.selfReport ?? null,
-    sessionMinutes: state.settings.sessionMinutes,
+    sessionMinutes: state.settings.sessionLengthMode === 'custom' ? state.settings.sessionMinutes : null,
     confirmedOverCap: state.settings.confirmedOverCap,
     dueReviews: dueReviews(state.reviews, now),
     changesDoneToday: state.changesDoneToday,
-    prescribedDrills: state.progression.prescribedDrills,
-    // Same day → same routine (SPEC §7.3-10), a new one tomorrow.
+    prescriptions: state.progression.prescriptions,
+    history: state.history,
+    sessionsInStage: state.progression.sessionsInStage,
+    stretchStartFret: state.stretchStartFret,
+    userTemplate: userTemplateFor(state.userTemplates, state.progression.stage),
+    // Same day → same routine (SPEC §7.3 rule 14), a new one tomorrow.
     seed: deriveSeed(1, dayKey(now)),
   };
 }
@@ -126,9 +150,12 @@ export function stageChecklist(state: StoredState, now: number): StageEvaluation
   return evaluateStage(def, {
     stage: state.progression.stage,
     curriculum: state.curriculum,
+    songs: state.songs,
     skills: state.skills,
     sessionsInStage: state.progression.sessionsInStage,
+    stageEnteredAt: state.progression.stageEnteredAt,
     examPassed: examPassed(state.progression),
     now,
+    recentSamples: state.recentSamples,
   });
 }

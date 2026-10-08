@@ -27,6 +27,8 @@ export interface ExerciseHostProps {
   params: unknown;
   sessionId?: string | null;
   reviewOf?: string | null;
+  /** Routine item key stored on the attempt (last-appearance tracking, SPEC v1.1 §7.3). */
+  routineKey?: string | null;
   /** Called when the run ended: the stored Attempt, or null when there was nothing to record. */
   onFinished?: (attempt: Attempt | null) => void;
   /** Extra actions under the summary (e.g. "again" / "home" in standalone mode). */
@@ -150,6 +152,7 @@ export function ExerciseHost({
   params,
   sessionId = null,
   reviewOf = null,
+  routineKey = null,
   onFinished,
   renderAfter,
   autoFocusStart = false,
@@ -309,8 +312,9 @@ export function ExerciseHost({
       detectorVersion: stats.events > 0 ? stats.detectorVersion : null,
       processingMs: stats.meanProcessingMs,
       reviewOf,
+      ...(routineKey ? { routineKey } : {}),
     });
-  }, [running, definition, sessionId, reviewOf, onFinished, save]);
+  }, [running, definition, sessionId, reviewOf, routineKey, onFinished, save]);
 
   if (outcome?.kind === 'saved') {
     return (
