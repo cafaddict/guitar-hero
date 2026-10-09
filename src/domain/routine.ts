@@ -118,7 +118,7 @@ export const SELF_CHECK_FIRST_SESSIONS = 3;
 export const Q2_MAX_CANDIDATES = 9;
 export const Q2_MIN_QUESTIONS = 3;
 
-/** A scale the stage must memorize is assigned with the TAB hidden from this assignment on (rule 10). */
+/** A scale the stage must memorize is assigned with the TAB hidden from this assignment on (rule 10; one a day). */
 const MEMORIZE_HIDDEN_FROM_RUN = 3;
 
 const ROTATION_REVIEW_KIND = {
@@ -146,7 +146,8 @@ interface Ctx {
 }
 
 const slotKey = (slot: TemplateSlot) => JSON.stringify(slot);
-const itemKey = (exerciseType: string, subject: string) => `${exerciseType}|${subject}`;
+/** Appearance key of a routine item: exercise type + subject (history and same-subject rules). */
+export const itemKey = (exerciseType: string, subject: string) => `${exerciseType}|${subject}`;
 
 // --- small rules -----------------------------------------------------------------------------------------------
 
@@ -568,7 +569,10 @@ function entryDraft(
       // until it is memorized. Step and tempo otherwise follow the scale's own ladder (the plugin's history).
       const scaleId = String(p.scaleId);
       const memorize = def.unlockRules.some((r) => r.kind === 'scaleMemorized' && r.scaleId === scaleId);
-      const runs = input.skills.get(`scale:${scaleId}:s1`)?.metrics.flawlessCycles?.count ?? 0;
+      // Assignments, not runs: repeats inside one session ("이어서 한 번 더") count once — distinct practice days.
+      const runs = Object.keys(
+        input.skills.get(`scale:${scaleId}:s1`)?.metrics.flawlessCycles?.dayBest ?? {},
+      ).length;
       const memorized = (input.skills.get(`scale:${scaleId}:memorized`)?.metrics.memorized?.best ?? 0) >= 1;
       const hidden = memorize && !memorized && p.review !== true && runs >= MEMORIZE_HIDDEN_FROM_RUN - 1;
       return {

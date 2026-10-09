@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { RoutineItem } from '../../content/schemas';
+import { PRACTICE_SONGS } from '../../content/songs';
 import { EMPTY_HISTORY } from '../../domain/history';
+import type { Attempt } from '../../domain/records';
 import { registerAllExercises } from '../../exercises/catalog';
 import { exerciseDefinition } from '../../exercises/registry';
 import { TEST_CONTENT } from '../../exercises/testing/fakes';
+import { repeatSuggestion } from './repeat';
 import { pluginParamsFor } from './routineParams';
 import {
   acknowledgeBreak,
@@ -256,5 +259,77 @@ describe('SPEC v1.1 §7.3-11 split sessions', () => {
     const resumed = resumeSplit(saved.state, 5_000);
     expect(resumed).toMatchObject({ paused: false, runningSince: 5_000, index: 2, recorded: ['i0', 'i1'] });
     expect(practiceMs(resumed, 65_000)).toBe(190_000);
+  });
+});
+
+describe('SPEC v1.1 §11.10 repertoire repeat (M15 review)', () => {
+  registerAllExercises();
+  const metric = (best: number) => ({
+    count: 1,
+    last: best,
+    best,
+    lastAt: 0,
+    firstAt: 0,
+    recent: [best],
+    dayBest: {},
+  });
+  const skills = new Map(
+    ['s01', 's03'].map((id) => [
+      `song:${id}`,
+      { subjectKey: `song:${id}`, lastPracticedAt: 0, metrics: { repertoire: metric(1) } },
+    ]),
+  );
+  const repertoire = { songs: PRACTICE_SONGS, stage: 8, skills };
+  const attempt = (params: Record<string, unknown>) =>
+    ({ params, result: {}, exerciseType: 'S' }) as unknown as Attempt;
+
+  it('the next song is stored as that song (its own routine key, no review), not as the item it replaced', () => {
+    const item = {
+      id: 'r',
+      exerciseType: 'S',
+      block: 'repertoire',
+      key: 'S|song:s01',
+      reviewOf: 'song:s01',
+    } as RoutineItem;
+    const s = repeatSuggestion(item, attempt({ songId: 's01', mode: 'perform', bpm: 70 }), repertoire);
+    expect(s?.params).toMatchObject({ songId: 's03', mode: 'perform' });
+    expect(s?.identity).toEqual({ routineKey: 'S|song:s03', reviewOf: null });
+  });
+
+  it('outside the repertoire block the suggestion keeps the item (tempo only)', () => {
+    const item = { id: 'e', exerciseType: 'E5', block: 'rhythm', key: 'E5|strum:P3' } as RoutineItem;
+    const s = repeatSuggestion(
+      item,
+      {
+        params: {
+          patternId: 'P3',
+          bpm: 80,
+          bars: 8,
+          mode: 'single',
+          chords: ['C'],
+          cuesHidden: false,
+          previousLow: false,
+        },
+        result: {
+          patternId: 'P3',
+          bpm: 80,
+          bars: 8,
+          mode: 'single',
+          hits: 32,
+          misses: 0,
+          extras: 0,
+          meanOffsetMs: 0,
+          sdOffsetMs: 5,
+          hitRate: 1,
+          hitRateCorrected: 1,
+          cuesHidden: false,
+          ladder: 'up',
+          passed: true,
+          source: 'mic',
+        },
+      } as unknown as Attempt,
+      repertoire,
+    );
+    expect(s?.identity).toBeUndefined();
   });
 });

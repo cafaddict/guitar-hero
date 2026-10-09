@@ -6,11 +6,10 @@ import { useSettingsStore } from '../../app/settingsStore';
 import { loadStoredState } from '../../app/storedState';
 import { simulatedRate } from '../../app/testRate';
 import type { RoutineItem } from '../../content/schemas';
-import { songById } from '../../content/songs';
 import { voicingById } from '../../content/voicings';
 import { newId } from '../../domain/ids';
 import { type Attempt, dayKey, type SelfReport } from '../../domain/records';
-import { generateRoutine, nextRepertoireSong, type RoutineInput } from '../../domain/routine';
+import { generateRoutine, type RoutineInput } from '../../domain/routine';
 import { prepareSession } from '../../domain/sessionPrep';
 import { createExerciseOutput } from '../../exercises/audioAdapter';
 import { contentContextFor } from '../../exercises/contentContext';
@@ -23,6 +22,7 @@ import { ChordDiagram } from '../../ui/ChordDiagram';
 import { Screen } from '../../ui/Screen';
 import { routineInputFrom } from '../home/homeModel';
 import { itemTitle } from './itemTitle';
+import { type RunIdentity, repeatSuggestion } from './repeat';
 import { pluginParamsFor } from './routineParams';
 import {
   acknowledgeBreak,
@@ -43,12 +43,13 @@ import {
   resumeSplit,
   type SessionState,
   SPLIT_RESUME_KEY,
+  type SplitResume,
   sessionKeyCommand,
   skipItem,
   splitHere,
   startSession,
 } from './sessionModel';
-import { clearSplit, pendingSplit } from './splitResume';
+import { clearSplit, closeSplit, pendingSplit, saveSplitProgress } from './splitResume';
 
 interface Loaded {
   items: RoutineItem[];
@@ -59,29 +60,6 @@ interface Loaded {
   splitAfterIndex: number | null;
   /** What the repertoire block cycles through (§11.10 "차례로 친다"). */
   repertoire: Pick<RoutineInput, 'songs' | 'stage' | 'skills'>;
-}
-
-/**
- * "이어서 한 번 더" (§7.3-12): the ladder's next tempo — or, in the repertoire block, the next repertoire song
- * (§11.10). Null = no suggestion (repeat at the same params).
- */
-function repeatSuggestion(
-  item: RoutineItem,
-  attempt: Attempt,
-  repertoire: Loaded['repertoire'],
-): { params: unknown; label: string } | null {
-  const definition = exerciseDefinition(item.exerciseType);
-  if (!definition) return null;
-  if (item.block === 'repertoire') {
-    const current = (attempt.params as { songId?: string }).songId ?? '';
-    const next = nextRepertoireSong(repertoire, current);
-    if (next) {
-      const params = definition.parseParams({ ...(attempt.params as object), ...next, loopSection: null });
-      return { params, label: ko.session.nextRepertoireSong(songById(next.songId).title) };
-    }
-  }
-  const tempo = definition.suggestedTempoRetry(attempt.params, attempt.result);
-  return tempo ? { params: tempo.params, label: ko.session.repeatAtBpm(tempo.bpm) } : null;
 }
 
 /**
@@ -200,13 +178,23 @@ export function SessionScreen() {
   /** "이어서 하기": the second half of a split session continues the same session (§7.3-11). */
   const resuming = useSearchParams()[0].get('resume') !== null;
   const [sessionId, setSessionId] = useState<string | null>(null);
+  /** The kept first half this runner resumed (its record follows the second half's progress). */
+  const [resumedSplit, setResumedSplit] = useState<SplitResume | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
   /** Index of the item whose run has ended (its summary is showing). */
   const [endedIndex, setEndedIndex] = useState<number | null>(null);
   /** An exercise run is starting or in progress: navigation would throw it away, so it waits. */
   const [runActive, setRunActive] = useState(false);
   /** Reruns of the current item: each one is a fresh host; `params` overrides the routine's (suggested tempo). */
-  const [rerun, setRerun] = useState<{ n: number; params: unknown }>({ n: 0, params: null });
+  /**
+   * Reruns of the current item: each one is a fresh host. `params` overrides the routine's (suggested tempo, next
+   * repertoire song); `identity` files the run under another subject when the song changed (§11.10).
+   */
+  const [rerun, setRerun] = useState<{ n: number; params: unknown; identity: RunIdentity | null }>({
+    n: 0,
+    params: null,
+    identity: null,
+  });
   const customKeys = useSettingsStore((s) => s.settings?.customKeys);
   const blockTransition = useSettingsStore((s) => s.settings?.blockTransition ?? true);
   const leftHanded = useSettingsStore((s) => s.settings?.leftHanded ?? false);
@@ -237,9 +225,12 @@ export function SessionScreen() {
           repertoire: { songs: resumed.songs, stage: split.stage, skills: resumed.skills },
         });
         setSessionId(split.sessionId);
+        setResumedSplit(split);
         setState(resumeSplit(split.state, now()));
         return;
       }
+      // "시작" while today's first half is kept: that half ends as it is (it counts) and a new session starts.
+      if (split) await closeSplit(split);
       const stored = await loadStoredState(loadedAt);
       // Session start (SPEC v1.1 §7.4): expire prescriptions, detect stagnation, then plan the routine.
       const prep = prepareSession({
@@ -301,7 +292,7 @@ export function SessionScreen() {
     setEndedIndex(null);
     setLastAttempt(null);
     setTransitionEndsAt(null);
-    setRerun({ n: 0, params: null });
+    setRerun({ n: 0, params: null, identity: null });
     setState((s) => (s ? step(s) : s));
   }, []);
   const advance = useCallback(() => {
@@ -334,16 +325,27 @@ export function SessionScreen() {
     return () => clearInterval(id);
   }, [transitionEndsAt, endTransition, now]);
   /** The current item again: with the params it just ran with, or with `params` (e.g. a suggested tempo). */
-  const retry = useCallback((params?: unknown) => {
+  const retry = useCallback((params?: unknown, identity?: RunIdentity | null) => {
     setEndedIndex(null);
-    setRerun((r) => ({ n: r.n + 1, params: params === undefined ? r.params : params }));
+    setRerun((r) => ({
+      n: r.n + 1,
+      params: params === undefined ? r.params : params,
+      identity: identity === undefined ? r.identity : identity,
+    }));
   }, []);
 
+  // The resumed half's progress goes back into its kept record (reload / leave → resume there, §7.3-11).
+  const progressKey = state ? `${state.index}:${state.recorded.length}` : '';
+  useEffect(() => {
+    if (!resumedSplit || !stateRef.current || !progressKey) return;
+    void saveSplitProgress(resumedSplit, stateRef.current, now());
+  }, [resumedSplit, progressKey, now]);
+
   /** "이어서 한 번 더" at the ladder's next tempo while block time remains (§7.3-12). */
-  const repeatParams = (() => {
+  const repeat = (() => {
     const item = state ? items[state.index] : undefined;
     if (!item || !lastAttempt || !loaded || !REPEATABLE_TYPES.has(item.exerciseType)) return undefined;
-    return repeatSuggestion(item, lastAttempt, loaded.repertoire)?.params;
+    return repeatSuggestion(item, lastAttempt, loaded.repertoire) ?? undefined;
   })();
 
   // Keyboard / pedal between runs (§12.3); during a run the exercise's own keys apply.
@@ -378,7 +380,7 @@ export function SessionScreen() {
       event.preventDefault();
       if (command === 'retry') {
         if (event.key === ' ') swallowNextSpaceKeyup();
-        retry(repeatParams);
+        retry(repeat?.params, repeat?.identity);
       } else if (command === 'advance') advance();
       else if (command === 'previous') go((s) => previousItem(s, now()));
       else setState(resume(state, now()));
@@ -397,13 +399,13 @@ export function SessionScreen() {
     now,
     transitionEndsAt,
     endTransition,
-    repeatParams,
+    repeat,
   ]);
 
   const finishSession = async (report: SelfReport) => {
     if (!state || !sessionId) return;
     await repo.finishSession(sessionId, Date.now(), state.recorded.length, report, practiceMs(state, now()));
-    await clearSplit();
+    await clearSplit(sessionId);
     navigate('/');
   };
 
@@ -508,8 +510,8 @@ export function SessionScreen() {
           definition={definition}
           params={rerun.params ?? pluginParamsFor(item, definition, loaded.content)}
           sessionId={sessionId}
-          reviewOf={item.reviewOf ?? null}
-          routineKey={item.key ?? null}
+          reviewOf={rerun.identity ? rerun.identity.reviewOf : (item.reviewOf ?? null)}
+          routineKey={rerun.identity ? rerun.identity.routineKey : (item.key ?? null)}
           autoFocusStart
           onActiveChange={setRunActive}
           onFinished={(attempt) => {
@@ -524,7 +526,11 @@ export function SessionScreen() {
             return (
               <div className="mt-4 flex flex-wrap gap-2">
                 {repeatable && (
-                  <Button large onClick={() => retry(suggestion?.params)} data-testid="repeat-item">
+                  <Button
+                    large
+                    onClick={() => retry(suggestion?.params, suggestion?.identity)}
+                    data-testid="repeat-item"
+                  >
                     {suggestion ? suggestion.label : ko.session.repeat}
                   </Button>
                 )}

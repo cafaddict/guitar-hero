@@ -341,10 +341,14 @@ export function promote(
   pairs: readonly string[] = [],
   sessionNumber = 0,
 ): ProgressionState {
-  const history = [
-    ...state.history,
-    { stage: state.stage, enteredAt: state.stageEnteredAt, leftAt: now, conditional },
-  ];
+  // A stay already closed in the history (a v1 user who completed Beginner 1 at Stage 7 and now moves on to
+  // Stage 8) is updated, not recorded twice.
+  const row = { stage: state.stage, enteredAt: state.stageEnteredAt, leftAt: now, conditional };
+  const last = state.history.at(-1);
+  const history =
+    last && last.stage === row.stage && last.enteredAt === row.enteredAt
+      ? [...state.history.slice(0, -1), row]
+      : [...state.history, row];
   if (state.stage >= FINAL_STAGE) {
     if (state.completedBeginner2) return state;
     return { ...state, history, completedBeginner2: true, beginner2CompletedAt: now };

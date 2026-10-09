@@ -217,6 +217,13 @@ describe('AC-R2 progression engine', () => {
       beginner2CompletedAt: NOW + DAY_MS,
     });
     expect(promote(beginner2, NOW + 2 * DAY_MS, false)).toBe(beginner2);
+    // A v1 user who completed Beginner 1 (Stage 7 row already closed) moves on without a duplicate row.
+    const v1Done = promote({ ...state, stage: 7, history: [] }, NOW, false);
+    const v1Stay = { ...v1Done, stage: 7, completedBeginner1: true, stageEnteredAt: state.stageEnteredAt };
+    const moved = promote(v1Stay, NOW + DAY_MS, false);
+    expect(moved.stage).toBe(8);
+    expect(moved.history.filter((h) => h.stage === 7)).toHaveLength(1);
+    expect(moved.history.at(-1)).toMatchObject({ stage: 7, leftAt: NOW + DAY_MS });
   });
 
   it('stagnation (v1.1 §7.4): 14-day window, ≥ 4 runs, first ≥ 9 days old, below the per-kind gain', () => {

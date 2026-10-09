@@ -1,0 +1,41 @@
+/**
+ * "이어서 한 번 더" in the session runner (SPEC v1.1 §7.3-12): what the next run of the current item plays — the
+ * ladder's next tempo, or in the repertoire block the next repertoire song (§11.10) filed under that song.
+ */
+import type { RoutineItem } from '../../content/schemas';
+import { songById } from '../../content/songs';
+import type { Attempt } from '../../domain/records';
+import { itemKey, nextRepertoireSong, type RoutineInput } from '../../domain/routine';
+import { exerciseDefinition } from '../../exercises/registry';
+import { ko } from '../../i18n/ko';
+
+/** The routine identity a run is stored under (its appearance key and the review it serves). */
+export interface RunIdentity {
+  routineKey: string | null;
+  reviewOf: string | null;
+}
+
+/**
+ * "이어서 한 번 더" (§7.3-12): the ladder's next tempo — or, in the repertoire block, the next repertoire song
+ * (§11.10). Null = no suggestion (repeat at the same params).
+ */
+export function repeatSuggestion(
+  item: RoutineItem,
+  attempt: Attempt,
+  repertoire: Pick<RoutineInput, 'songs' | 'stage' | 'skills'>,
+): { params: unknown; label: string; identity?: RunIdentity } | null {
+  const definition = exerciseDefinition(item.exerciseType);
+  if (!definition) return null;
+  if (item.block === 'repertoire') {
+    const current = (attempt.params as { songId?: string }).songId ?? '';
+    const next = nextRepertoireSong(repertoire, current);
+    if (next) {
+      const params = definition.parseParams({ ...(attempt.params as object), ...next, loopSection: null });
+      // The run is the next song's: it appears (and is reviewed) as that song, not the item's (§11.10).
+      const identity = { routineKey: itemKey('S', `song:${next.songId}`), reviewOf: null };
+      return { params, label: ko.session.nextRepertoireSong(songById(next.songId).title), identity };
+    }
+  }
+  const tempo = definition.suggestedTempoRetry(attempt.params, attempt.result);
+  return tempo ? { params: tempo.params, label: ko.session.repeatAtBpm(tempo.bpm) } : null;
+}

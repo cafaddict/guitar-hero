@@ -72,6 +72,12 @@ test('E2E-18: a Stage 8 30-minute routine with the keyboard — repertoire first
   await pressOn(page, 'resume-session');
   await expect(header(page)).toHaveAttribute('data-index', String(splitIndex));
   await expect(page.getByTestId('split-point')).toHaveCount(0);
+  // Leaving in the middle of the second half keeps its progress: "이어서 하기" comes back where it was left.
+  await pressOn(page, 'skip-item');
+  await expect(header(page)).toHaveAttribute('data-index', String(splitIndex + 1));
+  await page.goto('/#/');
+  await pressOn(page, 'resume-session');
+  await expect(header(page)).toHaveAttribute('data-index', String(splitIndex + 1));
   await skipUntil(page, async () => Number(await header(page).getAttribute('data-index')) === total - 1);
   // The last item is the song block: play it (learn stage, no microphone).
   await expect(header(page)).toHaveAttribute('data-item-type', 'S');
@@ -99,4 +105,45 @@ test('E2E-18: a Stage 8 30-minute routine with the keyboard — repertoire first
   expect(attempts.map((a) => a.exerciseType).sort()).toEqual(['E0', 'S']);
   expect(attempts.every((a) => a.sessionId === sessions[0]!.id)).toBe(true);
   expect(sessions[0]!.completedItems).toBe(2);
+});
+
+test('E2E-18b: "시작" instead of "이어서 하기" ends the kept first half (it counts) and starts a new session', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(installFakeMic, { loopbackDelayMs: null, deny: false });
+  await page.goto('/');
+  await page.getByRole('button', { name: '마이크 없이 쓰기' }).click();
+  await expect(page).toHaveURL(/#\/$/);
+  const now = Date.now();
+  await putRows(page, 'progression', [
+    {
+      key: 'current',
+      stage: 9,
+      stageEnteredAt: now - 2 * 86_400_000,
+      sessionsInStage: 1,
+      gVoicing: 'G-4f',
+      history: [],
+      exam: { '1': now, '2': now, '3': now, '4': now, '5': now },
+      completedBeginner1: true,
+      completedBeginner2: false,
+      prescriptions: [],
+    },
+  ]);
+  await page.goto('/#/session?timeScale=0.25');
+  expect(await playItem(page)).toBe('E0');
+  await skipUntil(page, () => page.getByTestId('split-point').isVisible());
+  await pressOn(page, 'split-session');
+  await expect(page.getByTestId('resume-session')).toBeVisible();
+  await page.getByTestId('start-session').click();
+  await expect(header(page)).toHaveAttribute('data-index', '0');
+  const sessions = await readStore<StoredSession>(page, 'sessions');
+  expect(sessions).toHaveLength(2);
+  const first = sessions.find((s) => s.completedItems === 1)!;
+  expect(first.endedAt).not.toBeNull();
+  expect(first.selfReport).toBeNull();
+  const progression = await readStore<{ sessionsInStage: number }>(page, 'progression');
+  expect(progression[0]!.sessionsInStage).toBe(2);
+  await page.goto('/#/');
+  await expect(page.getByTestId('split-resume')).toHaveCount(0);
 });

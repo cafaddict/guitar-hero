@@ -229,7 +229,9 @@ function KeysSection() {
       e.stopPropagation();
       if (e.key !== 'Escape' && settings) {
         void update({ customKeys: { ...settings.customKeys, [e.code]: learning } });
-        const previous = defaultActionForKey(e.key);
+        // By the letter on the key too: with the Korean IME KeyB gives 'ㅠ', yet the binding (by code) replaces B.
+        const letter = /^Key([A-Z])$/.exec(e.code)?.[1]?.toLowerCase();
+        const previous = defaultActionForKey(e.key) ?? (letter ? defaultActionForKey(letter) : null);
         setReplaced(previous !== null && previous !== learning ? { key: e.key, action: previous } : null);
       }
       setLearning(null);

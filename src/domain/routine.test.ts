@@ -502,4 +502,43 @@ describe('SPEC v1.1 §11.10 repertoire block: "차례로 친다"', () => {
     expect(nextRepertoireSong(input, 's05')).toMatchObject({ songId: 's01' });
     expect(nextRepertoireSong({ ...input, skills: new Map([repertoireSkill('s01')]) }, 's01')).toBeNull();
   });
+
+  it('Stage 9 memorization: the TAB is hidden from the third assignment (day), not the third run', () => {
+    const stepOne = (days: number[], runs: number): [string, SkillState] => [
+      'scale:c-major-open:s1',
+      {
+        subjectKey: 'scale:c-major-open:s1',
+        lastPracticedAt: NOW - DAY_MS,
+        metrics: {
+          flawlessCycles: {
+            count: runs,
+            last: 4,
+            best: 4,
+            lastAt: NOW - DAY_MS,
+            firstAt: NOW - days[0]! * DAY_MS,
+            recent: Array(runs).fill(4),
+            dayBest: Object.fromEntries(days.map((d) => [dayKey(NOW - d * DAY_MS), 4])),
+          },
+        },
+      },
+    ];
+    const recent = Object.values(stageDef(9).rotation)
+      .flat()
+      .filter((e) => e.type !== 'E10')
+      .map((e) => [entryKey(e), { session: 10, day: 10 }] as const);
+    const e10 = (skills: Map<string, SkillState>) =>
+      generateRoutine(
+        input({
+          stage: 9,
+          gVoicing: 'G-4f',
+          sessionMinutes: 30,
+          skills,
+          history: { sessionNumber: 11, practiceDay: 11, appearances: new Map(recent) },
+        }),
+      ).items.find((i) => i.exerciseType === 'E10' && i.params.scaleId === 'c-major-open')!;
+    // Three runs on one day (repeats) = still the second assignment → TAB shown.
+    expect(e10(new Map([stepOne([1], 3)])).params.tabHidden).toBeUndefined();
+    // Runs on two earlier days → this is the third assignment → hidden, step 1.
+    expect(e10(new Map([stepOne([2, 1], 2)])).params).toMatchObject({ tabHidden: true, step: 1 });
+  });
 });

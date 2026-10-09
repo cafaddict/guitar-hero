@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { stageDef } from '../../src/content/curriculum';
 
 // The only spec that lets the service worker run (others block it so page.route can serve fixtures).
 test.use({ serviceWorkers: 'allow' });
@@ -36,6 +37,6 @@ test('E2E-09: after the first visit the app shell and the chord library work off
   await page.getByRole('button', { name: '마이크 없이 쓰기' }).click();
   await expect(page.getByTestId('song-backing')).toBeVisible();
   await page.goto('/#/curriculum/10');
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByRole('main')).toContainText(stageDef(10).name);
   await context.setOffline(false);
 });

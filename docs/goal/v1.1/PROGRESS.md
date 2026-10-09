@@ -6,7 +6,7 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **M15 (하드닝·최종 검증)** 시작 전 — M9 `13cbca7`, M10 `197db37`, M11 `b4db85d`, M12 `b08b6bb`, M13 `e1e1a87`, M14 커밋(이 커밋)
+- 현재 마일스톤: **M15 (하드닝·최종 검증)** — 커밋 후 최종 `npm ci && npm run verify` — M9 `13cbca7`, M10 `197db37`, M11 `b4db85d`, M12 `b08b6bb`, M13 `e1e1a87`, M14 `ae357c1`, M15(이 커밋)
 - 시작 지점: `feat/practice-app-v1.1`, v1.1 키트 커밋 `012fb70`(부모 `5e94332`)
 - 마일스톤 끝 리뷰 서브에이전트: M10(완료, D-065 반영)·M12(완료, D-068 반영)·M15
 - 마지막 갱신: 2026-10-09 (M14 verify PASS: test 1658/1658, bench:dsp all thresholds met; beta reported, bench:guitarset hard 6/6 soft 3/3, e2e 52/52 4 projects)
@@ -31,7 +31,7 @@
   - 고친 결함: 복습 실행이 E10 단계 사다리를 되돌림(`review` 결과 표시), E11·E10·E9 이력 깊이 5 → 30(쌍·스케일 순환), 통증일 E3 실행 길이가 절반이 안 됨(E3 최소 30초), Q3 문항 수·암기 스케일 규칙을 루틴에서 채움.
   - UI: 홈·커리큘럼 초급 1·2 수료 표시, Stage 11 "수료 기록하기", 세션 분할(여기서 나눠 하기 → 홈 이어서 하기 → 한 세션), 레퍼토리 블록 "이어서 한 번 더" = 다음 레퍼토리 곡. E2E-18 `split.mic.spec.ts`, E2E-19 `beginner2.spec.ts` 통과. D-069, README 갱신. 단위 1652+ 통과.
 - M14 완료: E2E-10·11 화면 목록 v1.1 확장, E16 지판 그림 왼손잡이 미러, 페달 학습 기본 키 대체 알림, 오프라인·CSP E2E 확장(D-070).
-- 다음 할 일(M15): 리뷰 서브에이전트(M13·M14 변경 중심) 반영, 문서(ARCHITECTURE·DSP·MANUAL_VALIDATION·BACKLOG·BENCHMARK 확인), FINAL_REPORT.md, vault 노트, 최종 `npm ci && npm run verify`, 커밋, §18.2 출력.
+- M15: 리뷰(D-071: 분할 첫 절반 닫기·진행 되쓰기, 레퍼토리 다음 곡 키, 암기 배정 = 날짜, 페달 알림 IME, v1 이력 중복, 오프라인 단언) 반영, 문서(ARCHITECTURE·DSP 21절·BACKLOG·MANUAL_VALIDATION 5a·README), FINAL_REPORT, vault 노트. 남은 것: 커밋 뒤 HEAD에서 `npm ci && npm run verify`와 §18.2 출력.
 - 막힌 점: 없음.
 - 미룬 작은 일(M13): 레퍼토리 블록 안 "이어서 한 번 더"가 다음 레퍼토리 곡으로 넘어가기(§11.10 "차례로 친다").
 - 메모: 타입 검사는 반드시 `npm run typecheck`(app·node·worklet 3개 tsconfig)로 한다. `tsc -p .`는 앱 코드를 검사하지 않아 M11 첫 verify가 typecheck에서 걸렸다(`noUncheckedIndexedAccess`).
@@ -46,18 +46,18 @@
 | M11 | DSP·합성·벤치 확장 | DONE | `b4db85d` | verify PASS, bench test all met(+beta reported), GuitarSet hard 6/6 soft 3/3 |
 | M12 | 초급 2 콘텐츠·새 연습 | DONE | `b08b6bb` | verify PASS(e2e 48/48), 리뷰 D-068 |
 | M13 | 초급 2 진행 통합 | DONE | `e1e1a87` | verify PASS(e2e 52/52) |
-| M14 | 화면 마감 | DONE | (이 커밋) | verify PASS(e2e 52/52) |
-| M15 | 하드닝·최종 검증 | TODO | | 끝에 code-reviewer |
+| M14 | 화면 마감 | DONE | `ae357c1` | verify PASS(e2e 52/52) |
+| M15 | 하드닝·최종 검증 | DONE | (이 커밋) | 리뷰 D-071, FINAL_REPORT |
 
 ## Acceptance Criteria (SPEC v1.1 §17)
 
 | AC | 요약 | 상태 | 증거 |
 |---|---|---|---|
-| AC-P7 | `feat/practice-app-v1.1`에 키트 커밋 이후 M9–M15 커밋 존재, `main`은 `9e7eda6`, `feat/practice-app-v1`은 `5e94332` 그대로, 원격 push 없음(upstream 없음), 작업 트리 clean. | TODO | |
-| AC-P8 | v1 `SPEC.md`·`thresholds.json`과 v1.1 `SPEC.md`·`thresholds.json`·`traceability.json`·`GAP_AUDIT.md`의 SHA-256이 goal 조건문의 값과 같다. | TODO | |
-| AC-P9 | `npm ci && npm run verify` exit 0, §14.7 형식 요약표(v1.1 계약 기준). | TODO | |
-| AC-P10 | v1 AC(P1–P6, D1–D5, A1–A5, S1–S8, G1–G3, X1–X10, R1–R5, U1–U6, T1–T4, W1–W3, F1–F3) 보존 | DOING | M9·M10·M11 verify PASS(v1 단위·E2E·bench). v1 테스트 갱신은 D-063·D-064·D-066 목록뿐(D-066: 보이싱 25→29, Mode C 쌍 25→50 × G 3종 — 확장만). v1 Mode D는 v1 패턴 그대로, v1 스트럼 GuitarSet F1 0.877 유지. 참고: v1의 `src/data` 미추적 결함을 v1.1에서 고침(D-065) |
-| AC-TR1 | `traceability.json` 완전성 무결성 테스트 통과, FINAL_REPORT에 항목별 대조 결과(구현·제외·연기 수). | TODO | |
+| AC-P7 | `feat/practice-app-v1.1`에 키트 커밋 이후 M9–M15 커밋 존재, `main`은 `9e7eda6`, `feat/practice-app-v1`은 `5e94332` 그대로, 원격 push 없음(upstream 없음), 작업 트리 clean. | DONE | `git log --oneline 5e94332..HEAD`: 키트 `012fb70` 뒤 M9 `13cbca7`·M10 `197db37`·M11 `b4db85d`·M12 `b08b6bb`·M13 `e1e1a87`·M14 `ae357c1`·M15 커밋; `main` = `9e7eda6`, `feat/practice-app-v1` = `5e94332`(수정·병합 없음), push·원격 추가 없음(upstream 없음), 최종 `git status --short` 비어 있음 — 마지막 메시지 §18.2-1 출력 |
+| AC-P8 | v1 `SPEC.md`·`thresholds.json`과 v1.1 `SPEC.md`·`thresholds.json`·`traceability.json`·`GAP_AUDIT.md`의 SHA-256이 goal 조건문의 값과 같다. | DONE | `shasum -a 256` 6개 파일이 goal 조건문 값과 같음(3f7c3ffd…·a318e01b…·4b6d4b00…·ff4dbbac…·5764c271…·c60d89ee…); 키트 커밋 이후 이 파일들을 바꾼 커밋 0 — §18.2-2 출력 |
+| AC-P9 | `npm ci && npm run verify` exit 0, §14.7 형식 요약표(v1.1 계약 기준). | DONE | HEAD에서 `npm ci && npm run verify` exit 0, §14.7 요약표 전 단계 PASS(licenses·typecheck·lint·test·bench:dsp·bench:guitarset·build·test:e2e) — `docs/goal/v1.1/FINAL_REPORT.md` 2절, §18.2-3 출력 |
+| AC-P10 | v1 AC(P1–P6, D1–D5, A1–A5, S1–S8, G1–G3, X1–X10, R1–R5, U1–U6, T1–T4, W1–W3, F1–F3) 보존 | DONE | v1 단위·E2E·벤치가 매 마일스톤 verify(M9–M15)에서 통과, v1 임계값 ⊆ v1.1 계약(무결성 11), v1 Mode D 패턴·v1 GuitarSet 4지표 유지(strum F1 0.877). v1 테스트 갱신은 SPEC 근거가 있는 확장만: D-063·D-064·D-066·D-067·D-069·D-070 목록. v1의 `src/data` 미추적 결함은 v1.1에서만 고침(D-065, FINAL_REPORT 알려진 한계) |
+| AC-TR1 | `traceability.json` 완전성 무결성 테스트 통과, FINAL_REPORT에 항목별 대조 결과(구현·제외·연기 수). | DONE | `tests/integrity/traceability.test.ts`(215항목, 상태·SPEC 절·AC ID·제외 근거) 통과; FINAL_REPORT 5절: 구현 202 · 제외 13 · 연기 0과 제외 목록 |
 | AC-TR2 | 모든 learn 항목의 `practicedBy` 유효(무결성 8) + 커버리지 단언 Stage 0–11 통과. | DONE | 무결성 8 `tests/integrity/learn-table.test.ts`; 커버리지 `src/domain/simulate.test.ts` "every learn item is practised at least twice in every 7 practice days…" Stage 0–11(improving 28일), pain 0–11, blank 0–1, plateau 3 |
 | AC-TR3 | 진급 규칙 ↔ 루틴 대응과 도달 단언 통과, 교착 0. | DONE | `simulate.test.ts` "every unlock rule is fed by its exercise…"(규칙 → 연습 대응표 상수, Stage 0–11, 곡 = 연주 단계), 도달 "the improving learner promotes through every stage to Beginner 1 and Beginner 2 without a deadlock"(스테이지마다 최소 체류 + 20연습일, 교착 0, 139일째 초급 2 수료), plateau 조건부 진급 22연습일, pain 감량 |
 | AC-TR4 | SPEC 요구 함수 프로덕션 호출 검사(무결성 9) 통과. | DONE | `tests/integrity/production-calls.test.ts` 8개(M9–M11 7개 + M12 `verifySequence`, 호출처 `src/audio/worker/dsp-worker.ts` 구간 요청 `sequence`) |
@@ -92,8 +92,8 @@
 | AC-UX4 | E2E-10·11에 새 화면 포함(4 뷰포트 가로 스크롤 0, 버튼 크기, axe serious/critical 0). | DONE | E2E-10 `tests/e2e/layout.spec.ts`·E2E-11 `tests/e2e/a11y.spec.ts`의 화면 목록 `tests/e2e/support/screens.ts`에 v1.1 화면 15개(Stage 10, 루틴 편집, K1, E16, E3, E9, E10, E11, E12, E17, Q3 strings65, Q4 interval, Q5, S 연주+반주) — chromium·iPad·iPhone 통과(가로 스크롤 0, 큰 버튼 ≥ 64 px, 테마 3종 axe serious/critical 0). 왼손잡이 지판 그림 `src/exercises/e16/picture.test.tsx`, 키 충돌 `src/app/keys.test.ts` "v1.1 option keys…"·`tests/e2e/keys.spec.ts` 학습 알림 (D-070) |
 | AC-DT1 | Dexie v2 스키마와 마이그레이션, v1 내보내기 → v2 가져오기 테스트, 왕복 테스트. | DONE | `src/data/migrations.test.ts`: v1 DB → Dexie v2 제자리 업그레이드, v1 내보내기 → v2 가져오기(migration 1→2), v2 필드 왕복(deep-equal), `repo.test.ts` 왕복 |
 | AC-W4 | 새 화면의 PWA 오프라인 동작과 CSP 위반 0(반주 재생 포함). | DONE | 오프라인 `tests/e2e/offline.spec.ts`(E10 TAB·S 연주 반주·Stage 10 페이지), CSP `tests/e2e/csp.mic.spec.ts`(반주 재생 연주 단계 + E10 시퀀스 판정 worker) 위반 0 (D-070) |
-| AC-F4 | README(초급 2, 새 연습, 반주·이어폰, 30분 세션), `docs/ARCHITECTURE.md`(시퀀스·베타·시뮬레이션), `docs/DSP.md`, `docs/BENCHMARK.md`(새 영역·베타 절), `docs/BACKLOG.md`(v1.1 제외 항목), `docs/MANUAL_VALIDATION.md`(스케일·리프·해머온·반주 이어폰/스피커·Stage 8+ 실기기 항목 추가). | TODO | |
-| AC-F5 | `docs/goal/v1.1/FINAL_REPORT.md` 작성. | TODO | |
+| AC-F4 | README(초급 2, 새 연습, 반주·이어폰, 30분 세션), `docs/ARCHITECTURE.md`(시퀀스·베타·시뮬레이션), `docs/DSP.md`, `docs/BENCHMARK.md`(새 영역·베타 절), `docs/BACKLOG.md`(v1.1 제외 항목), `docs/MANUAL_VALIDATION.md`(스케일·리프·해머온·반주 이어폰/스피커·Stage 8+ 실기기 항목 추가). | DONE | README(초급 1+2, 새 연습, 반주·이어폰, 30분 세션·분할, 키), `docs/ARCHITECTURE.md`(시퀀스 구간 판정·반주·withHistory·시뮬레이션·무결성), `docs/DSP.md` 15–21절(§10.10–10.12 파라미터·근거·앱 경로), `docs/BENCHMARK.md`(v1.1 영역·베타 절, M11 생성), `docs/BACKLOG.md`(v1.1 §3.2 제외·베타 과제), `docs/MANUAL_VALIDATION.md` 5a절(스케일·리프·해머온·Q3·반주 이어폰/스피커·iOS·Stage 8+ 분할) |
+| AC-F5 | `docs/goal/v1.1/FINAL_REPORT.md` 작성. | DONE | `docs/goal/v1.1/FINAL_REPORT.md`(§18.1 1–9절: 요약, verify 요약표, 합성·베타·GuitarSet 지표표, AC 표, 추적표 대조, 커밋, 결정, 알려진 한계, 다음 할 일) |
 
 ## 턴 로그 (최근 것이 위, 한 줄씩)
 
