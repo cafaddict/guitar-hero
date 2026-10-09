@@ -31,8 +31,8 @@
 | `npm run dev:https` | 같은 Wi-Fi의 iPad/iPhone 접속용 HTTPS 개발 서버(자체 서명 인증서) |
 | `npm run build` / `npm run preview` | 정적 빌드(`dist/`) / 프리뷰 |
 | `npm run typecheck` · `lint` · `test` | 타입체크 · Biome · Vitest |
-| `npm run bench:dsp:dev` · `bench:dsp` | 합성 벤치마크(dev split: 튜닝용 / test split: 판정) |
-| `npm run bench:guitarset` | GuitarSet 실녹음 벤치마크(dev 00–03 / test 04–05) |
+| `npm run bench:dsp:dev` · `bench:dsp` | 합성 벤치마크(dev split: 튜닝용 / test split: 판정). 계약 파일은 `docs/goal/v1.1/thresholds.json`(v1 계약 포함). 베타 판정기 값은 별도 표로 보고만 하고 종료 코드에 영향이 없다 |
+| `npm run bench:guitarset` | GuitarSet 실녹음 벤치마크(dev 00–03 / test 04–05, comp 스트럼·solo 단음·solo 단음 시퀀스) |
 | `npm run bench:real` | 녹음 키트로 만든 내 기기 fixture 벤치마크(`tests/fixtures/real/<기기>/`, 없으면 "no fixtures") |
 | `npm run fixtures:generate` | E2E용 WAV fixture 결정적 생성 |
 | `npm run test:e2e` | Playwright E2E(가짜 마이크·실제 getUserMedia·iPad/iPhone WebKit) |
@@ -64,7 +64,7 @@ UI(React) ─ 연습 플러그인 러너·세션 러너·진급 ─ AudioEngine 
 데이터: Dexie(IndexedDB) · 콘텐츠·규칙: src/content(시드+zod) · 음악 이론·규칙: src/domain(순수)
 ```
 
-- 판정기(Mode A 한 줄씩, Mode B 스트럼 베타, Mode C 코드 분류, Mode D 타이밍, 튜너, RTT)는 의존성 없는 TypeScript 순수 함수이고, 합성 벤치마크(dev/test split)와 공개 실녹음 데이터셋(GuitarSet)으로 임계값을 검증합니다.
+- 판정기(Mode A 한 줄씩, Mode B 스트럼 베타, Mode C 코드 분류, Mode D 타이밍, 단음 시퀀스 검증, 반주 누출 마스킹, 튜너, RTT)는 의존성 없는 TypeScript 순수 함수이고, 합성 벤치마크(dev/test split)와 공개 실녹음 데이터셋(GuitarSet)으로 임계값을 검증합니다. 버징·스트럼 방향·해머온·팜뮤트·셈여림은 정답 데이터가 없어 "참고(베타)"로만 재고 보고합니다.
 - 연습 종류는 플러그인(params/result 스키마 + 러너 + 화면)이라 코어 수정 없이 추가할 수 있습니다.
 
 자세히: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · DSP 파라미터와 근거: [`docs/DSP.md`](docs/DSP.md) · 측정 결과: [`docs/BENCHMARK.md`](docs/BENCHMARK.md) · v2 계획: [`docs/BACKLOG.md`](docs/BACKLOG.md) · 결정 기록: [`docs/goal/DECISIONS.md`](docs/goal/DECISIONS.md)

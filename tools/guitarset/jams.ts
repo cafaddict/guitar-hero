@@ -100,6 +100,13 @@ export interface EventFilters {
   singleIsolationBeforeMs: number;
   singleMaxPitchContourDevCents: number;
   onsetF1GroupMs: number;
+  /** v1.1 solo sequence notes (SPEC v1.1 §14.4). */
+  sequenceMinIoiMs: number;
+  sequenceMinDurationMs: number;
+  sequenceIsolationOtherStringMs: number;
+  sequenceMaxPitchContourDevCents: number;
+  sequenceMatchMs: number;
+  sequenceMinTestNotes: number;
 }
 
 export interface StrumEventTruth {
@@ -202,4 +209,57 @@ export function stringOffsetsCents(notes: readonly JamsNote[]): number[] {
       .sort((a, b) => a - b);
     return offs.length ? offs[offs.length >> 1]! : 0;
   });
+}
+
+export interface SequenceNoteTruth {
+  time: number;
+  idx: number;
+  midi: number;
+  /** Next annotated onset of the clip (any string), s — bounds the pitch window. */
+  nextOnset: number | null;
+}
+
+function contourOutside(
+  contour: readonly ContourPoint[] | undefined,
+  note: JamsNote,
+  fromS: number,
+  toS: number,
+  maxCents: number,
+): boolean {
+  if (!contour) return false;
+  const ref = 440 * 2 ** ((Math.round(note.midi) - 69) / 12);
+  return contour.some(
+    (p) =>
+      p.time >= note.time + fromS &&
+      p.time <= note.time + toS &&
+      p.voiced &&
+      p.hz > 0 &&
+      Math.abs(1200 * Math.log2(p.hz / ref)) > maxCents,
+  );
+}
+
+/**
+ * Solo single-note sequence notes (SPEC v1.1 §14.4): onset gap to both neighbours ≥ sequenceMinIoiMs,
+ * duration ≥ sequenceMinDurationMs, no note on another string still sounding sequenceIsolationOtherStringMs
+ * after this onset (a short annotated overlap is tolerated; a double stop or a ringing note is not), and the
+ * pitch contour over [+30, +130 ms] within ±sequenceMaxPitchContourDevCents of round(note_midi).
+ */
+export function sequenceNotes(parsed: ParsedJams, f: EventFilters): SequenceNoteTruth[] {
+  const notes = parsed.notes;
+  const onsets = [...new Set(notes.map((n) => n.time))].sort((a, b) => a - b);
+  const out: SequenceNoteTruth[] = [];
+  for (const n of notes) {
+    if (n.duration * 1000 < f.sequenceMinDurationMs) continue;
+    const k = onsets.indexOf(n.time);
+    const prev = onsets[k - 1];
+    const next = onsets[k + 1] ?? null;
+    if (prev !== undefined && (n.time - prev) * 1000 < f.sequenceMinIoiMs) continue;
+    if (next !== null && (next - n.time) * 1000 < f.sequenceMinIoiMs) continue;
+    const at = n.time + f.sequenceIsolationOtherStringMs / 1000;
+    if (notes.some((m) => m.idx !== n.idx && m.time < at && m.time + m.duration > at)) continue;
+    if (contourOutside(parsed.contours.get(n.idx), n, 0.03, 0.13, f.sequenceMaxPitchContourDevCents))
+      continue;
+    out.push({ time: n.time, idx: n.idx, midi: Math.round(n.midi), nextOnset: next });
+  }
+  return out;
 }

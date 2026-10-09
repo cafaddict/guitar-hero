@@ -24,6 +24,8 @@ export interface ChannelSpec {
   lowpass8k: boolean;
   /** Sample range used as the SNR reference (onset .. onset + 500 ms). */
   snrRef: { start: number; end: number };
+  /** Several reference ranges (single-note sequences, SPEC v1.1 §14.8): the signal RMS is their mean RMS. */
+  snrRefs?: readonly { start: number; end: number }[];
   /** Peak level of the final mix (before noise) for normalization. */
   targetPeak: number;
   seed: number;
@@ -104,7 +106,9 @@ export function applyChannel(dry: Float32Array, spec: ChannelSpec, extra?: Float
     let n = noise(wet.length, spec.noiseColor, rng);
     if (spec.micHighpassHz > 0) n = applyBiquad(n, highpass(spec.micHighpassHz, spec.sampleRate));
     if (spec.lowpass8k) n = applyBiquad(n, lowpass(8000, spec.sampleRate));
-    const signalRms = rms(wet, spec.snrRef.start, spec.snrRef.end);
+    const signalRms = spec.snrRefs?.length
+      ? spec.snrRefs.reduce((sum, r) => sum + rms(wet, r.start, r.end), 0) / spec.snrRefs.length
+      : rms(wet, spec.snrRef.start, spec.snrRef.end);
     const rawNoiseRms = rms(n, 0, n.length);
     const scale = rawNoiseRms > 0 ? signalRms / 10 ** (spec.snrDb / 20) / rawNoiseRms : 0;
     for (let i = 0; i < wet.length; i++) wet[i] = wet[i]! + n[i]! * scale;

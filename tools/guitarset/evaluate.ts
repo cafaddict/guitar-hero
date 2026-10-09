@@ -12,6 +12,12 @@ import { verifyPluck } from '../../src/dsp/modeA';
 import { verifyStrum } from '../../src/dsp/modeB';
 import { classifyPair } from '../../src/dsp/modeC';
 import { detectStrums, type StrumEvent } from '../../src/dsp/onset';
+import {
+  DEFAULT_SEQUENCE_PARAMS,
+  detectSequenceOnsets,
+  judgeSequenceNote,
+  type RingingNote,
+} from '../../src/dsp/sequence';
 import { energyOnset } from '../../src/dsp/take';
 import { decodeWav, toMono } from '../../src/dsp/wav';
 import {
@@ -19,6 +25,7 @@ import {
   type EventFilters,
   onsetTruth,
   parseJams,
+  sequenceNotes,
   singleEvents,
   stringOffsetsCents,
   strumEvents,
@@ -46,6 +53,19 @@ export interface ClipOutcome {
   strums: { verdict: string; perturbedStringOk: boolean | null; blamed: number[] }[];
   /** Onset F1 counts (±50 ms), null when the clip is excluded (solo or excluded genre). */
   f1: { tp: number; detected: number; truth: number } | null;
+  /** v1.1 solo sequence (§14.4): verdicts of the matched filtered notes, unmatched count, onset F1 counts. */
+  seqNotes: {
+    ok: boolean;
+    perturbedOk: boolean;
+    status: string;
+    cents: number | null;
+    clarity: number;
+    midi: number;
+    idx: number;
+    windowMs: number;
+  }[];
+  seqUnmatched: number;
+  seqF1: { tp: number; detected: number; truth: number } | null;
 }
 
 function voicingFromMidis(midis: readonly (number | null)[], id: string): ChordVoicing | null {
@@ -90,6 +110,109 @@ const pitchClasses = (midis: readonly (number | null)[]) =>
     .sort((a, b) => a - b)
     .join(',');
 
+/** Greedy one-to-one matching by distance: truth index → detected index. */
+function matchOneToOne(
+  truth: readonly number[],
+  detected: readonly number[],
+  tol: number,
+): Map<number, number> {
+  const pairs: { t: number; d: number; dist: number }[] = [];
+  truth.forEach((tr, i) => {
+    detected.forEach((d, j) => {
+      const dist = Math.abs(d - tr);
+      if (dist <= tol) pairs.push({ t: i, d: j, dist });
+    });
+  });
+  pairs.sort((a, b) => a.dist - b.dist);
+  const out = new Map<number, number>();
+  const usedD = new Set<number>();
+  for (const p of pairs) {
+    if (out.has(p.t) || usedD.has(p.d)) continue;
+    out.set(p.t, p.d);
+    usedD.add(p.d);
+  }
+  return out;
+}
+
+/**
+ * Solo single-note sequence check (SPEC v1.1 §14.4, §10.10 on real recordings): filtered notes matched to the
+ * sequence onset path (±sequenceMatchMs); each matched note judged by the same note judgement as
+ * verifySequence over [detected onset + 30, + min(130, next annotated onset − 20)] ms with the expected note
+ * (round(note_midi) + string δ) and with that note ±1 semitone. Earlier notes on other strings count as
+ * ringing for the cancellation, exactly as previous slots do in the app.
+ */
+function evaluateSoloSequence(
+  parsed: ReturnType<typeof parseJams>,
+  signal: Float32Array,
+  fs: number,
+  delta: readonly number[],
+  rng: () => number,
+  filters: EventFilters,
+  judgeable: (time: number) => boolean,
+  out: ClipOutcome,
+): void {
+  const onsets = detectSequenceOnsets(signal, fs).map((o) => o.sample);
+  const tol = Math.round((filters.sequenceMatchMs / 1000) * fs);
+  const truthF1 = onsetTruth(parsed.notes, filters).map((t) => Math.round(t * fs));
+  out.seqF1 = {
+    tp: matchOneToOne(truthF1, onsets, tol).size,
+    detected: onsets.length,
+    truth: truthF1.length,
+  };
+  const notes = sequenceNotes(parsed, filters).filter((n) => judgeable(n.time));
+  const match = matchOneToOne(
+    notes.map((n) => Math.round(n.time * fs)),
+    onsets,
+    tol,
+  );
+  notes.forEach((n, i) => {
+    const d = match.get(i);
+    if (d === undefined) {
+      out.seqUnmatched++;
+      return;
+    }
+    const onset = onsets[d]!;
+    const nextMs = n.nextOnset === null ? Number.POSITIVE_INFINITY : (n.nextOnset - onset / fs) * 1000;
+    const endMs = Math.min(
+      DEFAULT_SEQUENCE_PARAMS.pitchEndMs,
+      nextMs - DEFAULT_SEQUENCE_PARAMS.nextSlotGuardMs,
+    );
+    const ringingS = DEFAULT_SEQUENCE_PARAMS.ringingMs / 1000;
+    const latest = new Map<number, RingingNote>();
+    for (const m of parsed.notes)
+      if (m.idx !== n.idx && m.time < n.time && n.time - m.time <= ringingS)
+        latest.set(m.idx, {
+          f0: midiToHz(Math.round(m.midi)) * 2 ** (delta[m.idx]! / 1200),
+          stringIdx: m.idx,
+          startSample: Math.round(m.time * fs),
+        });
+    const ringing = [...latest.values()].sort((a, b) => a.startSample - b.startSample);
+    const expected = midiToHz(n.midi) * 2 ** (delta[n.idx]! / 1200);
+    const judge = (f0: number) =>
+      judgeSequenceNote({
+        samples: signal,
+        sampleRate: fs,
+        onsetSample: onset,
+        endMs,
+        expectedF0: f0,
+        ringing,
+      });
+    const res = judge(expected);
+    const sign = rng() < 0.5 ? -1 : 1;
+    const perturbed = judge(expected * 2 ** (sign / 12));
+    out.seqNotes.push({
+      ok: res.status === 'OK',
+      perturbedOk: perturbed.status === 'OK',
+      status: res.status,
+      cents: res.cents ?? null,
+      clarity: res.clarity,
+      midi: n.midi,
+      idx: n.idx,
+      windowMs: endMs - DEFAULT_SEQUENCE_PARAMS.pitchStartMs,
+    });
+  });
+}
+
 export function evaluateClip(task: ClipTask): ClipOutcome {
   const parsed = parseJams(JSON.parse(readFileSync(task.jamsPath, 'utf8')));
   const wav = decodeWav(readFileSync(task.wavPath));
@@ -107,6 +230,9 @@ export function evaluateClip(task: ClipTask): ClipOutcome {
     pairs: [],
     strums: [],
     f1: null,
+    seqNotes: [],
+    seqUnmatched: 0,
+    seqF1: null,
   };
   const tolEvent = Math.round(0.06 * fs);
 
@@ -116,6 +242,7 @@ export function evaluateClip(task: ClipTask): ClipOutcome {
   const judgeable = (time: number) => time >= 0.5 && time + 0.4 <= durationS;
 
   if (task.info.kind === 'solo') {
+    evaluateSoloSequence(parsed, signal, fs, delta, rng, task.filters, judgeable, out);
     for (const s of singleEvents(parsed, task.filters).filter((e) => judgeable(e.time))) {
       const target = Math.round(s.time * fs);
       // App flow: the prompt arms the pluck detector shortly before the note; the energy fallback covers very

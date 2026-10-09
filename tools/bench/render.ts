@@ -26,7 +26,7 @@ import type { Thresholds } from './thresholds';
 
 export const PRE_ROLL_S = 1.0;
 
-function noteSpec(
+export function noteSpec(
   c: CommonParams,
   t: Thresholds,
   f0: number,
@@ -50,7 +50,7 @@ function noteSpec(
   };
 }
 
-function channel(
+export function channel(
   c: CommonParams,
   t: Thresholds,
   dry: Float32Array,
@@ -95,7 +95,7 @@ export function renderModeA(c: ModeACase, t: Thresholds): RenderedCase {
   return { signal: channel(c, t, dry, onset).signal, onsetSample: onset };
 }
 
-function strumStrings(
+export function strumStrings(
   c: CommonParams,
   t: Thresholds,
   v: ChordVoicing,
@@ -169,13 +169,13 @@ const OPEN: ChordVoicing = {
 };
 
 /** Mixes a strum into `dry` at `atS`, damping the previous sound with a short fade when hands re-strike. */
-function mixStrumAt(dry: Float32Array, strum: Float32Array, atSample: number): void {
+export function mixStrumAt(dry: Float32Array, strum: Float32Array, atSample: number): void {
   const end = Math.min(dry.length, atSample + strum.length);
   for (let i = atSample; i < end; i++) dry[i] = dry[i]! + strum[i - atSample]!;
 }
 
 /** Fades out everything after `atSample` (hand damping before a new strum) over `fadeSamples`. */
-function dampAfter(dry: Float32Array, atSample: number, fadeSamples: number): void {
+export function dampAfter(dry: Float32Array, atSample: number, fadeSamples: number): void {
   for (let i = atSample; i < dry.length; i++) {
     const k = i - atSample;
     dry[i] = k < fadeSamples ? dry[i]! * (1 - k / fadeSamples) : 0;

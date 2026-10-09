@@ -4,7 +4,7 @@
  *   npm run bench:dsp:dev   → dev split (seeds 1000–1999), for tuning; prints, never fails the shell
  *   npm run bench:dsp       → test split (seeds 9000–9999); exit 1 if any threshold fails;
  *                              writes bench-results/dsp-test.json and docs/BENCHMARK.md
- * Options (dev only): --modes A,B,C,Cset,D,tuner,rtt  --fraction 0.25
+ * Options (dev only): --modes A,B,C,Cset,D,tuner,rtt,seq,Cset8,swing,bleed,beta  --fraction 0.25
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,7 +15,7 @@ import { MODE_B_COLLISION_PARAMS } from '../../src/dsp/modeB';
 import { DETECTOR_VERSION } from '../../src/dsp/version';
 import { type BenchCase, buildCases, type Split } from './cases';
 import { evaluateCase, type Outcome } from './evaluate';
-import { evaluateOutcomes, type MetricResult, PERF_KEYS } from './metrics';
+import { benchExitCode, evaluateOutcomes, type MetricResult, PERF_KEYS } from './metrics';
 import { runInPool } from './pool';
 import { renderModeA, renderModeB } from './render';
 import { writeBenchmarkReport } from './report';
@@ -113,6 +113,11 @@ async function main(): Promise<void> {
     ...(pickModes('Cset') ? take(cases.modeCSet) : []),
     ...(pickModes('tuner') ? take(cases.tuner) : []),
     ...(pickModes('rtt') ? take(cases.rtt) : []),
+    ...(pickModes('seq') ? take(cases.sequence) : []),
+    ...(pickModes('Cset8') ? take(cases.modeCSetStage8) : []),
+    ...(pickModes('swing') ? take(cases.swing) : []),
+    ...(pickModes('bleed') ? take(cases.backingBleed) : []),
+    ...(pickModes('beta') ? take(cases.beta) : []),
   ];
   const started = performance.now();
   let lastPrint = 0;
@@ -160,6 +165,10 @@ async function main(): Promise<void> {
     `\nDSP benchmark — split ${split}, detector ${DETECTOR_VERSION}, ${outcomes.length} cases, ${elapsedS.toFixed(0)} s`,
   );
   console.log(summaryTable(metrics));
+  if (evaluation.betaMetrics.length) {
+    console.log('\nBETA — report only, not a gate (SPEC v1.1 §10.11): verdict = target met?');
+    console.log(summaryTable(evaluation.betaMetrics));
+  }
   if (Object.keys(cases.excluded).length)
     console.log(`excluded impossible combinations: ${JSON.stringify(cases.excluded)}`);
   mkdirSync(join(ROOT, 'bench-results'), { recursive: true });
@@ -170,6 +179,7 @@ async function main(): Promise<void> {
     elapsedS,
     cases: outcomes.length,
     metrics,
+    betaMetrics: evaluation.betaMetrics,
     breakdowns: evaluation.breakdowns,
     perf,
     coverage,
@@ -180,9 +190,9 @@ async function main(): Promise<void> {
     writeFileSync(join(ROOT, 'bench-results', 'outcomes-dev.json'), JSON.stringify(outcomes));
   if (split === 'test') writeBenchmarkReport(payload);
   console.log(
-    `VERIFY_DETAIL: ${failed.length === 0 ? 'all thresholds met' : `${failed.length} thresholds failed`}`,
+    `VERIFY_DETAIL: ${failed.length === 0 ? 'all thresholds met' : `${failed.length} thresholds failed`}${evaluation.betaMetrics.length ? '; beta reported' : ''}`,
   );
-  process.exit(split === 'test' && failed.length > 0 ? 1 : 0);
+  process.exit(benchExitCode(split, metrics, evaluation.betaMetrics));
 }
 
 void main();

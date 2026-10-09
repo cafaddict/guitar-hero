@@ -38,7 +38,9 @@ export interface ModeCParams {
   aggregate: 'mean' | 'weighted' | 'upperHalf';
   /** Evidence only from a true local peak within ±tolCents (not a neighbour's skirt). */
   strictPeak: boolean;
-  /** Winner must beat the open-strings distractor by this margin (dB). */
+  /** Winner must beat the open-strings distractor by this margin (dB); a negative value holds only when the
+   * open strings beat the winner by more than |margin| (voicings sharing most notes with the open strings,
+   * e.g. G5, cannot beat them by a positive margin when their bass is weak — v1.1 D-066). */
   distractorMarginDb: number;
   minChangeIntervalMs: number;
 }
@@ -54,11 +56,11 @@ export const DEFAULT_MODE_C_PARAMS: ModeCParams = {
   snrFloorDb: 0,
   snrCeilDb: 30,
   sharedCents: 35,
-  pairMarginDb: 3,
+  pairMarginDb: 2,
   useNoiseFloor: false,
   aggregate: 'weighted',
   strictPeak: false,
-  distractorMarginDb: 2,
+  distractorMarginDb: -2,
   minChangeIntervalMs: 300,
 };
 

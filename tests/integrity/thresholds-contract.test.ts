@@ -4,10 +4,16 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { nameToMidi } from '../../src/domain/theory';
+import { CURRICULUM } from '../../src/content/curriculum';
+import { voicingById } from '../../src/content/voicings';
+import { CORE_PAIRS } from '../../src/domain/pairs';
+import { nameToMidi, symbolRootPitchClass } from '../../src/domain/theory';
 import { DEFAULT_COLLISION_PARAMS } from '../../src/domain/voicing';
+import { DEFAULT_BACKING_MASK_PARAMS } from '../../src/dsp/backingMask';
 import { MODE_B_COLLISION_PARAMS } from '../../src/dsp/modeB';
+import { DEFAULT_SEQUENCE_PARAMS } from '../../src/dsp/sequence';
 import { buildCases, type CaseSet } from '../../tools/bench/cases';
+import { BLEED_BARS } from '../../tools/bench/casesV11';
 import type { Outcome } from '../../tools/bench/evaluate';
 import { evaluateOutcomes, JUDGED_KEYS, PARAMETER_KEYS } from '../../tools/bench/metrics';
 import { loadThresholds, THRESHOLDS_PATH } from '../../tools/bench/thresholds';
@@ -16,6 +22,24 @@ const raw = JSON.parse(readFileSync(THRESHOLDS_PATH, 'utf8'));
 const t = loadThresholds();
 const test: CaseSet = buildCases(t, 'test');
 const dev: CaseSet = buildCases(t, 'dev');
+
+/** Every generated case of a split (v1 and v1.1 areas, beta included). */
+function allCases(c: CaseSet) {
+  return [
+    ...c.modeA,
+    ...c.modeB,
+    ...c.modeC,
+    ...c.modeCSet,
+    ...c.modeD,
+    ...c.tuner,
+    ...c.rtt,
+    ...c.sequence,
+    ...c.modeCSetStage8,
+    ...c.swing,
+    ...c.backingBleed,
+    ...c.beta.filter((b) => b.kind !== 'modeCBleed'),
+  ];
+}
 
 function coversRange(
   values: readonly number[],
@@ -120,6 +144,45 @@ describe('§14.6-2 thresholds are the frozen file', () => {
       { mode: 'tuner', id: 't', dims, errorCents: 0, octaveError: false, timeToStableMs: 100 },
       { mode: 'rtt', id: 'r', dims, hasSignal: true, ok: true, errorMs: 0 },
       { mode: 'rtt', id: 'r2', dims, hasSignal: false, ok: false, errorMs: null },
+      // v1.1 areas (SPEC v1.1 §14.8)
+      ...['clean', 'wrong+1', 'missed', 'extra'].map(
+        (condition, i): Outcome => ({
+          mode: 'seq',
+          id: `s${i}`,
+          dims: { ...dims, condition },
+          noteCount: 8,
+          truthOnsets: 8,
+          detectedOnsets: 8,
+          matchedOnsets: 8,
+          okNotes: 8,
+          flawless: condition === 'clean',
+          uncertain: false,
+          defectDetected: condition === 'clean' ? null : true,
+          statuses: [],
+          processingMs: 1,
+        }),
+      ),
+      { mode: 'Cset8', id: 'c8', dims, correct: true, predicted: 'C' },
+      {
+        mode: 'swing',
+        id: 'sw',
+        dims,
+        truthCount: 1,
+        detectedCount: 1,
+        matched25: 1,
+        absErrorsMs: [1],
+        slotCorrect: 1,
+      },
+      {
+        mode: 'bleed',
+        id: 'bl',
+        dims,
+        truthCount: 1,
+        detectedCount: 1,
+        matched25: 1,
+        isolatedBacking: 1,
+        backingCounted: 0,
+      },
     ];
     const { metrics } = evaluateOutcomes(outcomes, t);
     const expected = Object.entries(JUDGED_KEYS).flatMap(([area, keys]) =>
@@ -204,15 +267,7 @@ describe('§14.6-2 split seeds', () => {
     ['test', test],
   ] as const)('%s cases derive from thresholds.splitSeeds only', (split, cases) => {
     const [lo, hi] = raw.splitSeeds[split];
-    const all = [
-      ...cases.modeA,
-      ...cases.modeB,
-      ...cases.modeC,
-      ...cases.modeCSet,
-      ...cases.modeD,
-      ...cases.tuner,
-      ...cases.rtt,
-    ];
+    const all = allCases(cases);
     for (const c of all) {
       expect(c.baseSeed).toBeGreaterThanOrEqual(lo);
       expect(c.baseSeed).toBeLessThanOrEqual(hi);
@@ -221,12 +276,7 @@ describe('§14.6-2 split seeds', () => {
   });
 
   it('dev and test splits never share a case seed', () => {
-    const seeds = (c: CaseSet) =>
-      new Set(
-        [...c.modeA, ...c.modeB, ...c.modeC, ...c.modeCSet, ...c.modeD, ...c.tuner, ...c.rtt].map(
-          (x) => x.seed,
-        ),
-      );
+    const seeds = (c: CaseSet) => new Set(allCases(c).map((x) => x.seed));
     const d = seeds(dev);
     for (const s of seeds(test)) expect(d.has(s)).toBe(false);
   });
@@ -327,7 +377,8 @@ describe('§14.6-2 / AC-S8 test-split matrix and sizes', () => {
     ).toBe(true);
   });
 
-  it('Mode C sequences: 60 s, changes/min range, all 25 pairs with both G voicings', () => {
+  it('Mode C sequences: 60 s, changes/min range, every §6.5 pair (core 25 + Stage 8–11) with all three G voicings (v1.1 §14.3-12)', () => {
+    expect(m.modeCPairSet).toBe('core25+stage8-11');
     expect(
       coversRange(
         test.modeC.map((c) => c.changesPerMin),
@@ -335,17 +386,30 @@ describe('§14.6-2 / AC-S8 test-split matrix and sizes', () => {
         frac,
       ),
     ).toBe(true);
-    const pairs = new Set(
-      test.modeC.map((c) =>
-        c.pair
-          .map((p) => (p.startsWith('G-') ? 'G' : p))
-          .sort()
-          .join('|'),
-      ),
+    const gClass = new Set(['G-2f', 'G-3f']);
+    const key = (pair: readonly string[]) =>
+      pair
+        .map((p) => (gClass.has(p) ? 'G' : p))
+        .sort()
+        .join('|');
+    const expected = new Set([
+      ...CORE_PAIRS.map((p) => key(p)),
+      ...CURRICULUM.filter((s) => s.stage >= 8).flatMap((s) => s.stagePairs.map((id) => key(id.split('|')))),
+    ]);
+    expect(expected.size).toBe(50);
+    // G-class pairs may be played with G-4f too: map it back to 'G' when its pair is not a Stage 8 G-4f pair.
+    const seen = new Set(
+      test.modeC.map((c) => {
+        const k = key(c.pair);
+        return expected.has(k) ? k : key(c.pair.map((p) => (p === 'G-4f' ? 'G' : p)));
+      }),
     );
-    expect(pairs.size).toBe(25);
-    expect(test.modeC.some((c) => c.pair.includes('G-2f'))).toBe(true);
-    expect(test.modeC.some((c) => c.pair.includes('G-3f'))).toBe(true);
+    expect([...seen].sort()).toEqual([...expected].sort());
+    for (const g of m.gVoicings)
+      expect(
+        test.modeC.some((c) => c.pair.includes(g)),
+        g,
+      ).toBe(true);
     for (const c of test.modeC) {
       expect(c.events.at(-1)!.time - c.events[0]!.time).toBeLessThanOrEqual(m.modeC.sequenceSeconds);
       expect(c.truthChanges).toBe(c.events.filter((e) => e.kind === 'arrival').length);
@@ -421,5 +485,194 @@ describe('§14.6-2 / AC-S8 test-split matrix and sizes', () => {
     const classes = new Set(test.modeCSet.map((c) => (c.voicingId.startsWith('G-') ? 'G' : c.voicingId)));
     expect(classes.size).toBe(8);
     expect(test.modeCSet.every((c) => c.snrDb >= raw.synthetic.modeCSet.snrDbMin)).toBe(true);
+  });
+});
+
+describe('SPEC v1.1 §14.3-12/13, §14.8 v1.1 matrix and sizes (test split)', () => {
+  const m = raw.matrix;
+  const min = raw.minimumTestSizes;
+  const frac = m.rangeEndpointCoverageFraction;
+
+  it('sequence: every shape, scale step, note value and condition; BPM and RTT ranges; ≥ sequenceCycles cycles', () => {
+    const seq = test.sequence;
+    expect(seq.length).toBeGreaterThanOrEqual(min.sequenceCycles);
+    expect(new Set(seq.map((c) => c.shape))).toEqual(new Set(m.sequence.shapes));
+    expect(new Set(seq.flatMap((c) => (c.step === null ? [] : [c.step])))).toEqual(
+      new Set(m.sequence.scaleSteps),
+    );
+    expect(new Set(seq.map((c) => c.noteValue))).toEqual(new Set(m.sequence.noteValues));
+    expect(new Set(seq.map((c) => c.condition))).toEqual(new Set(m.sequence.conditions));
+    expect(
+      coversRange(
+        seq.map((c) => c.bpm),
+        m.sequence.bpm,
+        frac,
+      ),
+    ).toBe(true);
+    expect(
+      coversRange(
+        seq.map((c) => c.rttMs),
+        m.sequence.rttMs,
+        frac,
+      ),
+    ).toBe(true);
+    for (const dim of ['sampleRate', 'model', 'snrDb', 'micHighpassHz', 'reverb'] as const) {
+      const values = {
+        sampleRate: m.sampleRates,
+        model: m.synthModels,
+        snrDb: m.snrDb,
+        micHighpassHz: m.micHighpassHz,
+        reverb: m.reverb,
+      }[dim];
+      expect(new Set(seq.map((c) => c[dim])), dim).toEqual(new Set(values));
+    }
+  });
+
+  it('sequence: one defect per cycle as defined (missed never first/last; extra on another string; wrong ±1 on the same string)', () => {
+    expect(m.sequence.defectsPerCycle).toBe(1);
+    for (const c of test.sequence) {
+      const changed = c.played.filter((p) => p.kind !== 'note');
+      if (c.condition === 'clean' || c.condition === 'missed') expect(changed).toHaveLength(0);
+      if (c.condition === 'missed') {
+        expect(c.played).toHaveLength(c.slots.length - 1);
+        expect(c.defectSlot!).toBeGreaterThan(0);
+        expect(c.defectSlot!).toBeLessThan(c.slots.length - 1);
+      }
+      if (c.condition.startsWith('wrong')) {
+        expect(changed).toHaveLength(1);
+        const slot = c.slots[c.defectSlot!]!;
+        expect(changed[0]!.string).toBe(slot.string);
+        expect(changed[0]!.midi - slot.midi).toBe(c.condition === 'wrong+1' ? 1 : -1);
+      }
+      if (c.condition === 'extra') {
+        expect(changed).toHaveLength(1);
+        const k = c.played.indexOf(changed[0]!);
+        expect(changed[0]!.string).not.toBe(c.played[k - 1]!.string);
+        const mid = (c.slots[k - 1]!.time + c.slots[k]!.time) / 2 + c.rttMs / 1000;
+        expect(Math.abs(changed[0]!.time - mid) * 1000).toBeLessThanOrEqual(
+          m.sequence.extraOffsetJitterMs + 1e-6,
+        );
+      }
+      if (c.shape === 'chromatic') expect(c.slots).toHaveLength(m.sequence.chromaticCycleNotes);
+    }
+  });
+
+  it('sequence detector and metric constants come from the contract', () => {
+    expect(DEFAULT_SEQUENCE_PARAMS.toleranceCents).toBe(m.sequence.pitchToleranceCents);
+    const clean = test.sequence.filter((c) => c.condition === 'clean');
+    expect(clean.some((c) => c.slots.length <= m.sequence.flawlessGateMaxCycleNotes)).toBe(true);
+    expect(clean.some((c) => c.slots.length > m.sequence.flawlessGateMaxCycleNotes)).toBe(true);
+  });
+
+  it('swing: P7/P8, ratio and BPM ranges, Mode D jitter/RTT; ≥ swingEvents strums; the detector gets the ratio', () => {
+    const sw = test.swing;
+    expect(sw.reduce((a, c) => a + c.strums.length, 0)).toBeGreaterThanOrEqual(min.swingEvents);
+    expect(new Set(sw.map((c) => c.patternId))).toEqual(new Set(m.swing.patterns));
+    expect(
+      coversRange(
+        sw.map((c) => c.swingRatio),
+        m.swing.swingRatio,
+        frac,
+      ),
+    ).toBe(true);
+    expect(
+      coversRange(
+        sw.map((c) => c.bpm),
+        m.swing.bpm,
+        frac,
+      ),
+    ).toBe(true);
+    expect(
+      coversRange(
+        sw.map((c) => c.rttMs),
+        m.modeD.rttMs,
+        frac,
+      ),
+    ).toBe(true);
+    expect(
+      coversRange(
+        sw.map((c) => c.humanMeanOffsetMs),
+        m.modeD.humanMeanOffsetMs,
+        frac,
+      ),
+    ).toBe(true);
+    expect(m.swing.detectorGetsRatio).toBe(true);
+    for (const c of sw) {
+      // The off-beat slot sits at r/(1+r) of the beat (§6.10).
+      const beat = 60 / c.bpm;
+      expect((c.slots[1]!.time - c.slots[0]!.time) / beat).toBeCloseTo(c.swingRatio / (1 + c.swingRatio), 9);
+    }
+  });
+
+  it('backing bleed: P0 user, P3 backing, relDb range, ≥ backingBleedEvents; detector constants equal the contract', () => {
+    const bb = m.backingBleed;
+    expect(
+      coversRange(
+        test.backingBleed.map((c) => c.relDb),
+        bb.relDb,
+        frac,
+      ),
+    ).toBe(true);
+    expect(test.backingBleed.reduce((a, c) => a + c.strums.length, 0)).toBeGreaterThanOrEqual(
+      min.backingBleedEvents,
+    );
+    // 3 isolated P3 backing strums per bar (slots 3, 5, 7) → the false-strum denominator.
+    expect(test.backingBleed.length * 3 * BLEED_BARS).toBeGreaterThanOrEqual(min.backingBleedEvents);
+    expect(bb.userPattern).toBe('P0');
+    expect(bb.backingPattern).toBe('P3');
+    expect(DEFAULT_BACKING_MASK_PARAMS.maskWindowMs).toBe(bb.maskWindowMs);
+    expect(DEFAULT_BACKING_MASK_PARAMS.keepLowBandDb).toBe(bb.userStrumKeepLowBandDb);
+  });
+
+  it('Stage 8–11 closed sets: every set, roots distinct inside each set, SNR ≥ snrDbMin, ≥ modeCSetStage8to11Strums', () => {
+    const sets: string[][] = m.modeCSetStage8to11.sets;
+    expect(test.modeCSetStage8.length).toBeGreaterThanOrEqual(min.modeCSetStage8to11Strums);
+    expect(new Set(test.modeCSetStage8.map((c) => c.setIdx))).toEqual(new Set(sets.map((_, i) => i)));
+    for (const set of sets) {
+      const roots = set.map((id) => symbolRootPitchClass(voicingById(id).symbol));
+      expect(new Set(roots).size, set.join(',')).toBe(set.length);
+    }
+    expect(m.modeCSetStage8to11.rootsDistinctWithinSet).toBe(true);
+    for (const c of test.modeCSetStage8) {
+      expect(sets[c.setIdx]).toContain(c.voicingId);
+      expect(c.snrDb).toBeGreaterThanOrEqual(raw.synthetic.modeCSetStage8to11.snrDbMin);
+    }
+  });
+
+  it('Mode A/B cover the 29 voicings, Stage 8–11 included (AC-S9); G voicings are the three of §6.4', () => {
+    expect(m.voicings).toHaveLength(29);
+    for (const v of m.voicings) expect(() => voicingById(v)).not.toThrow();
+    expect(m.gVoicings).toEqual(['G-2f', 'G-3f', 'G-4f']);
+  });
+
+  it('beta conditions: buzz strength, both directions, palm-mute decay and dynamics Δ ranges; ≥ betaPerDetector each', () => {
+    const bc = m.betaConditions;
+    const beta = test.beta;
+    const of = <K extends string>(kind: K) => beta.filter((c) => c.kind === kind);
+    const buzz = of('buzz') as { buzz: number }[];
+    expect(
+      coversRange(
+        buzz.filter((c) => c.buzz > 0).map((c) => c.buzz),
+        bc.buzzStrength,
+        frac,
+      ),
+    ).toBe(true);
+    expect(new Set((of('direction') as { direction: string }[]).map((c) => c.direction))).toEqual(
+      new Set(bc.directions),
+    );
+    const pm = (of('palmMute') as { decayS: number | null }[]).flatMap((c) =>
+      c.decayS === null ? [] : [c.decayS],
+    );
+    expect(coversRange(pm, bc.palmMuteDecayS, frac)).toBe(true);
+    const dyn = (of('dynamics') as { barGainDb: number[] }[]).flatMap((c) =>
+      c.barGainDb.filter((g) => g > 0),
+    );
+    expect(coversRange(dyn, bc.dynamicsDeltaDb, frac)).toBe(true);
+    for (const kind of ['buzz', 'direction', 'palmMute'] as const)
+      expect(of(kind).length, kind).toBeGreaterThanOrEqual(min.betaPerDetector);
+    expect((of('legato') as { hammer: boolean }[]).filter((c) => c.hammer).length * 4).toBeGreaterThanOrEqual(
+      min.betaPerDetector,
+    );
+    expect(of('dynamics').length * 4).toBeGreaterThanOrEqual(min.betaPerDetector);
   });
 });

@@ -5,7 +5,7 @@
  * description, so nothing is conveyed by the picture alone.
  */
 import { stringNumber } from '../domain/strings';
-import { STANDARD_TUNING } from '../domain/theory';
+import { STANDARD_TUNING, symbolRootPitchClass } from '../domain/theory';
 import type { ChordVoicing } from '../domain/voicing';
 import { ko } from '../i18n/ko';
 
@@ -27,14 +27,8 @@ export interface ChordDiagramProps {
   className?: string;
 }
 
-const NOTE_PC: Readonly<Record<string, number>> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-
 /** Pitch class of a chord symbol's root ('F#m' → 6, 'Bb7' → 10). */
-export function rootPitchClass(symbol: string): number | null {
-  const m = /^([A-G])([#b]?)/.exec(symbol);
-  if (!m) return null;
-  return (NOTE_PC[m[1]!]! + (m[2] === '#' ? 1 : m[2] === 'b' ? 11 : 0)) % 12;
-}
+export const rootPitchClass = symbolRootPitchClass;
 
 /** String indices whose sounding note is the root (x strings excluded). */
 export function rootStrings(voicing: ChordVoicing): number[] {

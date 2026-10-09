@@ -1,5 +1,5 @@
 /**
- * Seed voicings (SPEC §6.4). frets/fingers run from the 6th string to the 1st string.
+ * Seed voicings (SPEC §6.4; v1.1 §6.4 adds four power chords, 29 in all). frets/fingers run from the 6th string to the 1st string.
  * Fingerings are suggestions from the pedagogy research; physical plausibility is tested.
  */
 import type { ChordVoicing, Fret } from '../domain/voicing';
@@ -82,6 +82,11 @@ const ROWS: readonly SeedRow[] = [
   },
   { id: 'G5', symbol: 'G5', frets: '3 5 5 x x x', fingers: '1 3 4 - - -', stage: 10, tags: ['power'] },
   { id: 'C5', symbol: 'C5', frets: 'x 3 5 5 x x', fingers: '- 1 3 4 - -', stage: 10, tags: ['power'] },
+  // v1.1 open/movable power chords (SPEC v1.1 §6.4, D-053): Stage 10 songs need more than G5 and C5.
+  { id: 'E5', symbol: 'E5', frets: '0 2 2 x x x', fingers: '0 1 2 - - -', stage: 10, tags: ['power'] },
+  { id: 'A5', symbol: 'A5', frets: 'x 0 2 2 x x', fingers: '- 0 1 2 - -', stage: 10, tags: ['power'] },
+  { id: 'D5', symbol: 'D5', frets: 'x x 0 2 3 x', fingers: '- - 0 1 3 -', stage: 10, tags: ['power'] },
+  { id: 'F5', symbol: 'F5', frets: '1 3 3 x x x', fingers: '1 3 4 - - -', stage: 10, tags: ['power'] },
   { id: 'A7', symbol: 'A7', frets: 'x 0 2 0 2 0', fingers: '- 0 2 0 3 0', stage: 11 },
   { id: 'D7', symbol: 'D7', frets: 'x x 0 2 1 2', fingers: '- - 0 2 1 3', stage: 11 },
   { id: 'E7', symbol: 'E7', frets: '0 2 0 1 0 0', fingers: '0 2 0 1 0 0', stage: 11 },

@@ -862,8 +862,8 @@ export const ko = {
         down: (bpm: number) => `${bpm} BPM으로 내려서 다져 봐요.`,
         stay: (bpm: number) => `${bpm} BPM으로 한 번 더 해 봐요.`,
       },
-      direction: { D: '↓', U: '↑', '-': '·' },
-      directionLabel: { D: '다운', U: '업', '-': '쉼' },
+      direction: { D: '↓', U: '↑', X: '✕', d: '↓', '-': '·' },
+      directionLabel: { D: '다운', U: '업', X: '끊기', d: '약한 다운', '-': '쉼' },
       directionNote: '방향(다운/업)은 아직 판정하지 않아요.',
     },
     e2: {

@@ -23,6 +23,8 @@ export interface TimingAnalysis {
   extras: number;
   /** Strums that matched no slot at all (outside every window). */
   unmatched: number;
+  /** Slot index each strum was matched to (input order), or null (SPEC v1.1 §14.8 swing slot assignment). */
+  strumSlots: (number | null)[];
   hitRate: number;
   meanOffsetMs: number | null;
   sdOffsetMs: number | null;
@@ -57,10 +59,12 @@ function judge(
   pairs.sort((x, y) => x.dist - y.dist);
   const usedSlot = new Set<number>();
   const usedStrum = new Set<number>();
+  const strumSlots: (number | null)[] = strumTimes.map(() => null);
   for (const p of pairs) {
     if (usedSlot.has(p.slot) || usedStrum.has(p.strum)) continue;
     usedSlot.add(p.slot);
     usedStrum.add(p.strum);
+    strumSlots[p.strum] = p.slot;
     const slot = slots[p.slot]!;
     if (slot.expected) {
       judgements[p.slot] = 'hit';
@@ -69,7 +73,7 @@ function judge(
       judgements[p.slot] = 'extra';
     }
   }
-  return { judgements, offsets, unmatched: strumTimes.length - usedStrum.size };
+  return { judgements, offsets, unmatched: strumTimes.length - usedStrum.size, strumSlots };
 }
 
 export function analyzeTiming(
@@ -103,6 +107,7 @@ export function analyzeTiming(
     misses,
     extras,
     unmatched: base.unmatched,
+    strumSlots: base.strumSlots,
     hitRate: expected ? hits / expected : 0,
     meanOffsetMs: mean,
     sdOffsetMs: sd,

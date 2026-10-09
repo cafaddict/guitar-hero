@@ -2,6 +2,8 @@
  * Metric definitions (SPEC §14.3 "지표 정의", fixed) and threshold judgement against thresholds.json.
  * Keys ending in "Max" pass when value ≤ threshold, "Min" when value ≥ threshold.
  */
+
+import { BETA_METRICS } from './betaBench';
 import type {
   Dims,
   Outcome,
@@ -13,6 +15,7 @@ import type {
   OutcomeRtt,
   OutcomeTuner,
 } from './evaluate';
+import { BACKING_BLEED_METRICS, modeCSetStage8Metrics, SWING_METRICS, sequenceMetrics } from './metricsV11';
 import type { Thresholds } from './thresholds';
 
 export interface MetricResult {
@@ -296,6 +299,8 @@ function breakdown<T extends { dims: Dims }>(
 
 export interface Evaluation {
   metrics: MetricResult[];
+  /** Report-only beta metrics (thresholds.beta.targets): never part of the pass/fail decision. */
+  betaMetrics: MetricResult[];
   breakdowns: Breakdown[];
 }
 
@@ -312,6 +317,8 @@ export const PARAMETER_KEYS: Readonly<Record<string, readonly string[]>> = {
   modeB: ['detectionStrataSnrDbMin'],
   modeCSet: ['snrDbMin'],
   coverage: ['modeBVerifiableRatioMustBeAtLeastDefaultRule'],
+  sequence: ['flawlessGateSnrDbMin'],
+  modeCSetStage8to11: ['snrDbMin'],
 };
 
 export const JUDGED_KEYS = {
@@ -323,6 +330,10 @@ export const JUDGED_KEYS = {
   modeD: Object.keys(MODE_D_METRICS),
   tuner: Object.keys(tunerMetrics(0)),
   rtt: Object.keys(RTT_METRICS),
+  sequence: Object.keys(sequenceMetrics(0, 0)),
+  modeCSetStage8to11: Object.keys(modeCSetStage8Metrics(0)),
+  swing: Object.keys(SWING_METRICS),
+  backingBleed: Object.keys(BACKING_BLEED_METRICS),
 };
 
 export function evaluateOutcomes(outcomes: readonly Outcome[], t: Thresholds): Evaluation {
@@ -336,6 +347,16 @@ export function evaluateOutcomes(outcomes: readonly Outcome[], t: Thresholds): E
   const d = by('D');
   const tu = by('tuner');
   const r = by('rtt');
+  const seq = by('seq');
+  const cs8 = by('Cset8');
+  const sw = by('swing');
+  const bl = by('bleed');
+  const be = by('beta');
+  const modeCSet8 = modeCSetStage8Metrics(s.modeCSetStage8to11.snrDbMin!);
+  const sequence = sequenceMetrics(
+    t.matrix.sequence.flawlessGateMaxCycleNotes,
+    s.sequence.flawlessGateSnrDbMin!,
+  );
   const modeB = modeBMetrics(s.modeB.detectionStrataSnrDbMin!);
   const modeCSet = modeCSetMetrics(s.modeCSet.snrDbMin!);
   const tuner = tunerMetrics(t.matrix.tuner.snrDbMin);
@@ -347,6 +368,10 @@ export function evaluateOutcomes(outcomes: readonly Outcome[], t: Thresholds): E
   if (d.length) metrics.push(...apply('modeD', MODE_D_METRICS, d, s.modeD));
   if (tu.length) metrics.push(...apply('tuner', tuner, tu, s.tuner));
   if (r.length) metrics.push(...apply('rtt', RTT_METRICS, r, s.rtt));
+  if (seq.length) metrics.push(...apply('sequence', sequence, seq, s.sequence));
+  if (cs8.length) metrics.push(...apply('modeCSetStage8to11', modeCSet8, cs8, s.modeCSetStage8to11));
+  if (sw.length) metrics.push(...apply('swing', SWING_METRICS, sw, s.swing));
+  if (bl.length) metrics.push(...apply('backingBleed', BACKING_BLEED_METRICS, bl, s.backingBleed));
   const dims: (keyof Dims)[] = ['snrDb', 'micHighpassHz', 'model', 'sampleRate', 'reverb', 'voicing'];
   const breakdowns = [
     ...breakdown('modeA', MODE_A_METRICS, a, dims),
@@ -361,6 +386,20 @@ export function evaluateOutcomes(outcomes: readonly Outcome[], t: Thresholds): E
     ...breakdown('modeD', MODE_D_METRICS, d, [...dims.filter((x) => x !== 'voicing'), 'condition']),
     ...breakdown('tuner', tuner, tu, dims),
     ...breakdown('rtt', RTT_METRICS, r, ['snrDb', 'micHighpassHz', 'sampleRate', 'reverb']),
+    ...breakdown('sequence', sequence, seq, dims),
+    ...breakdown('modeCSetStage8to11', modeCSet8, cs8, [...dims, 'condition']),
+    ...breakdown('swing', SWING_METRICS, sw, [...dims.filter((x) => x !== 'voicing'), 'condition']),
+    ...breakdown('backingBleed', BACKING_BLEED_METRICS, bl, [...dims, 'condition']),
   ];
-  return { metrics, breakdowns };
+  const betaMetrics = be.length ? apply('beta', BETA_METRICS, be, t.beta.targets) : [];
+  return { metrics, betaMetrics, breakdowns };
+}
+
+/** Exit code of `bench:dsp`: only the hard metrics of the test split decide (beta never does, integrity 10). */
+export function benchExitCode(
+  split: 'dev' | 'test',
+  hard: readonly MetricResult[],
+  _beta: readonly MetricResult[],
+): 0 | 1 {
+  return split === 'test' && hard.some((m) => !m.pass) ? 1 : 0;
 }

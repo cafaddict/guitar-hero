@@ -16,6 +16,8 @@ export interface ReportPayload {
   elapsedS: number;
   cases: number;
   metrics: MetricResult[];
+  /** Report-only beta metrics (SPEC v1.1 §10.11) — never part of the verdict. */
+  betaMetrics?: MetricResult[];
   breakdowns: Breakdown[];
   coverage: CoverageReport;
   excluded: Record<string, number>;
@@ -76,7 +78,7 @@ export function writeBenchmarkReport(p: ReportPayload): void {
     `- 실행: ${p.createdAt} · split **${p.split}** · detectorVersion **${p.detectorVersion}** · ${p.cases} cases · ${p.elapsedS.toFixed(0)} s`,
   );
   lines.push(
-    `- 결과: **${failed.length === 0 ? 'ALL THRESHOLDS MET' : `${failed.length} FAILED`}** (임계값: \`docs/goal/thresholds.json\`)`,
+    `- 결과: **${failed.length === 0 ? 'ALL THRESHOLDS MET' : `${failed.length} FAILED`}** (임계값: \`docs/goal/v1.1/thresholds.json\` — v1 계약을 그대로 포함, 무결성 11)`,
   );
   lines.push('');
   lines.push('## 지표 요약');
@@ -88,6 +90,21 @@ export function writeBenchmarkReport(p: ReportPayload): void {
       `| ${m.area} | ${m.key} | ${fmt(m.value)} | ${fmt(m.threshold)} | ${m.pass ? 'PASS' : 'FAIL'} | ${m.n} |`,
     );
   lines.push('');
+  if (p.betaMetrics?.length) {
+    lines.push('## 베타 — 게이트 아님');
+    lines.push('');
+    lines.push(
+      '> 정답 데이터가 없는 판정기(SPEC v1.1 §10.11)를 합성 조건으로 잰 값이다. 목표치는 `thresholds.json.beta.targets`(보고 전용)이고, 못 미쳐도 verify는 통과한다(무결성 10). 앱은 이 결과를 "참고(베타)"로만 보여 주고 지표·진급에 쓰지 않는다.',
+    );
+    lines.push('');
+    lines.push('| 지표 | 값 | 목표 | 목표 충족 | n |');
+    lines.push('|---|---|---|---|---|');
+    for (const m of p.betaMetrics)
+      lines.push(
+        `| ${m.key} | ${fmt(m.value)} | ${fmt(m.threshold)} | ${m.pass ? '예' : '아니오'} | ${m.n} |`,
+      );
+    lines.push('');
+  }
   lines.push('## 스트럼 모드 검증 가능 줄 커버리지 (Stage 0–7, §6.3 기본 규칙)');
   lines.push('');
   lines.push('| 보이싱 | 연주 줄 | verifiable 줄 | 비율 | verifiable idx (0=6번 줄) |');

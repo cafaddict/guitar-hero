@@ -57,6 +57,23 @@ export function peaking(centerHz: number, sampleRate: number, gainDb: number, q:
   };
 }
 
+/** RBJ high shelf (slope S = 1): gain `gainDb` above `cornerHz` (palm-mute model, SPEC v1.1 §14.2). */
+export function highshelf(cornerHz: number, sampleRate: number, gainDb: number): Biquad {
+  const A = 10 ** (gainDb / 40);
+  const w0 = (2 * Math.PI * cornerHz) / sampleRate;
+  const cos = Math.cos(w0);
+  const alpha = (Math.sin(w0) / 2) * Math.SQRT2;
+  const k = 2 * Math.sqrt(A) * alpha;
+  const a0 = A + 1 - (A - 1) * cos + k;
+  return {
+    b0: (A * (A + 1 + (A - 1) * cos + k)) / a0,
+    b1: (-2 * A * (A - 1 + (A + 1) * cos)) / a0,
+    b2: (A * (A + 1 + (A - 1) * cos - k)) / a0,
+    a1: (2 * (A - 1 - (A + 1) * cos)) / a0,
+    a2: (A + 1 - (A - 1) * cos - k) / a0,
+  };
+}
+
 /** Applies a biquad (direct form II transposed) and returns a new array. */
 export function applyBiquad(input: ArrayLike<number>, f: Biquad): Float32Array {
   const out = new Float32Array(input.length);

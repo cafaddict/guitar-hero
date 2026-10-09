@@ -27,6 +27,11 @@ export interface NoteSpec {
   /** Decay time (T60) of the fundamental in seconds. */
   t60S: number;
   seed: number;
+  /** Additive model: add the pick-noise burst (default true; a hammer-on has none, SPEC v1.1 §14.2). */
+  pickNoise?: boolean;
+  /** Karplus–Strong: start the delay line from this waveform (resampled to the new period) instead of a
+   * plucked noise burst — a hammer-on keeps the string's vibration and only changes its length. */
+  excitation?: ArrayLike<number>;
 }
 
 /** Random but realistic timbre parameters for a note. */
@@ -86,20 +91,32 @@ export function karplusStrong(spec: NoteSpec): Float32Array {
   const c = allpassCoefficient(frac, omega);
   const loopGain = 10 ** (-3 / (spec.f0 * spec.t60S)) / Math.cos(omega / 2);
 
-  const rng = mulberry32(spec.seed);
-  const excitation = new Float64Array(D);
-  const pole = 1 - spec.brightness * 0.9;
-  let lp = 0;
-  for (let i = 0; i < D; i++) {
-    lp = (1 - pole) * (rng() * 2 - 1) + pole * lp;
-    excitation[i] = lp;
-  }
-  const combDelay = Math.max(1, Math.round(spec.pickPosition * D));
   const buf = new Float64Array(D);
   let mean = 0;
-  for (let i = 0; i < D; i++) {
-    buf[i] = excitation[i]! - (i >= combDelay ? excitation[i - combDelay]! : 0);
-    mean += buf[i]!;
+  if (spec.excitation && spec.excitation.length > 1) {
+    // Hammer-on: the previous vibration, linearly resampled to the new loop length.
+    const src = spec.excitation;
+    for (let i = 0; i < D; i++) {
+      const pos = (i * (src.length - 1)) / Math.max(1, D - 1);
+      const k = Math.floor(pos);
+      const f = pos - k;
+      buf[i] = (1 - f) * src[k]! + f * (src[Math.min(src.length - 1, k + 1)] ?? 0);
+      mean += buf[i]!;
+    }
+  } else {
+    const rng = mulberry32(spec.seed);
+    const excitation = new Float64Array(D);
+    const pole = 1 - spec.brightness * 0.9;
+    let lp = 0;
+    for (let i = 0; i < D; i++) {
+      lp = (1 - pole) * (rng() * 2 - 1) + pole * lp;
+      excitation[i] = lp;
+    }
+    const combDelay = Math.max(1, Math.round(spec.pickPosition * D));
+    for (let i = 0; i < D; i++) {
+      buf[i] = excitation[i]! - (i >= combDelay ? excitation[i - combDelay]! : 0);
+      mean += buf[i]!;
+    }
   }
   mean /= D;
   for (let i = 0; i < D; i++) buf[i] = buf[i]! - mean;
@@ -180,6 +197,7 @@ export function additive(spec: NoteSpec): Float32Array {
   const attack = Math.max(1, Math.round(0.001 * fs));
   for (let i = 0; i < Math.min(attack, n); i++)
     out[i] = out[i]! * (0.5 - 0.5 * Math.cos((Math.PI * i) / attack));
+  if (spec.pickNoise === false) return out;
   // Pick noise: 4 ms decaying burst, first-difference high-passed, ~-18 dB re. the note's peak.
   let peak = 0;
   for (let i = 0; i < Math.min(n, Math.round(0.05 * fs)); i++) peak = Math.max(peak, Math.abs(out[i]!));

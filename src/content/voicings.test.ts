@@ -8,7 +8,7 @@ import { SEED_VOICINGS } from './voicings';
 const chroma = (name: string) => Note.chroma(name);
 
 describe('AC-D1 seed voicings', () => {
-  it('has exactly the 25 SPEC §6.4 voicings', () => {
+  it('has exactly the 29 SPEC v1.1 §6.4 voicings', () => {
     expect(SEED_VOICINGS.map((v) => v.id)).toEqual([
       'D',
       'A',
@@ -29,6 +29,10 @@ describe('AC-D1 seed voicings', () => {
       'F',
       'G5',
       'C5',
+      'E5',
+      'A5',
+      'D5',
+      'F5',
       'A7',
       'D7',
       'E7',

@@ -7,6 +7,7 @@
  * The class form is streaming (one frame at a time, used by the AudioWorklet); detectStrums() runs it
  * offline over a whole buffer.
  */
+import { type BackingSchedule, backingKeepFlags } from './backingMask';
 import { nextPow2, realFft } from './fft';
 import { hann } from './window';
 
@@ -293,6 +294,8 @@ export function computeFlux(
 export interface PickOptions {
   /** Click arrival samples (scheduled time + RTT) for masking. */
   clickSamples?: readonly number[];
+  /** Speaker backing events to mask (SPEC v1.1 §10.12); offline path only. */
+  backing?: BackingSchedule;
 }
 
 /**
@@ -550,6 +553,7 @@ export function refineOnset(
   _frameLength: number,
   sampleRate: number,
   params: OnsetParams,
+  searchFromSample?: number,
 ): number {
   const n = Math.round((params.refineFrameMs / 1000) * sampleRate);
   const fftSize = nextPow2(n);
@@ -605,11 +609,12 @@ export function refineOnset(
   for (let f = lag; f < count; f++) peak = Math.max(peak, flux[f]!);
   if (peak <= base) return coarseSample;
   const threshold = base + params.refineFraction * (peak - base);
-  for (let f = lag + 1; f < count - 1; f++) {
-    if (flux[f]! >= threshold && flux[f + 1]! >= threshold) {
-      const end = firstEnd + f * hop;
-      return Math.round(end - (params.refineBiasMs / 1000) * sampleRate);
-    }
+  const at = (f: number) => Math.round(firstEnd + f * hop - (params.refineBiasMs / 1000) * sampleRate);
+  // Optional prior (backing masking): ignore crossings whose onset would precede `searchFromSample`.
+  let from = lag + 1;
+  if (searchFromSample !== undefined) while (from < count - 1 && at(from) < searchFromSample) from++;
+  for (let f = from; f < count - 1; f++) {
+    if (flux[f]! >= threshold && flux[f + 1]! >= threshold) return at(f);
   }
   return coarseSample;
 }
@@ -656,7 +661,7 @@ export function suppressAnticipations(
   );
 }
 
-/** Full offline pipeline: flux → peaks → refinement → strum grouping → anticipation suppression. */
+/** Full offline pipeline: flux → peaks → refinement → (backing mask) → strum grouping → anticipation suppression. */
 export function detectStrums(
   signal: ArrayLike<number>,
   sampleRate: number,
@@ -665,8 +670,15 @@ export function detectStrums(
 ): StrumEvent[] {
   const frames = computeFlux(signal, sampleRate, params);
   const frameLength = Math.round((params.frameMs / 1000) * sampleRate);
-  const candidates = pickOnsets(frames, sampleRate, frameLength, params, options);
-  const refined = candidates.map((c) => refineOnset(signal, c.sample, frameLength, sampleRate, params));
+  let candidates = pickOnsets(frames, sampleRate, frameLength, params, options);
+  let refined = candidates.map((c) => refineOnset(signal, c.sample, frameLength, sampleRate, params));
+  if (options.backing) {
+    const keep = backingKeepFlags(signal, sampleRate, refined, options.backing, (i, from) =>
+      refineOnset(signal, candidates[i]!.sample, frameLength, sampleRate, params, from),
+    );
+    candidates = candidates.filter((_, i) => keep[i]);
+    refined = refined.filter((_, i) => keep[i]);
+  }
   return suppressAnticipations(
     groupStrums(candidates, refined, sampleRate, params.groupMs),
     sampleRate,

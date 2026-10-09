@@ -22,6 +22,7 @@ import type {
   RttCase,
   TunerCase,
 } from './cases';
+import { evaluateV11Case, type OutcomeV11 } from './evaluateV11';
 import {
   renderModeA,
   renderModeB,
@@ -123,7 +124,15 @@ export interface OutcomeRtt {
   errorMs: number | null;
 }
 
-export type Outcome = OutcomeA | OutcomeB | OutcomeC | OutcomeCSet | OutcomeD | OutcomeTuner | OutcomeRtt;
+export type Outcome =
+  | OutcomeA
+  | OutcomeB
+  | OutcomeC
+  | OutcomeCSet
+  | OutcomeD
+  | OutcomeTuner
+  | OutcomeRtt
+  | OutcomeV11;
 
 function dims(c: BenchCase, voicing: string, condition: string): Dims {
   return {
@@ -436,5 +445,7 @@ export function evaluateCase(c: BenchCase, t: Thresholds): Outcome {
       return evaluateTuner(c, t);
     case 'rtt':
       return evaluateRtt(c, t);
+    default:
+      return evaluateV11Case(c, t);
   }
 }

@@ -41,6 +41,15 @@ export function pitchClassName(midi: number): string {
   return PITCH_CLASS_NAMES[pitchClass(midi)]!;
 }
 
+const NATURAL_PC: Readonly<Record<string, number>> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+/** Pitch class of a chord symbol's root ('F#m' → 6, 'Bb7' → 10), or null. */
+export function symbolRootPitchClass(symbol: string): number | null {
+  const m = /^([A-G])([#b]?)/.exec(symbol);
+  if (!m) return null;
+  return (NATURAL_PC[m[1]!]! + (m[2] === '#' ? 1 : m[2] === 'b' ? 11 : 0)) % 12;
+}
+
 /** Scientific pitch name, e.g. 40 → "E2". */
 export function midiName(midi: number): string {
   const rounded = Math.round(midi);

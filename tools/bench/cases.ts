@@ -4,14 +4,27 @@
  * every continuous range is stratified; impossible combinations are excluded and counted (§14.3-5).
  */
 
-import { patternById, STRUM_PATTERNS } from '../../src/content/patterns';
+import { CURRICULUM } from '../../src/content/curriculum';
+import { patternById, V1_PATTERN_IDS } from '../../src/content/patterns';
 import { voicingById } from '../../src/content/voicings';
-import { CORE_PAIRS } from '../../src/domain/pairs';
+import { CORE_PAIRS, pairId } from '../../src/domain/pairs';
 import { deriveSeed, gaussian, mulberry32, pick, type Rng, uniform } from '../../src/domain/prng';
 import { midiToHz, nameToMidi, STANDARD_TUNING } from '../../src/domain/theory';
 import { type ChordVoicing, expectedNotes, partialCollisionMap } from '../../src/domain/voicing';
 import type { NoiseColor, ReverbKind } from '../../src/dsp/synth/channel';
 import type { SynthModel } from '../../src/dsp/synth/note';
+import { type BetaCase, buildBeta } from './betaBench';
+import {
+  type BackingBleedCase,
+  buildBackingBleed,
+  buildModeCSetStage8,
+  buildSequence,
+  buildSwing,
+  type ModeCSetStage8Case,
+  type SequenceCase,
+  type SwingCase,
+  type V11Case,
+} from './casesV11';
 import { balanced, perCondition, stratified } from './sampling';
 import type { Thresholds } from './thresholds';
 
@@ -123,7 +136,16 @@ export interface RttCase extends CommonParams {
   hasSignal: boolean;
 }
 
-export type BenchCase = ModeACase | ModeBCase | ModeCCase | ModeCSetCase | ModeDCase | TunerCase | RttCase;
+export type BenchCase =
+  | ModeACase
+  | ModeBCase
+  | ModeCCase
+  | ModeCSetCase
+  | ModeDCase
+  | TunerCase
+  | RttCase
+  | V11Case
+  | BetaCase;
 
 export interface CaseSet {
   split: Split;
@@ -134,6 +156,13 @@ export interface CaseSet {
   modeD: ModeDCase[];
   tuner: TunerCase[];
   rtt: RttCase[];
+  /** v1.1 areas (SPEC v1.1 §14.8). */
+  sequence: SequenceCase[];
+  modeCSetStage8: ModeCSetStage8Case[];
+  swing: SwingCase[];
+  backingBleed: BackingBleedCase[];
+  /** Report-only beta conditions (SPEC v1.1 §10.11). */
+  beta: BetaCase[];
   excluded: Record<string, number>;
 }
 
@@ -144,7 +173,7 @@ export function baseSeedFor(range: readonly [number, number], index: number): nu
 
 export const BEGINNER_CLASSES = ['D', 'A', 'E', 'Em', 'Am', 'Dm', 'C', 'G'] as const;
 
-function commonParams(
+export function commonParams(
   t: Thresholds,
   range: readonly [number, number],
   mode: string,
@@ -184,7 +213,7 @@ function commonParams(
   };
 }
 
-interface DimAssignment {
+export interface DimAssignment {
   sampleRate: number[];
   model: SynthModel[];
   b: number[];
@@ -194,7 +223,7 @@ interface DimAssignment {
   noise: NoiseColor[];
 }
 
-function assignDims(
+export function assignDims(
   t: Thresholds,
   n: number,
   rng: Rng,
@@ -212,7 +241,7 @@ function assignDims(
   };
 }
 
-function dimsAt(d: DimAssignment, i: number) {
+export function dimsAt(d: DimAssignment, i: number) {
   return {
     sampleRate: d.sampleRate[i]!,
     model: d.model[i]!,
@@ -388,17 +417,22 @@ function buildModeB(t: Thresholds, split: Split, excluded: Record<string, number
 
 // ---------------------------------------------------------------------------------------------- Mode C
 
-function pairVoicings(rng: Rng): [string, string][] {
-  const out: [string, string][] = [];
-  for (const [a, b] of CORE_PAIRS) {
-    for (const g of ['G-2f', 'G-3f']) {
-      const resolve = (c: string) => (c === 'G' ? g : c);
-      out.push([resolve(a), resolve(b)]);
-      if (a !== 'G' && b !== 'G') break;
-    }
-  }
-  void rng;
-  return out;
+/**
+ * Mode C pair sample (SPEC v1.1 §14.3-12): the core 25 pairs plus the Stage 8–11 pairs; a pair with chord
+ * class G is played with each of the G voicings (matrix.gVoicings), pairs naming a voicing id keep it.
+ */
+export function modeCPairVoicings(t: Thresholds): [string, string][] {
+  const ids = [
+    ...new Set([
+      ...CORE_PAIRS.map(([a, b]) => pairId(a, b)),
+      ...CURRICULUM.filter((s) => s.stage >= 8).flatMap((s) => s.stagePairs),
+    ]),
+  ];
+  return ids.flatMap((id) => {
+    const [a, b] = id.split('|') as [string, string];
+    if (a !== 'G' && b !== 'G') return [[a, b] as [string, string]];
+    return t.matrix.gVoicings.map((g): [string, string] => [a === 'G' ? g : a, b === 'G' ? g : b]);
+  });
 }
 
 function buildModeC(t: Thresholds, split: Split): ModeCCase[] {
@@ -406,8 +440,8 @@ function buildModeC(t: Thresholds, split: Split): ModeCCase[] {
   const n = t.minimumTestSizes.modeCSequences;
   const rng = mulberry32(deriveSeed(range[0], 'modeC'));
   const dims = assignDims(t, n, rng, t.matrix.snrDb);
-  // 25 pairs, G pairs split evenly between the two G voicings.
-  const pairs = balanced(pairVoicings(rng), n, rng);
+  // Core 25 + Stage 8–11 pairs, G pairs split evenly between the G voicings (v1.1 §14.3-12).
+  const pairs = balanced(modeCPairVoicings(t), n, rng);
   const cpms = stratified(t.matrix.modeC.changesPerMin, n, rng);
   const spec = t.matrix.modeC;
   const out: ModeCCase[] = [];
@@ -509,11 +543,8 @@ function buildModeD(t: Thresholds, split: Split): ModeDCase[] {
   const n = nPattern + nSustain;
   const rng = mulberry32(deriveSeed(range[0], 'modeD'));
   const dims = assignDims(t, n, rng, t.matrix.snrDb);
-  const patterns = balanced(
-    STRUM_PATTERNS.map((p) => p.id),
-    n,
-    rng,
-  );
+  // The v1 timing benchmark keeps its v1 pattern set; P6–P8 are judged by the swing area (SPEC v1.1 §14.8).
+  const patterns = balanced(V1_PATTERN_IDS, n, rng);
   const bpms = stratified(md.bpm, n, rng);
   const offsets = stratified(md.humanMeanOffsetMs, n, rng);
   const rtts = stratified(md.rttMs, n, rng);
@@ -637,15 +668,21 @@ function buildRtt(t: Thresholds, split: Split): RttCase[] {
 
 export function buildCases(t: Thresholds, split: Split): CaseSet {
   const excluded: Record<string, number> = {};
+  const modeC = buildModeC(t, split);
   return {
     split,
     modeA: buildModeA(t, split, excluded),
     modeB: buildModeB(t, split, excluded),
-    modeC: buildModeC(t, split),
+    modeC,
     modeCSet: buildModeCSet(t, split),
     modeD: buildModeD(t, split),
     tuner: buildTuner(t, split),
     rtt: buildRtt(t, split),
+    sequence: buildSequence(t, split),
+    modeCSetStage8: buildModeCSetStage8(t, split),
+    swing: buildSwing(t, split),
+    backingBleed: buildBackingBleed(t, split),
+    beta: buildBeta(t, split, modeC),
     excluded,
   };
 }

@@ -28,6 +28,8 @@ export interface GuitarSetMetric {
 export function computeMetrics(
   outcomes: readonly ClipOutcome[],
   t: ReturnType<typeof loadThresholds>,
+  /** Test players: fewer matched solo-sequence notes than this fails the sequence hard metrics (§14.4). */
+  minSequenceNotes = 0,
 ): GuitarSetMetric[] {
   const singles = outcomes.flatMap((o) => o.singles);
   const pairs = outcomes.flatMap((o) => o.pairs);
@@ -40,6 +42,14 @@ export function computeMetrics(
   const p = det ? tp / det : 0;
   const r = tru ? tp / tru : 0;
   const ratio = (a: number, b: number) => (b ? a / b : Number.NaN);
+  const seqNotes = outcomes.flatMap((o) => o.seqNotes);
+  const seqF1 = outcomes.flatMap((o) => (o.seqF1 ? [o.seqF1] : []));
+  const sTp = seqF1.reduce((a, x) => a + x.tp, 0);
+  const sDet = seqF1.reduce((a, x) => a + x.detected, 0);
+  const sTru = seqF1.reduce((a, x) => a + x.truth, 0);
+  const sP = sDet ? sTp / sDet : 0;
+  const sR = sTru ? sTp / sTru : 0;
+  const enoughNotes = seqNotes.length >= minSequenceNotes;
   const values: Record<string, { value: number; n: number }> = {
     modeAOkRateMin: { value: ratio(singles.filter((s) => s.ok).length, singles.length), n: singles.length },
     modeAPerturbedFalseAcceptMax: {
@@ -59,6 +69,16 @@ export function computeMetrics(
       value: ratio(perturbed.filter((s) => s.perturbedStringOk).length, perturbed.length),
       n: perturbed.length,
     },
+    // v1.1 solo sequence (§14.4): NaN (→ FAIL) when the test players have too few matched notes.
+    soloSequencePitchOkRateMin: {
+      value: enoughNotes ? ratio(seqNotes.filter((x) => x.ok).length, seqNotes.length) : Number.NaN,
+      n: seqNotes.length,
+    },
+    soloSequencePerturbedFalseAcceptMax: {
+      value: enoughNotes ? ratio(seqNotes.filter((x) => x.perturbedOk).length, seqNotes.length) : Number.NaN,
+      n: seqNotes.length,
+    },
+    soloSequenceOnsetF1At50msMin: { value: sP + sR > 0 ? (2 * sP * sR) / (sP + sR) : 0, n: sTru },
   };
   const judge = (key: string, value: number, threshold: number) =>
     !Number.isNaN(value) && (key.endsWith('Max') ? value <= threshold : value >= threshold);
@@ -188,7 +208,11 @@ async function main(): Promise<void> {
     );
     return;
   }
-  const test = computeMetrics(split(t.guitarset.split.testPlayers), t);
+  const test = computeMetrics(
+    split(t.guitarset.split.testPlayers),
+    t,
+    t.guitarset.eventFilters.sequenceMinTestNotes as number,
+  );
   console.log('\n[TEST players 04–05 — judged]');
   console.log(table(test));
   mkdirSync(join(ROOT, 'bench-results'), { recursive: true });

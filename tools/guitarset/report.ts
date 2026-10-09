@@ -33,12 +33,13 @@ export function renderGuitarSetSection(
   },
   outcomes: readonly ClipOutcome[],
 ): string {
-  const byGenre = new Map<string, { singles: number; strums: number; pairs: number }>();
+  const byGenre = new Map<string, { singles: number; strums: number; pairs: number; seq: number }>();
   for (const o of outcomes) {
-    const g = byGenre.get(o.genre) ?? { singles: 0, strums: 0, pairs: 0 };
+    const g = byGenre.get(o.genre) ?? { singles: 0, strums: 0, pairs: 0, seq: 0 };
     g.singles += o.singles.length;
     g.strums += o.strums.length;
     g.pairs += o.pairs.length;
+    g.seq += o.seqNotes.length;
     byGenre.set(o.genre, g);
   }
   const lines = [
@@ -48,6 +49,7 @@ export function renderGuitarSetSection(
     `- 실행: ${p.createdAt} · detector **${p.detectorVersion}** · ${p.clips} clips · 데이터: Zenodo 3371780 (GuitarSet 1.1.0, **CC BY 4.0**, Xi et al. 2018) — \`audio_mono-mic\` + \`annotation\``,
     '- 판정은 **test 플레이어(04, 05)**, 튜닝은 dev 플레이어(00–03)만 썼다.',
     '- Funk comp 클립은 주석 없는 뮤트 "칙" 소리가 많아 onset F1에서 제외했다(SPEC §14.4).',
+    '- solo 단음 시퀀스(SPEC v1.1 §14.4): 인접 onset 간격·음 지속 ≥ 120 ms, onset + 60 ms에 다른 줄 음이 울리는 중이면 제외, [+30, +130 ms] 윤곽 ±35 cents. 검출 onset(시퀀스 경로)과 ±50 ms 짝지은 음만 하드 지표에 쓰고, test 플레이어의 짝지은 음이 1000개 미만이면 FAIL. onset F1(소프트)은 해머온·슬라이드를 포함한 모든 solo 음 onset(60 ms 묶음)이 정답이다.',
     '- **한계**: GuitarSet 마이크는 스튜디오 콘덴서(근접, 조용한 방)라 휴대폰·노트북 내장 마이크보다 깨끗하다. 실기기 성능은 `bench:real`(녹음 키트)로 확인해야 한다.',
     '',
     '### test (판정)',
@@ -60,9 +62,11 @@ export function renderGuitarSetSection(
     '',
     '### 장르별 이벤트 수(전체 플레이어)',
     '',
-    '| 장르 | 단음 | 스트럼 | 쌍 |',
-    '|---|---|---|---|',
-    ...[...byGenre.entries()].sort().map(([g, v]) => `| ${g} | ${v.singles} | ${v.strums} | ${v.pairs} |`),
+    '| 장르 | 단음 | 스트럼 | 쌍 | 시퀀스 음(짝지음) |',
+    '|---|---|---|---|---|',
+    ...[...byGenre.entries()]
+      .sort()
+      .map(([g, v]) => `| ${g} | ${v.singles} | ${v.strums} | ${v.pairs} | ${v.seq} |`),
     '',
     GUITARSET_END,
   ];

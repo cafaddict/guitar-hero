@@ -1,4 +1,4 @@
-import { patternById } from '../../content/patterns';
+import { patternById, type StrumSlot } from '../../content/patterns';
 import type { StrumResult } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
@@ -9,7 +9,7 @@ import { useRunnerSnapshot } from '../ui/hooks';
 import { type E5Params, nextBpmFor, type E5View as View } from './runner';
 
 /** A slot's identity is its position in the bar (patterns repeat 'D'/'U' symbols). */
-const toSlotCell = (slot: 'D' | 'U' | '-', position: number) => ({ slot, position });
+const toSlotCell = (slot: StrumSlot, position: number) => ({ slot, position });
 
 /** Beat numbers 1–4 (6/8: 1–2) in large type, the current one highlighted (SPEC v1.1 §11.6, research 01:307). */
 function BeatCount({ beat, beatsPerBar }: { beat: number | null; beatsPerBar: number }) {
