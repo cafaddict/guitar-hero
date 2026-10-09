@@ -12,6 +12,33 @@ const startWithoutMic = async (page: Page) => {
   await page.getByRole('button', { name: '마이크 없이 쓰기' }).click();
 };
 
+/**
+ * A practice screen in its main state: started (with the start button, or "마이크 없이 쓰기" for microphone
+ * exercises) and, for the sequence exercises, running (self-report buttons shown).
+ */
+function practiceAfter(
+  type: string,
+  path: string,
+  start: 'start' | 'noMic',
+  view: string,
+  run = false,
+): ScreenCase {
+  return {
+    name: `practice-${type}`,
+    path,
+    practice: true,
+    prepare: async (page) => {
+      if (start === 'noMic') await startWithoutMic(page);
+      else await page.getByTestId('exercise-start').click();
+      await expect(page.getByTestId(view)).toBeVisible();
+      if (run) {
+        await page.keyboard.press('Space');
+        await expect(page.getByTestId('seq-flawless')).toBeVisible({ timeout: 20_000 });
+      }
+    },
+  };
+}
+
 /** Every main screen of SPEC §12.1 (the practice screens in their running state). */
 export const SCREENS: ScreenCase[] = [
   { name: 'onboarding', path: '/#/onboarding' },
@@ -63,6 +90,21 @@ export const SCREENS: ScreenCase[] = [
       await expect(page.getByTestId('q1-view')).toBeVisible();
     },
   },
+  // v1.1 screens (SPEC v1.1 §12, AC-UX4).
+  { name: 'stage-10', path: '/#/curriculum/10' },
+  { name: 'routine-edit', path: '/#/routine/edit' },
+  practiceAfter('K1', '/#/practice/K1', 'start', 'k1-view'),
+  practiceAfter('E16', '/#/practice/E16', 'noMic', 'e16-view'),
+  practiceAfter('E3', '/#/practice/E3?from=G&to=D', 'noMic', 'e3-view'),
+  practiceAfter('E9', '/#/practice/E9', 'noMic', 'e9-view', true),
+  practiceAfter('E10', '/#/practice/E10?scaleId=em-pent-open', 'noMic', 'e10-view', true),
+  practiceAfter('E11', '/#/practice/E11', 'noMic', 'e11-view', true),
+  practiceAfter('E12', '/#/practice/E12', 'start', 'e12-view'),
+  practiceAfter('E17', '/#/practice/E17?riffId=R3&bpm=70', 'noMic', 'e17-view', true),
+  practiceAfter('Q3', '/#/practice/Q3?scope=strings65', 'noMic', 'q3-view'),
+  practiceAfter('Q4', '/#/practice/Q4?kind=interval', 'start', 'q4-view'),
+  practiceAfter('Q5', '/#/practice/Q5', 'start', 'q5-view'),
+  practiceAfter('S-perform', '/#/practice/S?songId=s15&mode=perform&backingOn=true', 'noMic', 'song-view'),
   {
     name: 'session',
     path: '/#/session',

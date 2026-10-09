@@ -67,6 +67,22 @@ test('AC-W2: the deployed headers (strict CSP) allow the worklet, workers, chart
   await expect(page.getByTestId('progress-weekly')).toBeVisible();
   await page.goto('/#/library/C');
   await page.getByRole('button', { name: '들어 보기' }).click();
+  // v1.1 (AC-W4): the play-along backing (synth + scheduled playback, the song strum job) and the sequence
+  // judging (DSP worker range requests) under the same CSP.
+  await page.goto('/#/practice/S?songId=s01&mode=perform&bpm=100&backingOn=true&earphones=true');
+  await page.getByTestId('exercise-start').click();
+  const song = page.getByTestId('song-view');
+  await expect(page.getByTestId('song-earphones')).toBeVisible();
+  await page.keyboard.press('Space');
+  await expect(song).toHaveAttribute('data-phase', 'running', { timeout: 15_000 });
+  await page.keyboard.press('Space');
+  await expect(song).toHaveAttribute('data-phase', 'review');
+  await page.goto('/#/practice/E10?scaleId=em-pent-open&bpm=120');
+  await page.getByTestId('exercise-start').click();
+  await expect(page.getByTestId('e10-view')).toHaveAttribute('data-phase', 'ready');
+  await page.keyboard.press('Space');
+  await expect(page.getByTestId('e10-view')).toHaveAttribute('data-phase', 'running', { timeout: 15_000 });
+  await expect(page.getByTestId('seq-cycles')).toHaveAttribute('data-count', /[1-9]/, { timeout: 30_000 });
 
   expect(await page.evaluate(() => (window as unknown as { __csp: string[] }).__csp)).toEqual([]);
 });

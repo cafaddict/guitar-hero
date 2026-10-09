@@ -5,7 +5,7 @@ import {
 } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
-import type { ExercisePlugin, ExerciseRunner } from '../types';
+import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import {
   type E16Params,
@@ -18,13 +18,19 @@ import {
 /** Where the fingertip goes for each position: x along a one-fret space (decorative, the text says it). */
 const DOT_X: Record<FretPosition, number> = { behind: 108, middle: 70, onFret: 122 };
 
-function PositionPicture({ pos }: { pos: FretPosition }) {
+/**
+ * One fret space as the player sees the neck: the headstock side (lower fret) on the left for a right-handed
+ * player, mirrored for a left-handed one (like the chord diagrams, §12.1).
+ */
+export function PositionPicture({ pos, leftHanded = false }: { pos: FretPosition; leftHanded?: boolean }) {
   return (
-    <svg viewBox="0 0 160 60" className="h-16 w-40 text-fg" aria-hidden="true">
-      <line x1="10" y1="30" x2="150" y2="30" stroke="currentColor" strokeWidth="2" />
-      <line x1="20" y1="8" x2="20" y2="52" stroke="currentColor" strokeWidth="5" />
-      <line x1="122" y1="8" x2="122" y2="52" stroke="currentColor" strokeWidth="5" />
-      <circle cx={DOT_X[pos]} cy="30" r="9" className="fill-accent" />
+    <svg viewBox="0 0 160 60" className="h-16 w-40 text-fg" aria-hidden="true" data-mirrored={leftHanded}>
+      <g transform={leftHanded ? 'translate(160 0) scale(-1 1)' : undefined}>
+        <line x1="10" y1="30" x2="150" y2="30" stroke="currentColor" strokeWidth="2" />
+        <line x1="20" y1="8" x2="20" y2="52" stroke="currentColor" strokeWidth="5" />
+        <line x1="122" y1="8" x2="122" y2="52" stroke="currentColor" strokeWidth="5" />
+        <circle cx={DOT_X[pos]} cy="30" r="9" className="fill-accent" />
+      </g>
     </svg>
   );
 }
@@ -62,9 +68,11 @@ function Comparison({ positions }: { positions: E16View['positions'] }) {
 
 function E16ViewComponent({
   runner,
+  ctx,
 }: {
   runner: ExerciseRunner<FretPositionResult, E16View>;
   params: E16Params;
+  ctx: ExerciseContext;
 }) {
   const { view } = useRunnerSnapshot(runner);
   return (
@@ -77,7 +85,7 @@ function E16ViewComponent({
       <p>{ko.exercises.e16.intro}</p>
       {view.position && (
         <div className="flex flex-wrap items-center gap-4 rounded-lg bg-surface p-4">
-          <PositionPicture pos={view.position} />
+          <PositionPicture pos={view.position} leftHanded={ctx.settings.leftHanded} />
           <p className="text-2xl font-bold">
             {ko.exercises.e16.instruction(
               ko.exercises.e16.positions[view.position],

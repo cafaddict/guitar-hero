@@ -51,6 +51,11 @@ export interface KeyLike {
   metaKey?: boolean;
 }
 
+/** The default action of a key (`event.key`), or null. */
+export function defaultActionForKey(key: string): KeyAction | null {
+  return DEFAULT_KEYS[key] ?? null;
+}
+
 /** Action for a key press, or null (modifier chords are left to the browser). */
 export function actionForKey(
   event: KeyLike,

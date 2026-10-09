@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { defaultKeysFor } from '../../app/keys';
+import { defaultActionForKey, defaultKeysFor } from '../../app/keys';
 import { persistentStorageGranted, requestPersistentStorage } from '../../app/persist';
 import { repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
@@ -219,14 +219,19 @@ function KeysSection() {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
   const [learning, setLearning] = useState<KeyAction | null>(null);
+  /** A learned key that was another action's default key (v1.1 option keys included): say what it replaces. */
+  const [replaced, setReplaced] = useState<{ key: string; action: KeyAction } | null>(null);
 
   useEffect(() => {
     if (!learning) return;
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (e.key !== 'Escape' && settings)
+      if (e.key !== 'Escape' && settings) {
         void update({ customKeys: { ...settings.customKeys, [e.code]: learning } });
+        const previous = defaultActionForKey(e.key);
+        setReplaced(previous !== null && previous !== learning ? { key: e.key, action: previous } : null);
+      }
       setLearning(null);
     };
     window.addEventListener('keydown', onKey, { capture: true });
@@ -267,6 +272,11 @@ function KeysSection() {
       {learning && (
         <p role="status" className="mt-2 text-info" data-testid="learn-prompt">
           {ko.keys.learnPrompt(ko.keys.actions[learning] ?? learning)}
+        </p>
+      )}
+      {!learning && replaced && (
+        <p role="status" className="mt-2 text-retry" data-testid="learn-replaced">
+          {ko.keys.replaced(keyName(replaced.key), ko.keys.actions[replaced.action] ?? replaced.action)}
         </p>
       )}
       {custom.length > 0 && (

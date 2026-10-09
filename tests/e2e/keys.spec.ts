@@ -7,6 +7,8 @@ test('AC-U2: a learned pedal key drives the exercise; Esc asks before stopping',
   await expect(page.getByTestId('learn-prompt')).toBeVisible();
   await page.keyboard.press('b');
   await expect(page.getByTestId('custom-keys')).toContainText('KeyB');
+  // v1.1: B is also the play-along key (§12.3); learning says which default the pedal now replaces.
+  await expect(page.getByTestId('learn-replaced')).toContainText('반주');
 
   // E2 tap counting with the learned key (Enter/pedal = +1 while running, confirm in the review).
   await page.goto('/#/practice/E2?from=A&to=D&countMode=tap&durationMs=30000&timeScale=0.25');

@@ -571,6 +571,8 @@ export const ko = {
     learn: '페달 학습',
     learnPrompt: (action: string) => `"${action}"에 쓸 페달이나 키를 눌러 주세요… (Esc 취소)`,
     learned: (key: string, action: string) => `${key} → ${action}`,
+    replaced: (key: string, action: string) =>
+      `${key} 키는 원래 "${action}"에 쓰여요. 이제 배운 동작이 먼저예요(목록에서 지우면 되돌아가요).`,
     defaults: '기본 키',
     custom: '학습한 키',
     remove: '지우기',

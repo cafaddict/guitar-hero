@@ -6,10 +6,10 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **M14 (화면 마감)** 시작 전 — M9 `13cbca7`, M10 `197db37`, M11 `b4db85d`, M12 `b08b6bb`, M13 커밋(이 커밋)
+- 현재 마일스톤: **M15 (하드닝·최종 검증)** 시작 전 — M9 `13cbca7`, M10 `197db37`, M11 `b4db85d`, M12 `b08b6bb`, M13 `e1e1a87`, M14 커밋(이 커밋)
 - 시작 지점: `feat/practice-app-v1.1`, v1.1 키트 커밋 `012fb70`(부모 `5e94332`)
 - 마일스톤 끝 리뷰 서브에이전트: M10(완료, D-065 반영)·M12(완료, D-068 반영)·M15
-- 마지막 갱신: 2026-10-09 (M13 verify PASS: test 1653/1653, bench:dsp all thresholds met; beta reported, bench:guitarset hard 6/6 soft 3/3, e2e 52/52 4 projects)
+- 마지막 갱신: 2026-10-09 (M14 verify PASS: test 1658/1658, bench:dsp all thresholds met; beta reported, bench:guitarset hard 6/6 soft 3/3, e2e 52/52 4 projects)
 - 누적 턴(대략): 2
 - 턴 상한: **1000**. §16.1 축소 조건은 턴 수가 아니라 "M13 커밋 이후, 같은 하위 항목 때문에 마일스톤 verify 3회 연속 실패"(SPEC §2.6).
 - M11 요약(D-066, `docs/DSP.md` 15–20절):
@@ -30,7 +30,8 @@
   - 시뮬레이션 Stage 0–11: 학습자 E3·E9·E10·E11·E12, 플러그인 `withHistory` 주입(호스트와 같은 깊이), 도달(초급 2 수료 139일째, 교착 0), 커버리지 8–11(improving·pain), 파라미터(E9·E10·E11 사다리, Stage 9 암기 TAB 숨김, Stage 10 Q3 20문항, Stage 7+ 레퍼토리). 86개 통과.
   - 고친 결함: 복습 실행이 E10 단계 사다리를 되돌림(`review` 결과 표시), E11·E10·E9 이력 깊이 5 → 30(쌍·스케일 순환), 통증일 E3 실행 길이가 절반이 안 됨(E3 최소 30초), Q3 문항 수·암기 스케일 규칙을 루틴에서 채움.
   - UI: 홈·커리큘럼 초급 1·2 수료 표시, Stage 11 "수료 기록하기", 세션 분할(여기서 나눠 하기 → 홈 이어서 하기 → 한 세션), 레퍼토리 블록 "이어서 한 번 더" = 다음 레퍼토리 곡. E2E-18 `split.mic.spec.ts`, E2E-19 `beginner2.spec.ts` 통과. D-069, README 갱신. 단위 1652+ 통과.
-- 다음 할 일(M14): 화면 마감 — AC-UX4, AC-W4 (SPEC §16 M14 행 확인).
+- M14 완료: E2E-10·11 화면 목록 v1.1 확장, E16 지판 그림 왼손잡이 미러, 페달 학습 기본 키 대체 알림, 오프라인·CSP E2E 확장(D-070).
+- 다음 할 일(M15): 리뷰 서브에이전트(M13·M14 변경 중심) 반영, 문서(ARCHITECTURE·DSP·MANUAL_VALIDATION·BACKLOG·BENCHMARK 확인), FINAL_REPORT.md, vault 노트, 최종 `npm ci && npm run verify`, 커밋, §18.2 출력.
 - 막힌 점: 없음.
 - 미룬 작은 일(M13): 레퍼토리 블록 안 "이어서 한 번 더"가 다음 레퍼토리 곡으로 넘어가기(§11.10 "차례로 친다").
 - 메모: 타입 검사는 반드시 `npm run typecheck`(app·node·worklet 3개 tsconfig)로 한다. `tsc -p .`는 앱 코드를 검사하지 않아 M11 첫 verify가 typecheck에서 걸렸다(`noUncheckedIndexedAccess`).
@@ -44,8 +45,8 @@
 | M10 | Stage 0–7 리서치 복원 | DONE | `197db37` | verify PASS, 리뷰 D-065 |
 | M11 | DSP·합성·벤치 확장 | DONE | `b4db85d` | verify PASS, bench test all met(+beta reported), GuitarSet hard 6/6 soft 3/3 |
 | M12 | 초급 2 콘텐츠·새 연습 | DONE | `b08b6bb` | verify PASS(e2e 48/48), 리뷰 D-068 |
-| M13 | 초급 2 진행 통합 | DONE | (이 커밋) | verify PASS(e2e 52/52) |
-| M14 | 화면 마감 | TODO | | |
+| M13 | 초급 2 진행 통합 | DONE | `e1e1a87` | verify PASS(e2e 52/52) |
+| M14 | 화면 마감 | DONE | (이 커밋) | verify PASS(e2e 52/52) |
 | M15 | 하드닝·최종 검증 | TODO | | 끝에 code-reviewer |
 
 ## Acceptance Criteria (SPEC v1.1 §17)
@@ -88,9 +89,9 @@
 | AC-UX1 | 연습 옵션을 세션 러너 안에서 키로 조작, E2E-22. | DONE | E2E-22 `tests/e2e/options.mic.spec.ts`(E1 M/E, E5 V, S ↑/↓·H가 실행과 Attempt params에 반영). 남음: 반주 키 B(M12). M12: S B 반주 키(연주 단계) — 같은 E2E-22 |
 | AC-UX2 | 연습 화면 레벨 미터(잡음 바닥선·최소 레벨선)와 확신도 표시. | DONE | `exercises/ui/MicFeedback.tsx`(연습 화면 레벨 미터 + 잡음 바닥선·판정 최소선, 확신도 확실/아마도/불확실/참고(베타)), `MicFeedback.test.ts`, `ui/LevelMeter.tsx` lines |
 | AC-UX3 | 환경 안내, 다이어그램 루트음 강조, 루틴 편집 화면(E2E-20). | DONE | 환경 안내 `ui/EnvironmentGuide.tsx`(온보딩·진단), 루트음 강조 `ChordDiagram.test.tsx` "AC-UX3…", 루틴 편집 E2E-20 `tests/e2e/routine-editor.spec.ts` |
-| AC-UX4 | E2E-10·11에 새 화면 포함(4 뷰포트 가로 스크롤 0, 버튼 크기, axe serious/critical 0). | TODO | |
+| AC-UX4 | E2E-10·11에 새 화면 포함(4 뷰포트 가로 스크롤 0, 버튼 크기, axe serious/critical 0). | DONE | E2E-10 `tests/e2e/layout.spec.ts`·E2E-11 `tests/e2e/a11y.spec.ts`의 화면 목록 `tests/e2e/support/screens.ts`에 v1.1 화면 15개(Stage 10, 루틴 편집, K1, E16, E3, E9, E10, E11, E12, E17, Q3 strings65, Q4 interval, Q5, S 연주+반주) — chromium·iPad·iPhone 통과(가로 스크롤 0, 큰 버튼 ≥ 64 px, 테마 3종 axe serious/critical 0). 왼손잡이 지판 그림 `src/exercises/e16/picture.test.tsx`, 키 충돌 `src/app/keys.test.ts` "v1.1 option keys…"·`tests/e2e/keys.spec.ts` 학습 알림 (D-070) |
 | AC-DT1 | Dexie v2 스키마와 마이그레이션, v1 내보내기 → v2 가져오기 테스트, 왕복 테스트. | DONE | `src/data/migrations.test.ts`: v1 DB → Dexie v2 제자리 업그레이드, v1 내보내기 → v2 가져오기(migration 1→2), v2 필드 왕복(deep-equal), `repo.test.ts` 왕복 |
-| AC-W4 | 새 화면의 PWA 오프라인 동작과 CSP 위반 0(반주 재생 포함). | TODO | |
+| AC-W4 | 새 화면의 PWA 오프라인 동작과 CSP 위반 0(반주 재생 포함). | DONE | 오프라인 `tests/e2e/offline.spec.ts`(E10 TAB·S 연주 반주·Stage 10 페이지), CSP `tests/e2e/csp.mic.spec.ts`(반주 재생 연주 단계 + E10 시퀀스 판정 worker) 위반 0 (D-070) |
 | AC-F4 | README(초급 2, 새 연습, 반주·이어폰, 30분 세션), `docs/ARCHITECTURE.md`(시퀀스·베타·시뮬레이션), `docs/DSP.md`, `docs/BENCHMARK.md`(새 영역·베타 절), `docs/BACKLOG.md`(v1.1 제외 항목), `docs/MANUAL_VALIDATION.md`(스케일·리프·해머온·반주 이어폰/스피커·Stage 8+ 실기기 항목 추가). | TODO | |
 | AC-F5 | `docs/goal/v1.1/FINAL_REPORT.md` 작성. | TODO | |
 

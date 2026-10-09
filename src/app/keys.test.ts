@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { actionForKey, isEditableTarget, isNativeActivation } from './keys';
+import { actionForKey, defaultActionForKey, isEditableTarget, isNativeActivation } from './keys';
 
 const key = (k: string, code = '') => ({ key: k, code });
 
@@ -49,5 +49,47 @@ describe('actionForKey (SPEC §12.3)', () => {
     expect(isNativeActivation({ key: 'PageDown', target: el('BUTTON') })).toBe(false);
     expect(isNativeActivation({ key: 'Enter', target: el('BODY') })).toBe(false);
     expect(isNativeActivation({ key: 'Enter', target: null })).toBe(false);
+  });
+
+  it('v1.1 option keys (SPEC v1.1 §12.3) are new keys: every v1 default keeps its action', () => {
+    const v1: [string, string][] = [
+      [' ', 'toggle'],
+      ['Enter', 'next'],
+      ['PageDown', 'next'],
+      ['ArrowRight', 'next'],
+      ['PageUp', 'prev'],
+      ['ArrowLeft', 'prev'],
+      ['ArrowUp', 'inc'],
+      ['+', 'inc'],
+      ['=', 'inc'],
+      ['ArrowDown', 'dec'],
+      ['-', 'dec'],
+      ['Escape', 'abort'],
+      ['1', 'manual1'],
+      ['2', 'manual2'],
+      ['3', 'manual3'],
+      ['m', 'mark'],
+      ['M', 'mark'],
+    ];
+    for (const [k, action] of v1) expect(defaultActionForKey(k), k).toBe(action);
+    const options: [string, string][] = [
+      ['e', 'ear'],
+      ['E', 'ear'],
+      ['v', 'cues'],
+      ['V', 'cues'],
+      ['l', 'loop'],
+      ['L', 'loop'],
+      ['h', 'hide'],
+      ['H', 'hide'],
+      ['b', 'backing'],
+      ['B', 'backing'],
+    ];
+    for (const [k, action] of options) expect(actionForKey(key(k, `Key${k.toUpperCase()}`)), k).toBe(action);
+    expect(new Set(options.map(([k]) => k)).size).toBe(options.length);
+    for (const [k] of options)
+      expect(
+        v1.some(([v]) => v === k),
+        k,
+      ).toBe(false);
   });
 });

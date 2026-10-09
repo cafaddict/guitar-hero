@@ -27,5 +27,15 @@ test('E2E-09: after the first visit the app shell and the chord library work off
   await expect(page.getByTestId('library-C')).toBeVisible();
   await page.getByTestId('library-C').click();
   await expect(page.getByTestId('expected-notes')).toContainText('C3');
+  // v1.1 screens (AC-W4): a TAB exercise, the play-along song and a Stage 8–11 page work offline too.
+  await page.goto('/#/practice/E10?scaleId=em-pent-open');
+  await page.getByRole('button', { name: '마이크 없이 쓰기' }).click();
+  await expect(page.getByTestId('e10-view')).toBeVisible();
+  await expect(page.getByTestId('tab')).toBeVisible();
+  await page.goto('/#/practice/S?songId=s15&mode=perform&backingOn=true');
+  await page.getByRole('button', { name: '마이크 없이 쓰기' }).click();
+  await expect(page.getByTestId('song-backing')).toBeVisible();
+  await page.goto('/#/curriculum/10');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await context.setOffline(false);
 });
