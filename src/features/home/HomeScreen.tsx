@@ -6,13 +6,15 @@ import { useSettingsStore } from '../../app/settingsStore';
 import { loadStoredState } from '../../app/storedState';
 import { stageDef } from '../../content/curriculum';
 import type { GVoicing } from '../../content/voicings';
-import { promote } from '../../domain/progression';
+import { FINAL_STAGE, promote } from '../../domain/progression';
 import { generateRoutine, type RoutinePlan } from '../../domain/routine';
 import { prepareSession } from '../../domain/sessionPrep';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { Screen } from '../../ui/Screen';
 import { itemTitle } from '../session/itemTitle';
+import type { SplitResume } from '../session/sessionModel';
+import { pendingSplit } from '../session/splitResume';
 import {
   backupReminderDue,
   practicedToday,
@@ -127,8 +129,14 @@ export function HomeScreen() {
   const redirect = needsOnboarding && !firstRunRedirectDone;
   if (redirect) firstRunRedirectDone = true;
 
+  /** The first half of a split session that can be resumed today (§7.3-11). */
+  const [split, setSplit] = useState<SplitResume | null>(null);
   const reload = useCallback(() => {
-    void loadStoredState(Date.now()).then(setData);
+    void (async () => {
+      // A half from an earlier day is closed first, so it counts in the stored state.
+      setSplit(await pendingSplit(Date.now()));
+      setData(await loadStoredState(Date.now()));
+    })();
   }, []);
 
   useEffect(() => {
@@ -183,6 +191,18 @@ export function HomeScreen() {
           </Link>
         </section>
       )}
+      {split && (
+        <section className="mb-4 rounded-lg bg-surface p-4" data-testid="split-resume">
+          <p>{ko.home.splitResume}</p>
+          <Link
+            to="/session?resume=1"
+            className={`${linkClass} mt-2 min-h-16 bg-accent px-6 text-lg text-accent-fg`}
+            data-testid="resume-session"
+          >
+            {ko.home.resumeSession}
+          </Link>
+        </section>
+      )}
       <div className="grid gap-4 lg:grid-cols-2">
         <RoutineCard
           plan={plan}
@@ -218,16 +238,31 @@ export function HomeScreen() {
           )}
           <section className="rounded-lg bg-surface p-4" data-testid="stage-card">
             <h2 className="text-lg font-bold">{ko.home.stage(data.progression.stage, def.name)}</h2>
-            {data.progression.completedBeginner1 && <p className="text-ok">{ko.home.completedBeginner}</p>}
-            {checklist && !data.progression.completedBeginner1 && (
+            {data.progression.completedBeginner1 && (
+              <p className="text-ok" data-testid="beginner1-done">
+                {ko.home.completedBeginner}
+              </p>
+            )}
+            {data.progression.completedBeginner2 && (
+              <p className="text-ok font-bold" data-testid="beginner2-done">
+                {ko.home.completedBeginner2(data.progression.beginner2CompletedAt ?? null)}
+              </p>
+            )}
+            {checklist && !data.progression.completedBeginner2 && (
               <>
                 <h3 className="mt-2 text-sm text-muted">{ko.home.checklist}</h3>
                 <RuleChecklist rules={checklist.rules} />
                 {checklist.allMet && (
                   <div className="mt-3">
-                    <p>{ko.home.promote(nextStage)}</p>
-                    <Button className="mt-2" onClick={() => void promoteNow(false)}>
-                      {ko.home.promoteYes}
+                    <p>
+                      {data.progression.stage >= FINAL_STAGE
+                        ? ko.home.completeBeginner2
+                        : ko.home.promote(nextStage)}
+                    </p>
+                    <Button className="mt-2" onClick={() => void promoteNow(false)} data-testid="promote-now">
+                      {data.progression.stage >= FINAL_STAGE
+                        ? ko.home.completeBeginner2Yes
+                        : ko.home.promoteYes}
                     </Button>
                   </div>
                 )}

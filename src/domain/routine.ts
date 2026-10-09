@@ -118,6 +118,9 @@ export const SELF_CHECK_FIRST_SESSIONS = 3;
 export const Q2_MAX_CANDIDATES = 9;
 export const Q2_MIN_QUESTIONS = 3;
 
+/** A scale the stage must memorize is assigned with the TAB hidden from this assignment on (rule 10). */
+const MEMORIZE_HIDDEN_FROM_RUN = 3;
+
 const ROTATION_REVIEW_KIND = {
   rhythm: 'pattern',
   scales: 'scale',
@@ -544,10 +547,34 @@ function entryDraft(
       // Due knowledge cards of this quiz are asked first (SPEC v1.1 §7.5).
       const prefix = entry.type === 'Q3' ? 'card:note:' : `card:ear:${String(p.kind ?? 'majmin')}:`;
       const focus = takeDueCards(ctx, prefix);
+      // A stage rule on a Q3 range sets the run's question count (rule 10: Stage 10 strings65 = 20 questions).
+      const quizRule =
+        entry.type === 'Q3'
+          ? def.unlockRules.find((r) => r.kind === 'quizRunAtLeast' && r.scope === (p.scope ?? 'open'))
+          : undefined;
       return {
         ...base,
         exerciseType: entry.type,
-        params: { ...p, ...(focus.length > 0 ? { focus } : {}) },
+        params: {
+          ...p,
+          ...(quizRule?.kind === 'quizRunAtLeast' ? { questions: quizRule.questions } : {}),
+          ...(focus.length > 0 ? { focus } : {}),
+        },
+        subjectKey: key.slice(key.indexOf('|') + 1),
+      };
+    }
+    case 'E10': {
+      // A scale the stage must memorize (rule 10): step 1 with the TAB hidden from its third assignment on,
+      // until it is memorized. Step and tempo otherwise follow the scale's own ladder (the plugin's history).
+      const scaleId = String(p.scaleId);
+      const memorize = def.unlockRules.some((r) => r.kind === 'scaleMemorized' && r.scaleId === scaleId);
+      const runs = input.skills.get(`scale:${scaleId}:s1`)?.metrics.flawlessCycles?.count ?? 0;
+      const memorized = (input.skills.get(`scale:${scaleId}:memorized`)?.metrics.memorized?.best ?? 0) >= 1;
+      const hidden = memorize && !memorized && p.review !== true && runs >= MEMORIZE_HIDDEN_FROM_RUN - 1;
+      return {
+        ...base,
+        exerciseType: 'E10',
+        params: { ...p, ...(hidden ? { step: 1, tabHidden: true } : {}) },
         subjectKey: key.slice(key.indexOf('|') + 1),
       };
     }
@@ -773,6 +800,29 @@ function memorizeBlock(ctx: Ctx, sec: number, slot: TemplateSlot): Draft[] {
   const pool = hiddenOpen.length > 0 ? hiddenOpen : available.filter((s) => s.stage === ctx.input.stage);
   const song = currentSong(ctx, pool.length > 0 ? pool : available);
   return song ? [serveSameSubject(ctx, songDraft(ctx, song, sec, 'song', slot))] : [];
+}
+
+/**
+ * The repertoire song after `currentSongId` (§11.10 "차례로 친다"): repertoire songs open at the stage in id order,
+ * wrapping around, in the hidden stage once memorized. Null when there is no other repertoire song to move to.
+ */
+export function nextRepertoireSong(
+  input: Pick<RoutineInput, 'songs' | 'stage' | 'skills'>,
+  currentSongId: string,
+): { songId: string; mode: 'perform'; chartHidden: boolean; bpm: number } | null {
+  const metric = (id: string, name: string) => input.skills.get(`song:${id}`)?.metrics[name]?.best ?? 0;
+  const repertoire = input.songs
+    .filter((s) => s.stage <= input.stage && metric(s.id, 'repertoire') >= 1)
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const others = repertoire.filter((s) => s.id !== currentSongId);
+  if (others.length === 0) return null;
+  const next = others.find((s) => s.id.localeCompare(currentSongId) > 0) ?? others[0]!;
+  return {
+    songId: next.id,
+    mode: 'perform',
+    chartHidden: metric(next.id, 'hiddenMemorized') >= 1,
+    bpm: next.bpmDefault,
+  };
 }
 
 /** Stage 7+ repertoire (§11.10): due song → oldest repertoire song → most recently practised song. */

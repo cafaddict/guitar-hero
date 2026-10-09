@@ -7,7 +7,7 @@
 import type { PracticeSong, RoutineItem, StageDef } from '../content/schemas';
 import type { DerivedState } from './derive';
 import { practiceHistory } from './history';
-import { evaluateStage, LAST_PLAYABLE_STAGE, promote, type StageEvaluation } from './progression';
+import { BEGINNER1_LAST_STAGE, evaluateStage, promote, type StageEvaluation } from './progression';
 import {
   type Attempt,
   DAY_MS,
@@ -29,6 +29,8 @@ import { dueReviews } from './srs';
 export interface SimDeps {
   /** Routine item → validated plugin params (`pluginParamsFor` with the registered plugin). */
   paramsFor(item: RoutineItem, stage: number, gVoicing: ProgressionState['gVoicing']): unknown;
+  /** The plugin's history adjustment (ladder step/tempo from its latest results, newest first), as the host runs it. */
+  withHistory(exerciseType: string, params: unknown, recentResults: readonly unknown[]): unknown;
   /** The plugin's metric extraction (throws when the learner produced an invalid result). */
   toMetrics(exerciseType: string, result: unknown, params: unknown): MetricSampleInput[];
   /** Skill and review update for one stored attempt (`applyAttempt`). */
@@ -62,7 +64,7 @@ export interface SimSession {
   stage: number;
   now: number;
   plan: RoutinePlan;
-  /** Params each non-rest item ran with (same order as `plan.items`, null for rests). */
+  /** Params each non-rest item ran with, after the plugin's history adjustment (same order as `plan.items`). */
   params: (unknown | null)[];
   /** Stage evaluation after the session. */
   evaluation: StageEvaluation | null;
@@ -79,7 +81,7 @@ export interface SimSession {
 
 export interface SimEvent {
   day: number;
-  kind: 'promote' | 'conditional' | 'gSwitch' | 'exam' | 'beginner1';
+  kind: 'promote' | 'conditional' | 'gSwitch' | 'exam' | 'beginner1' | 'beginner2';
   stage: number;
 }
 
@@ -195,7 +197,7 @@ export function simulate(options: SimOptions): SimResult {
       const ev = evaluate(state, curriculum, songs);
       if (
         ev &&
-        !state.progression.completedBeginner1 &&
+        !state.progression.completedBeginner2 &&
         (ev.allMet || (ev.conditionalAvailable && learner.acceptsSuggestions))
       ) {
         const conditional = !ev.allMet;
@@ -209,8 +211,9 @@ export function simulate(options: SimOptions): SimResult {
         );
         events.push({
           day: state.day,
-          kind:
-            state.progression.completedBeginner1 && before >= LAST_PLAYABLE_STAGE
+          kind: state.progression.completedBeginner2
+            ? 'beginner2'
+            : before === BEGINNER1_LAST_STAGE
               ? 'beginner1'
               : conditional
                 ? 'conditional'
@@ -293,7 +296,15 @@ export function simulate(options: SimOptions): SimResult {
         params.push(null);
         continue;
       }
-      const p = deps.paramsFor(item, state.progression.stage, state.progression.gVoicing);
+      const recentResults = state.attempts
+        .filter((a) => a.exerciseType === item.exerciseType)
+        .reverse()
+        .map((a) => a.result);
+      const p = deps.withHistory(
+        item.exerciseType,
+        deps.paramsFor(item, state.progression.stage, state.progression.gVoicing),
+        recentResults,
+      );
       params.push(p);
       const result = learner.result(item, p, ctx);
       offset += item.durationSec * 1000;

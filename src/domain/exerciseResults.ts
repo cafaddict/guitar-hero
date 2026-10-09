@@ -240,6 +240,8 @@ export const scaleResultSchema = z.object({
   withBacking: z.boolean(),
   /** The backing played on speakers (§8.6-3/4): the cycles are shown as reference only and record nothing. */
   backingAudible: z.boolean().optional(),
+  /** A review run of a graduated step (§7.5): it does not move the scale's step or ladder. */
+  review: z.boolean().optional(),
   cycles: z.array(sequenceCycleSchema),
   ladder: z.enum(['up', 'down', 'stay']),
   /** 4 flawless cycles in a row at ≥ SCALE_GRADUATION_BPM: the step is graduated. */

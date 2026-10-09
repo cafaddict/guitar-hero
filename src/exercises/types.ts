@@ -216,6 +216,9 @@ export interface ExercisePlugin<P, R, V> {
   migrateResult?(raw: unknown, fromVersion: number): R;
 }
 
+/** History depth of the ladder exercises whose subjects rotate (E9 start frets, E10 scales and steps, E11 pairs). */
+export const SEQUENCE_HISTORY_DEPTH = 30;
+
 export type ExerciseTitleKey =
   | 'E0'
   | 'E1'

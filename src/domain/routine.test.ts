@@ -4,7 +4,7 @@ import { PRACTICE_SONGS } from '../content/songs';
 import { EMPTY_HISTORY, type PracticeHistory } from './history';
 import { pairId, parseDirected } from './pairs';
 import { DAY_MS, dayKey, type MetricSample, type ReviewItem, type SkillState } from './records';
-import { entryKey, generateRoutine, interleave, type RoutineInput } from './routine';
+import { entryKey, generateRoutine, interleave, nextRepertoireSong, type RoutineInput } from './routine';
 import { stageTemplate, templateTotal } from './routineTemplates';
 import { buildSkills } from './skills';
 
@@ -468,5 +468,38 @@ describe('SPEC v1.1 §7.5 scale and riff review drafts', () => {
     });
     // Rule 10: the riff's current ladder tempo (above its goal tempo 80 once graduated).
     expect(plan.items.find((i) => i.reviewOf === 'riff:R2')?.params).toMatchObject({ riffId: 'R2', bpm: 85 });
+  });
+});
+
+describe('SPEC v1.1 §11.10 repertoire block: "차례로 친다"', () => {
+  const repertoireSkill = (id: string, extra: Record<string, number> = {}): [string, SkillState] => [
+    `song:${id}`,
+    {
+      subjectKey: `song:${id}`,
+      lastPracticedAt: NOW - DAY_MS,
+      metrics: Object.fromEntries(
+        Object.entries({ repertoire: 1, ...extra }).map(([name, v]) => [
+          name,
+          { count: 1, last: v, best: v, lastAt: NOW, firstAt: NOW, recent: [v], dayBest: {} },
+        ]),
+      ),
+    },
+  ];
+
+  it('the next repertoire song in id order, wrapping; hidden once memorized; none to move to → null', () => {
+    const skills = new Map([
+      repertoireSkill('s01'),
+      repertoireSkill('s03', { hiddenMemorized: 1 }),
+      repertoireSkill('s05'),
+    ]);
+    const input = { songs: PRACTICE_SONGS, stage: 8, skills };
+    expect(nextRepertoireSong(input, 's01')).toMatchObject({
+      songId: 's03',
+      mode: 'perform',
+      chartHidden: true,
+    });
+    expect(nextRepertoireSong(input, 's03')).toMatchObject({ songId: 's05', chartHidden: false });
+    expect(nextRepertoireSong(input, 's05')).toMatchObject({ songId: 's01' });
+    expect(nextRepertoireSong({ ...input, skills: new Map([repertoireSkill('s01')]) }, 's01')).toBeNull();
   });
 });

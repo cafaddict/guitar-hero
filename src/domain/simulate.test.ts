@@ -1,7 +1,8 @@
 /**
- * SPEC v1.1 §14.9 curriculum simulation, Stage 0–7 (M9 scope: AC-RT2 slots/rotation/prescriptions, AC-RT5
- * parameters, AC-PG2/PG3 wiring). The real plugin registry and `pluginParamsFor` are injected; only exercise
- * results come from the learner models.
+ * SPEC v1.1 §14.9 curriculum simulation, Stage 0–11 (AC-TR2/TR3 coverage and reach, AC-RT1–RT5 slots,
+ * rotation, prescriptions, reviews and parameters, AC-PG1–PG3 wiring). The real plugin registry,
+ * `pluginParamsFor` and the plugins' history adjustment are injected; only exercise results come from the
+ * learner models.
  */
 import { describe, expect, it } from 'vitest';
 import { CURRICULUM, stageDef } from '../content/curriculum';
@@ -23,10 +24,12 @@ const base = { deps, curriculum: CURRICULUM, songs: PRACTICE_SONGS };
 const reach = simulate({
   ...base,
   learner: improvingLearner(),
-  days: 200,
-  stopWhen: (s) => s.progression.completedBeginner1,
+  days: 400,
+  stopWhen: (s) => s.progression.completedBeginner2,
 });
 const COVERAGE_DAYS = 28;
+/** Template length T: 20 minutes for Stage 0–7, 30 for Stage 8–11 (§7.3-1). */
+const templateSecOf = (stage: number) => (stage >= 8 ? 1800 : 1200);
 
 function coverage(stage: number, learner: LearnerModel): SimResult {
   const start = reach.stageEntries.get(stage);
@@ -95,10 +98,16 @@ function sumErrors(run: SimResult): string[] {
         const original = templateSeconds(item, s.stage, k1Day) ?? item.durationSec;
         expected -= original - item.durationSec;
       }
-      // Rows whose item was left out that day (E11/E12 after a pain report, §7.3-7) are missing from T.
+      // Rotation rows whose item was left out that day (E11/E12 after a pain report, §7.3-7) are missing from
+      // T. Other empty rows (no PFC pair left at Stage 10+) give their time to the song/repertoire block as
+      // on any day (rule 1).
       const slots = new Set(s.plan.items.map((i) => i.slot));
       for (const row of stageTemplate(s.stage).rows)
-        if (rowSeconds(row, k1Day) > 0 && !slots.has(JSON.stringify(row.slot)))
+        if (
+          row.slot.kind === 'rotation' &&
+          rowSeconds(row, k1Day) > 0 &&
+          !slots.has(JSON.stringify(row.slot))
+        )
           expected -= rowSeconds(row, k1Day);
     }
     if (s.plan.totalSec !== expected) errors.push(`day ${s.day}: ${s.plan.totalSec} ≠ ${expected}`);
@@ -176,7 +185,7 @@ const RULE_EXERCISE: Readonly<Record<string, (rule: UnlockRule) => string | null
   unlockedPairsAtLeast: () => 'E2',
   scaleStepGraduated: () => 'E10',
   scaleMemorized: () => 'E10',
-  songsCompletedAtLeast: () => 'S',
+  songsCompletedAtLeast: () => 'S:perform',
   quizRunAtLeast: () => 'Q3',
   chordCleanRatioAtLeast: () => 'E1',
   metricAtLeast: (rule) =>
@@ -208,39 +217,54 @@ function ruleGaps(run: SimResult, stage: number): string[] {
   for (const rule of stageDef(stage).unlockRules) {
     const exercise = RULE_EXERCISE[rule.kind]!(rule);
     if (exercise === null) continue;
+    // "S 연주 단계": a song item in the perform or hidden stage (§14.9-3).
+    const feeds = (item: RoutineItem) =>
+      exercise === 'S:perform'
+        ? item.exerciseType === 'S' && item.params.mode === 'perform'
+        : item.exerciseType === exercise;
     for (let i = 0; i + 7 <= run.sessions.length; i++) {
       const window = run.sessions.slice(i, i + 7);
-      if (!window.some((s) => s.plan.items.some((item) => item.exerciseType === exercise)))
+      if (!window.some((s) => s.plan.items.some(feeds)))
         gaps.push(`${rule.kind} (${exercise}) from day ${window[0]!.day}`);
     }
   }
   return gaps;
 }
 
-describe('§14.9 simulation — reach (Stage 0–7)', () => {
-  it('the improving learner promotes through every stage to Beginner 1 without a deadlock', () => {
-    expect(reach.state.progression.completedBeginner1).toBe(true);
-    const promotions = reach.events.filter((e) => e.kind === 'promote');
-    expect(promotions.map((e) => e.stage)).toEqual([1, 2, 3, 4, 5, 6, 7]);
-    // Each stage is left within its minimum stay + 20 practice days (one session per day).
+describe('§14.9 simulation — reach (Stage 0–11)', () => {
+  it('the improving learner promotes through every stage to Beginner 1 and Beginner 2 without a deadlock', () => {
+    expect(reach.state.progression).toMatchObject({
+      completedBeginner1: true,
+      completedBeginner2: true,
+      stage: 11,
+    });
+    // Stage 7's exam completes Beginner 1 and moves on to Stage 8 (§7.2); Stage 11's rules complete Beginner 2.
+    const advances = reach.events.filter((e) => ['promote', 'beginner1', 'beginner2'].includes(e.kind));
+    expect(advances.map((e) => [e.kind, e.stage])).toEqual([
+      ...[1, 2, 3, 4, 5, 6, 7].map((stage) => ['promote', stage]),
+      ['beginner1', 8],
+      ...[9, 10, 11].map((stage) => ['promote', stage]),
+      ['beginner2', 11],
+    ]);
+    // Each stage is left within its minimum stay (sessions, days) + 20 practice days (one session per day).
     let enteredDay = 1;
-    for (const e of promotions) {
-      const minSessions = stageDef(e.stage - 1).minSessions;
-      expect(e.day - enteredDay, `stage ${e.stage - 1}`).toBeLessThanOrEqual(minSessions + 20);
+    for (const e of advances) {
+      const left = e.kind === 'beginner2' ? 11 : e.stage - 1;
+      const def = stageDef(left);
+      const minStay = Math.max(def.minSessions, def.minDays ?? 0);
+      expect(e.day - enteredDay, `stage ${left}`).toBeLessThanOrEqual(minStay + 20);
       enteredDay = e.day;
     }
-    // Deadlock = all criteria met in a session but no promotion (or Beginner 1 completion) in the next one.
+    // Deadlock = all criteria met in a session but no promotion (or completion) in the next one.
     for (let i = 0; i + 1 < reach.sessions.length; i++) {
       const s = reach.sessions[i]!;
       if (!s.evaluation?.allMet) continue;
       const next = reach.sessions[i + 1]!;
       const advanced = reach.events.some(
-        (e) => e.day === next.day && (e.kind === 'promote' || e.kind === 'beginner1'),
+        (e) => e.day === next.day && ['promote', 'beginner1', 'beginner2'].includes(e.kind),
       );
       expect(advanced || next.stage !== s.stage, `day ${s.day}`).toBe(true);
     }
-    const last = reach.sessions.at(-1)!;
-    expect(reach.events.some((e) => e.kind === 'beginner1' && e.day <= last.day + 1)).toBe(true);
   });
 
   it('E7 start fret: one fret lower after three pain-free runs at a fret, down to 1 (nextStretchStartFret, §7.4)', () => {
@@ -259,7 +283,8 @@ describe('§14.9 simulation — reach (Stage 0–7)', () => {
   it('G voicing: the switch to three-finger G is suggested and accepted at Stage 6; E1 then uses G-3f (§6.4)', () => {
     const switchEvent = reach.events.find((e) => e.kind === 'gSwitch');
     expect(switchEvent?.stage).toBe(6);
-    const after = reach.sessions.filter((s) => s.day > switchEvent!.day);
+    // Through Stage 7: Stage 8 brings its own four-finger G (G-4f, §6.4).
+    const after = reach.sessions.filter((s) => s.day > switchEvent!.day && s.stage <= 7);
     const gChecks = after
       .flatMap((s) => s.plan.items)
       .filter((i) => i.exerciseType === 'E1' && String(i.params.voicingId).startsWith('G'));
@@ -268,7 +293,7 @@ describe('§14.9 simulation — reach (Stage 0–7)', () => {
   });
 });
 
-describe.each([0, 1, 2, 3, 4, 5, 6, 7])(
+describe.each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])(
   '§14.9 simulation — Stage %i coverage (28 days, improving)',
   (stage) => {
     const run = coverage(stage, improvingLearner());
@@ -291,7 +316,7 @@ describe.each([0, 1, 2, 3, 4, 5, 6, 7])(
 
     it('Σ block time = the template length T on every day', () => {
       expect(sumErrors(run)).toEqual([]);
-      for (const s of run.sessions) expect(s.plan.templateSec).toBe(1200);
+      for (const s of run.sessions) expect(s.plan.templateSec).toBe(templateSecOf(stage));
     });
 
     it('parameters: progression mode carries ≥ 2 chords; tempos follow the ladder; E7 follows the stretch records', () => {
@@ -307,7 +332,92 @@ describe.each([0, 1, 2, 3, 4, 5, 6, 7])(
   },
 );
 
-describe('§14.9 simulation — other learners (Stage 0–7)', () => {
+/** §14.9-6 for the history-driven ladders (E9·E10·E11): the run's tempo is its subject's current ladder BPM. */
+function runTempoErrors(run: SimResult): string[] {
+  const errors: string[] = [];
+  for (const s of run.sessions)
+    for (const [i, item] of s.plan.items.entries()) {
+      const p = s.params[i] as Record<string, unknown> | null;
+      if (!p) continue;
+      let subject: string | null = null;
+      if (item.exerciseType === 'E9') subject = `chromatic:${String(p.startFret)}`;
+      else if (item.exerciseType === 'E10' && p.review !== true)
+        subject = `scale:${String(p.scaleId)}:s${String(p.step)}`;
+      else if (item.exerciseType === 'E11') subject = `hammer:${String(p.pair)}`;
+      if (!subject) continue;
+      const current = s.skillsAtStart.get(subject)?.metrics.ladderBpm?.last ?? 60;
+      if (p.bpm !== current) errors.push(`day ${s.day} ${subject}: ${String(p.bpm)} ≠ ${current}`);
+    }
+  return errors;
+}
+
+describe('§14.9-6 parameters, Stage 7–11', () => {
+  it('E9, E10 and E11 runs play at their ladder tempo (the start tempo the first time)', () => {
+    const errors = reach.sessions.length ? runTempoErrors(reach) : ['no sessions'];
+    expect(errors).toEqual([]);
+    const types = new Set(reach.sessions.flatMap((s) => s.plan.items.map((i) => i.exerciseType)));
+    for (const type of ['E9', 'E10', 'E11']) expect(types.has(type), type).toBe(true);
+  });
+
+  it('Stage 9: c-major-open is assigned step 1 with the TAB hidden from its third assignment until memorized', () => {
+    const run = coverage(9, improvingLearner());
+    const assignments = run.sessions.flatMap((s) =>
+      s.plan.items
+        .filter((i) => i.exerciseType === 'E10' && i.params.scaleId === 'c-major-open' && !i.reviewOf)
+        .map((i) => ({
+          item: i,
+          memorized: s.skillsAtStart.get('scale:c-major-open:memorized') !== undefined,
+        })),
+    );
+    expect(assignments.length).toBeGreaterThan(3);
+    for (const [k, { item, memorized }] of assignments.entries()) {
+      const hidden = k >= 2 && !memorized;
+      expect(item.params.tabHidden === true, `assignment ${k + 1}`).toBe(hidden);
+      if (hidden) expect(item.params.step).toBe(1);
+    }
+    // The improving learner memorizes it on that third (hidden) run.
+    expect(run.state.derived.skills.get('scale:c-major-open:memorized')?.metrics.memorized?.best).toBe(1);
+  });
+
+  it('Stage 10: Q3 on strings 6/5 asks 20 questions', () => {
+    const run = coverage(10, improvingLearner());
+    const quizzes = run.sessions.flatMap((s) =>
+      s.plan.items.flatMap((item, i) =>
+        item.exerciseType === 'Q3' && item.params.scope === 'strings65'
+          ? [s.params[i] as { questions: number }]
+          : [],
+      ),
+    );
+    expect(quizzes.length).toBeGreaterThan(0);
+    for (const q of quizzes) expect(q.questions).toBe(20);
+  });
+
+  it('Stage 8 and 10 self-check cards (K1) are assigned in the first three sessions of the stage (§11.12)', () => {
+    for (const [stage, card] of [
+      [8, 'deliberateMute'],
+      [10, 'palmMute'],
+    ] as const) {
+      const first = reach.sessions.filter((s) => s.stage === stage).slice(0, 3);
+      expect(first).toHaveLength(3);
+      for (const s of first) {
+        const k1 = s.plan.items.find((i) => i.exerciseType === 'K1');
+        expect(k1?.params.items as string[] | undefined, `stage ${stage} day ${s.day}`).toContain(card);
+      }
+    }
+  });
+
+  it('Stage 7+: every session has a repertoire block', () => {
+    const late = reach.sessions.filter((s) => s.stage >= 7 && s.plan.kind === 'practice');
+    expect(late.length).toBeGreaterThan(20);
+    for (const s of late)
+      expect(
+        s.plan.items.some((i) => i.block === 'repertoire'),
+        `day ${s.day}`,
+      ).toBe(true);
+  });
+});
+
+describe('§14.9 simulation — other learners', () => {
   it('blank learner, Stage 0–1: rotation and pair guarantees still hold', () => {
     for (const stage of [0, 1]) {
       const run = coverage(stage, blankLearner());
@@ -349,10 +459,10 @@ describe('§14.9 simulation — other learners (Stage 0–7)', () => {
     const pain = simulate({
       ...base,
       learner: improvingLearner({ painEveryDays: 7 }, 'pain'),
-      days: 200,
-      stopWhen: (s) => s.progression.completedBeginner1,
+      days: 400,
+      stopWhen: (s) => s.progression.completedBeginner2,
     });
-    expect(pain.state.progression.completedBeginner1).toBe(true);
+    expect(pain.state.progression.completedBeginner2).toBe(true);
     const reduced = pain.sessions.filter((s) => s.plan.painAdvice === 'reduceFingertipLoad');
     expect(reduced.length).toBeGreaterThan(5);
     for (const s of reduced) {
@@ -364,12 +474,13 @@ describe('§14.9 simulation — other learners (Stage 0–7)', () => {
       for (const [i, item] of s.plan.items.entries()) {
         const params = s.params[i] as { blockMs?: number; durationMs?: number } | null;
         if (item.exerciseType === 'E1') expect(params?.blockMs).toBe(item.durationSec * 1000);
-        if (item.exerciseType === 'E2') expect(params?.durationMs).toBe(item.durationSec * 1000);
+        if (item.exerciseType === 'E2' || item.exerciseType === 'E3')
+          expect(params?.durationMs).toBe(item.durationSec * 1000);
       }
       expect(s.plan.items.some((i) => i.exerciseType === 'E11' || i.exerciseType === 'E12')).toBe(false);
     }
     expect(sumErrors(pain)).toEqual([]);
-    for (let stage = 0; stage <= 7; stage++) {
+    for (let stage = 0; stage <= 11; stage++) {
       const run = { ...pain, sessions: pain.sessions.filter((s) => s.stage === stage) };
       expect(rotationGaps(run, stage), `stage ${stage}`).toEqual([]);
       const covered = coverage(stage, improvingLearner({ painEveryDays: 7 }, 'pain'));

@@ -31,9 +31,10 @@ export function pluginParamsFor(
       break;
     }
     case 'E3': {
-      // Precise fast change (SPEC v1.1 §11.11): 60–120 s on the routine's direction.
+      // Precise fast change (SPEC v1.1 §11.11): 60–120 s on the routine's direction; a pain-reduced block is
+      // halved down to 30 s (§7.3-7 — the run follows the block, like E1/E2).
       const [from, to] = parseDirected(String(p.direction));
-      Object.assign(merged, { from, to, durationMs: clampMs(item.durationSec, 60_000, 120_000) });
+      Object.assign(merged, { from, to, durationMs: clampMs(item.durationSec, 30_000, 120_000) });
       break;
     }
     case 'E12':

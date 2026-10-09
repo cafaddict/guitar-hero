@@ -7,7 +7,7 @@ import {
 import { ko } from '../../i18n/ko';
 import { tempoRetry } from '../e5/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
-import type { ExercisePlugin, ExerciseRunner } from '../types';
+import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
 import { ChromaticRunner, type E9Params, type E9View, e9ParamsSchema, flawlessShare } from './runner';
 
 function E9ViewComponent({ runner }: { runner: ExerciseRunner<ChromaticResult, E9View>; params: E9Params }) {
@@ -49,6 +49,8 @@ export const e9Plugin: ExercisePlugin<E9Params, ChromaticResult, E9View> = {
   View: E9ViewComponent,
   Summary: E9Summary,
   toMetrics: (result) => extractMetrics('E9', result),
+  // Several subjects (scales/steps, finger pairs, start frets) share the history: look far enough back.
+  historyDepth: SEQUENCE_HISTORY_DEPTH,
   withHistory: (params, recent) => {
     const last = recent.find((r) => r.startFret === params.startFret);
     if (!last || params.ladderBase !== undefined) return params;

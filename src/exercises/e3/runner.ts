@@ -18,7 +18,8 @@ import type { ExerciseContext, JudgedEvent, RunnerCommand } from '../types';
 export const e3ParamsSchema = z.object({
   from: z.string().min(1),
   to: z.string().min(1),
-  durationMs: z.number().int().min(60_000).max(120_000).default(60_000),
+  /** 60–120 s (§11.11); a pain-reduced day halves it down to 30 s (§7.3-7 wins over the range). */
+  durationMs: z.number().int().min(30_000).max(120_000).default(60_000),
 });
 export type E3Params = z.infer<typeof e3ParamsSchema>;
 

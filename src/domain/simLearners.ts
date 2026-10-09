@@ -28,6 +28,11 @@ export interface ImprovingOptions {
   stuckLadders?: boolean;
 }
 
+/** A cycle-type run (E9·E10·E11·E17) with every cycle flawless. */
+function flawlessCycles(count: number) {
+  return Array.from({ length: count }, () => ({ flawless: true, uncertain: false, stops: 0, okRatio: 1 }));
+}
+
 function quizResult(questions: number, accuracy: number, reactionMs: number) {
   return { questions, correct: Math.round(accuracy * questions), meanReactionMs: reactionMs };
 }
@@ -122,6 +127,74 @@ export function improvingLearner(options: ImprovingOptions = {}, name = 'improvi
           changeTimestampsMs: [],
         };
       }
+      case 'E3': {
+        // Precise fast changes: clean rate 0.6 first, +0.1 a run (to 1.0); changes = the pair's E2 rate (§14.9-2).
+        const from = str(p.from);
+        const to = str(p.to);
+        const id = pairId(from, to);
+        const cleanRate = Math.min(1, 0.6 + 0.1 * nextRun(ctx, `E3:${id}`));
+        const cpm = Math.min(45, 24 + 3 * (ctx.memory.get(`E2:${id}`) ?? 0));
+        const durationMs = num(p.durationMs, 60_000);
+        const arrivals = Math.round((cpm * durationMs) / 60_000);
+        return {
+          pair: id,
+          direction: `${from}>${to}`,
+          durationMs,
+          arrivals,
+          cleanArrivals: Math.round(arrivals * cleanRate),
+          source: 'mic',
+        };
+      }
+      case 'E9':
+        return {
+          startFret: num(p.startFret, 5),
+          bpm: num(p.bpm, 60),
+          cycles: flawlessCycles(4),
+          ladder: 'up',
+          source: 'mic',
+          hitRate: 1,
+          okRatio: 1,
+          ioiCv: 0.05,
+        };
+      case 'E10': {
+        const step = num(p.step, 1);
+        const bpm = num(p.bpm, 60);
+        const hidden = p.tabHidden === true;
+        return {
+          scaleId: str(p.scaleId),
+          step,
+          bpm,
+          tabHidden: hidden,
+          hiddenThroughout: hidden,
+          withBacking: p.withBacking === true,
+          cycles: flawlessCycles(4),
+          ladder: 'up',
+          graduated: bpm >= 80,
+          memorized: step === 1 && hidden && bpm >= 60,
+          source: 'mic',
+          // Like the runner, a review run says so (it does not move the scale's step or ladder).
+          ...(p.review === true ? { review: true } : {}),
+        };
+      }
+      case 'E11':
+        return {
+          pair: str(p.pair, '1-2'),
+          bpm: num(p.bpm, 60),
+          cycles: flawlessCycles(6),
+          source: 'mic',
+          pickedHitRate: 1,
+          legatoBeta: { heard: 24, total: 24 },
+          evenRating: 3,
+          ladder: 'up',
+          durationMs: item.durationSec * 1000,
+        };
+      case 'E12':
+        return {
+          completed: true,
+          clarity: 3,
+          pain: 0,
+          durationMs: num(p.durationMs, item.durationSec * 1000),
+        };
       case 'E4':
         return {
           pair: pairId(str(p.from), str(p.to)),
@@ -187,12 +260,7 @@ export function improvingLearner(options: ImprovingOptions = {}, name = 'improvi
           riffId: str(p.riffId),
           bpm: num(p.bpm, 60),
           tabHidden: p.tabHidden === true,
-          cycles: Array.from({ length: 4 }, () => ({
-            flawless: true,
-            uncertain: false,
-            stops: 0,
-            okRatio: 1,
-          })),
+          cycles: flawlessCycles(4),
           ladder: 'up',
           source: 'mic',
         };
@@ -283,11 +351,32 @@ export function blankLearner(): LearnerModel {
             positions: (r.positions as Params[]).map((pos) => ({ ...pos, statuses: ['MUTED', 'MUTED'] })),
           };
         case 'E17':
+        case 'E9':
           return {
             ...r,
             cycles: [{ flawless: false, uncertain: false, stops: 1, okRatio: 0 }],
             ladder: 'stay',
           };
+        case 'E10':
+          return {
+            ...r,
+            cycles: [{ flawless: false, uncertain: false, stops: 1, okRatio: 0 }],
+            ladder: 'stay',
+            graduated: false,
+            memorized: false,
+          };
+        case 'E11':
+          return {
+            ...r,
+            cycles: [{ flawless: false, uncertain: false, stops: 1, okRatio: 0 }],
+            pickedHitRate: 0,
+            evenRating: 1,
+            ladder: 'stay',
+          };
+        case 'E3':
+          return { ...r, cleanArrivals: 0 };
+        case 'E12':
+          return { ...r, completed: false, clarity: 1 };
         case 'K1':
           return { items: (p.items as string[]).map((id) => ({ id, status: 'notYet' })) };
         case 'Q1':

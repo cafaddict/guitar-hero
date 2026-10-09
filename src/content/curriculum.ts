@@ -327,7 +327,7 @@ export const CURRICULUM: readonly StageDef[] = [
     ],
     minSessions: BEGINNER2_MIN_SESSIONS,
     minDays: BEGINNER2_MIN_DAYS,
-    locked: true,
+    locked: false,
   },
   {
     stage: 9,
@@ -372,7 +372,7 @@ export const CURRICULUM: readonly StageDef[] = [
     ],
     minSessions: BEGINNER2_MIN_SESSIONS,
     minDays: BEGINNER2_MIN_DAYS,
-    locked: true,
+    locked: false,
   },
   {
     stage: 10,
@@ -411,7 +411,7 @@ export const CURRICULUM: readonly StageDef[] = [
     ],
     minSessions: BEGINNER2_MIN_SESSIONS,
     minDays: BEGINNER2_MIN_DAYS,
-    locked: true,
+    locked: false,
   },
   {
     stage: 11,
@@ -443,11 +443,12 @@ export const CURRICULUM: readonly StageDef[] = [
     ],
     minSessions: BEGINNER2_MIN_SESSIONS,
     minDays: BEGINNER2_MIN_DAYS,
-    locked: true,
+    locked: false,
   },
 ];
 
-export const PLAYABLE_STAGE_MAX = 7;
+/** Every stage is playable since v1.1 (SPEC v1.1 §7.2: Stage 8–11 open). */
+export const PLAYABLE_STAGE_MAX = 11;
 
 export function stageDef(stage: number): StageDef {
   const def = CURRICULUM.find((s) => s.stage === stage);

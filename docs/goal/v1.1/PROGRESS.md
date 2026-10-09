@@ -6,10 +6,10 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **M13 (초급 2 진행 통합)** 시작 전 — M9 `13cbca7`, M10 `197db37`, M11 `b4db85d`, M12 커밋(이 커밋)
+- 현재 마일스톤: **M14 (화면 마감)** 시작 전 — M9 `13cbca7`, M10 `197db37`, M11 `b4db85d`, M12 `b08b6bb`, M13 커밋(이 커밋)
 - 시작 지점: `feat/practice-app-v1.1`, v1.1 키트 커밋 `012fb70`(부모 `5e94332`)
 - 마일스톤 끝 리뷰 서브에이전트: M10(완료, D-065 반영)·M12(완료, D-068 반영)·M15
-- 마지막 갱신: 2026-10-09 (M12 verify PASS: test 1616/1616, bench:dsp all thresholds met; beta reported, bench:guitarset hard 6/6 soft 3/3, e2e 48/48 4 projects)
+- 마지막 갱신: 2026-10-09 (M13 verify PASS: test 1653/1653, bench:dsp all thresholds met; beta reported, bench:guitarset hard 6/6 soft 3/3, e2e 52/52 4 projects)
 - 누적 턴(대략): 2
 - 턴 상한: **1000**. §16.1 축소 조건은 턴 수가 아니라 "M13 커밋 이후, 같은 하위 항목 때문에 마일스톤 verify 3회 연속 실패"(SPEC §2.6).
 - M11 요약(D-066, `docs/DSP.md` 15–20절):
@@ -25,7 +25,12 @@
   - 결정 D-067. README(연습 목록·옵션 키) 갱신.
   - 검사: typecheck·lint 통과, 단위 96 파일 1604+ 통과(PFC 테스트 추가 전 기준).
   - 리뷰 서브에이전트(code-reviewer) 완료: critical 1·high 3·medium 4·low 3 → D-068로 반영(스케일·리프 복습 통과 판정, 반주 사전 렌더·지난 시각 보정, 누출 이득 링 창, E11 실행 중 상한, 늦은 비동기 가드, 청크 경계 중복, E2E-17 강화(무박 마디·§14.8 레벨·온보딩 RTT·가짜 마이크 새 트랙), 이어폰 기억 깊이). 단위 96 파일 1616 통과, M12 E2E 5개 통과, 마스킹 끈 변이로 E2E-17(b) 실패 확인.
-- 다음 할 일(M13): Stage 8–11 진행 통합 — `PLAYABLE_STAGE_MAX` 해제, 시뮬레이션 Stage 0–11(커버리지·진급 도달·교착 0), E2E-18·19, 레퍼토리 블록 곡 순환, Stage 8+ 30분·분할 템플릿 검증, AC-TR1·TR2·TR3·RT1·RT5·PG1·NE1·NE8 남은 부분.
+- M13 완료(커밋):
+  - 진급: Stage 7 시험 통과 → 초급 1 수료 + Stage 8 진급, Stage 11 기준 충족 → 초급 2 수료(날짜), `PLAYABLE_STAGE_MAX` 11, Stage 8–11 `locked: false`(`progression.ts` `BEGINNER1_LAST_STAGE`·`FINAL_STAGE`).
+  - 시뮬레이션 Stage 0–11: 학습자 E3·E9·E10·E11·E12, 플러그인 `withHistory` 주입(호스트와 같은 깊이), 도달(초급 2 수료 139일째, 교착 0), 커버리지 8–11(improving·pain), 파라미터(E9·E10·E11 사다리, Stage 9 암기 TAB 숨김, Stage 10 Q3 20문항, Stage 7+ 레퍼토리). 86개 통과.
+  - 고친 결함: 복습 실행이 E10 단계 사다리를 되돌림(`review` 결과 표시), E11·E10·E9 이력 깊이 5 → 30(쌍·스케일 순환), 통증일 E3 실행 길이가 절반이 안 됨(E3 최소 30초), Q3 문항 수·암기 스케일 규칙을 루틴에서 채움.
+  - UI: 홈·커리큘럼 초급 1·2 수료 표시, Stage 11 "수료 기록하기", 세션 분할(여기서 나눠 하기 → 홈 이어서 하기 → 한 세션), 레퍼토리 블록 "이어서 한 번 더" = 다음 레퍼토리 곡. E2E-18 `split.mic.spec.ts`, E2E-19 `beginner2.spec.ts` 통과. D-069, README 갱신. 단위 1652+ 통과.
+- 다음 할 일(M14): 화면 마감 — AC-UX4, AC-W4 (SPEC §16 M14 행 확인).
 - 막힌 점: 없음.
 - 미룬 작은 일(M13): 레퍼토리 블록 안 "이어서 한 번 더"가 다음 레퍼토리 곡으로 넘어가기(§11.10 "차례로 친다").
 - 메모: 타입 검사는 반드시 `npm run typecheck`(app·node·worklet 3개 tsconfig)로 한다. `tsc -p .`는 앱 코드를 검사하지 않아 M11 첫 verify가 typecheck에서 걸렸다(`noUncheckedIndexedAccess`).
@@ -38,8 +43,8 @@
 | M9 | 기반·결함 수정 | DONE | `13cbca7` | verify PASS |
 | M10 | Stage 0–7 리서치 복원 | DONE | `197db37` | verify PASS, 리뷰 D-065 |
 | M11 | DSP·합성·벤치 확장 | DONE | `b4db85d` | verify PASS, bench test all met(+beta reported), GuitarSet hard 6/6 soft 3/3 |
-| M12 | 초급 2 콘텐츠·새 연습 | DONE | (이 커밋) | verify PASS(e2e 48/48), 리뷰 D-068 |
-| M13 | 초급 2 진행 통합 | TODO | | |
+| M12 | 초급 2 콘텐츠·새 연습 | DONE | `b08b6bb` | verify PASS(e2e 48/48), 리뷰 D-068 |
+| M13 | 초급 2 진행 통합 | DONE | (이 커밋) | verify PASS(e2e 52/52) |
 | M14 | 화면 마감 | TODO | | |
 | M15 | 하드닝·최종 검증 | TODO | | 끝에 code-reviewer |
 
@@ -52,26 +57,26 @@
 | AC-P9 | `npm ci && npm run verify` exit 0, §14.7 형식 요약표(v1.1 계약 기준). | TODO | |
 | AC-P10 | v1 AC(P1–P6, D1–D5, A1–A5, S1–S8, G1–G3, X1–X10, R1–R5, U1–U6, T1–T4, W1–W3, F1–F3) 보존 | DOING | M9·M10·M11 verify PASS(v1 단위·E2E·bench). v1 테스트 갱신은 D-063·D-064·D-066 목록뿐(D-066: 보이싱 25→29, Mode C 쌍 25→50 × G 3종 — 확장만). v1 Mode D는 v1 패턴 그대로, v1 스트럼 GuitarSet F1 0.877 유지. 참고: v1의 `src/data` 미추적 결함을 v1.1에서 고침(D-065) |
 | AC-TR1 | `traceability.json` 완전성 무결성 테스트 통과, FINAL_REPORT에 항목별 대조 결과(구현·제외·연기 수). | TODO | |
-| AC-TR2 | 모든 learn 항목의 `practicedBy` 유효(무결성 8) + 커버리지 단언 Stage 0–11 통과. | DOING | Stage 0–7: `src/domain/simulate.test.ts` "every learn item is practised at least twice…"(improving 0–7, blank 0–1, pain 0–7, plateau 3, withReviews 5), 무결성 8 `tests/integrity/learn-table.test.ts`. 남음: Stage 8–11(M13) |
-| AC-TR3 | 진급 규칙 ↔ 루틴 대응과 도달 단언 통과, 교착 0. | TODO | |
+| AC-TR2 | 모든 learn 항목의 `practicedBy` 유효(무결성 8) + 커버리지 단언 Stage 0–11 통과. | DONE | 무결성 8 `tests/integrity/learn-table.test.ts`; 커버리지 `src/domain/simulate.test.ts` "every learn item is practised at least twice in every 7 practice days…" Stage 0–11(improving 28일), pain 0–11, blank 0–1, plateau 3 |
+| AC-TR3 | 진급 규칙 ↔ 루틴 대응과 도달 단언 통과, 교착 0. | DONE | `simulate.test.ts` "every unlock rule is fed by its exercise…"(규칙 → 연습 대응표 상수, Stage 0–11, 곡 = 연주 단계), 도달 "the improving learner promotes through every stage to Beginner 1 and Beginner 2 without a deadlock"(스테이지마다 최소 체류 + 20연습일, 교착 0, 139일째 초급 2 수료), plateau 조건부 진급 22연습일, pain 감량 |
 | AC-TR4 | SPEC 요구 함수 프로덕션 호출 검사(무결성 9) 통과. | DONE | `tests/integrity/production-calls.test.ts` 8개(M9–M11 7개 + M12 `verifySequence`, 호출처 `src/audio/worker/dsp-worker.ts` 구간 요청 `sequence`) |
-| AC-RT1 | 스테이지 시간 템플릿 합계·배치 테스트, Stage 8–11 30분과 분할, 레퍼토리 블록. | DOING | Stage 0–7: `routine.test.ts` "rule 2 (v1.1 §7.3-2)…"(K1 있는/없는 날 합계 1200, 블록 구성), `v11Records.test.ts` "every template sums to T…"(0–11), `simulate.test.ts` "Σ block time = …"(28일). 남음: Stage 8–11 30분·분할·레퍼토리(M13) |
-| AC-RT2 | 쌍 슬롯 배정과 7일 배정 보장, 순환 블록 3세션 보장, 처방 추가·만료(기술 항목을 몰아내지 않음). | DOING | Stage 0–7: `src/domain/simulate.test.ts` "every rotation entry appears…"·"required, unpassed pairs…"(Stage 0–7×improving, blank 0–1, pain), "plateau learner…"(처방 추가·② 배치·8세션 만료·순환 유지); `routine.test.ts` rule 3 두 개. 남음: E3 처방(M12), Stage 8–11(M13). M12: OMC→PFC·PFC→OMC 처방 배치 `routine.test.ts` "SPEC v1.1 §7.4 PFC ↔ OMC prescriptions at Stage 8"(D-067). 남음: Stage 8–11 시뮬레이션(M13) |
-| AC-RT3 | 복습 배정(같은 종류 블록, 밀림 방지, 7일 안 배정), 지식 카드 간격 반복. | DOING | `simulate.test.ts` "withReviews learner, Stage 5 (AC-RT3)…"(30개 동시 due: FIFO·지연 ≤ max(7,⌈q/c⌉+1)), `routine.test.ts` "rule 6 (v1.1 §7.3-6)…"·"rule 6 (cards)…", `v11Records.test.ts` 카드 사다리·"a due review moves one step per due date", `quiz/cards.test.ts`. 남음: 스케일 단계 복습(M12). M12: 스케일 단계·리프 복습 `progression.test.ts` "SPEC v1.1 §7.5: graduated scale steps…", 복습 실행 `e10/runner.test.ts` "next run: … review plays the step under review at 80", 복습 통과 `v11Records.test.ts` "scale and riff reviews (M12 code review)", 복습 항목 `routine.test.ts` "SPEC v1.1 §7.5 scale and riff review drafts". 남음: Stage 8–11 시뮬레이션(M13) |
+| AC-RT1 | 스테이지 시간 템플릿 합계·배치 테스트, Stage 8–11 30분과 분할, 레퍼토리 블록. | DONE | `v11Records.test.ts` "every template sums to T…"(0–11), `simulate.test.ts` "Σ block time = the template length T…"(0–7 1200 s, 8–11 1800 s, 통증일 공식), 분할 `src/features/session/session.test.ts` "SPEC v1.1 §7.3-11 split sessions" + E2E-18 `tests/e2e/split.mic.spec.ts`(레퍼토리 블록이 앞, 분할 → 이어서 하기 → 한 세션), 레퍼토리 `simulate.test.ts` "Stage 7+: every session has a repertoire block" |
+| AC-RT2 | 쌍 슬롯 배정과 7일 배정 보장, 순환 블록 3세션 보장, 처방 추가·만료(기술 항목을 몰아내지 않음). | DONE | Stage 0–7: `src/domain/simulate.test.ts` "every rotation entry appears…"·"required, unpassed pairs…"(Stage 0–7×improving, blank 0–1, pain), "plateau learner…"(처방 추가·② 배치·8세션 만료·순환 유지); `routine.test.ts` rule 3 두 개. 남음: E3 처방(M12), Stage 8–11(M13). M12: OMC→PFC·PFC→OMC 처방 배치 `routine.test.ts` "SPEC v1.1 §7.4 PFC ↔ OMC prescriptions at Stage 8"(D-067). Stage 8–11: 같은 단언이 0–11 커버리지에서 통과(M13) |
+| AC-RT3 | 복습 배정(같은 종류 블록, 밀림 방지, 7일 안 배정), 지식 카드 간격 반복. | DONE | `simulate.test.ts` "withReviews learner, Stage 5 (AC-RT3)…"(30개 동시 due FIFO·지연 ≤ max(7,⌈q/c⌉+1)), `routine.test.ts` "rule 6 (v1.1 §7.3-6)…"·"rule 6 (cards)…"·"SPEC v1.1 §7.5 scale and riff review drafts", `v11Records.test.ts` 카드 사다리·"a due review moves one step per due date"·"scale and riff reviews (M12 code review)", `quiz/cards.test.ts`; 복습 실행이 사다리를 되돌리지 않음 `e10/runner.test.ts` "next run…" |
 | AC-RT4 | 블록 시간 반복·끝 신호·전환 화면. | DONE | `session.test.ts` "SPEC v1.1 §7.3-12·13 block time…"(전환 화면 조건, 전환 시간은 블록 시간 밖), SessionScreen 블록 끝 신호(액센트 클릭 2번 + "블록 끝")·"이어서 한 번 더"(사다리 다음 템포, Space), E2E-07·E2E-15가 전환 화면을 거쳐 끝까지 진행 |
-| AC-RT5 | 파라미터 의미: progression 코드 진행, 사다리 현재 BPM, E7 시작 프렛, 통증 감량 실행 반영. | DOING | v1 연습: `simulate.test.ts` "parameters: progression mode…"(진행 코드 ≥2, 사다리 현재 BPM·−10 처방, E7 시작 프렛), "pain learner…"(E1·E2 실행 파라미터 절반); `session.test.ts` pain ≥5. 남음: Stage 9 tabHidden·Q3 20문항·레퍼토리(M13) |
-| AC-PG1 | Stage 0–11 규칙 데이터와 새 규칙 종류 단위 테스트, Stage 7 → 8 진급, 초급 2 수료. | TODO | |
+| AC-RT5 | 파라미터 의미: progression 코드 진행, 사다리 현재 BPM, E7 시작 프렛, 통증 감량 실행 반영. | DONE | `simulate.test.ts` 커버리지 "parameters: progression mode carries ≥ 2 chords; tempos follow the ladder; E7 follows the stretch records"(0–11), "§14.9-6 parameters, Stage 7–11"(E9·E10·E11 사다리 템포, Stage 9 c-major-open 3번째 배정부터 TAB 숨김, Stage 10 Q3 strings65 20문항, Stage 7+ 레퍼토리), "pain learner…"(E1·E2·E3 실행 길이 절반, E11·E12 제외) |
+| AC-PG1 | Stage 0–11 규칙 데이터와 새 규칙 종류 단위 테스트, Stage 7 → 8 진급, 초급 2 수료. | DONE | 규칙 데이터 `curriculum.test.ts` "defines stages 0–11, all playable…"·"expresses unlock rules as data…", 새 규칙 종류 `progression.test.ts`(scaleStepGraduated·scaleMemorized·quizRunAtLeast·chordCleanRatioAtLeast·songs 필터), Stage 7 → 8·초급 2 수료 "promote(): … Stage 7 → 8 completes Beginner 1, Stage 11 Beginner 2", 도달 시뮬레이션, E2E-19 `tests/e2e/beginner2.spec.ts`(chromium·iPad·iPhone) |
 | AC-PG2 | 정체 감지 연결과 처방 표, 조건부 진급 3주, 2주/3주 구분 테스트. | DONE | `src/domain/sessionPrep.test.ts`(세션 시작 detectStagnation → 처방, 만료), `progression.test.ts` "stagnation (v1.1 §7.4)"·"conditional promotion (v1.1 §7.4)", `simulate.test.ts` plateau(22연습일 안 조건부 진급). 남음: PFC↔OMC E3 처방(M12). M12: OMC→PFC(Stage 8–11 E3 칸)·PFC→OMC(E3 칸에서 빼고 E2 칸 2) `routine.test.ts` "SPEC v1.1 §7.4 PFC ↔ OMC prescriptions at Stage 8" |
 | AC-PG3 | G 보이싱 3단 전환 제안(`suggestedGVoicing` 연결), E7 시작 프렛 조정(`nextStretchStartFret` 연결). | DONE | `sessionPrep.test.ts` "AC-PG3: suggests the three-finger G…"(G-2f→G-3f Stage 6, G-3f→G-4f Stage 8), `simulate.test.ts` "G voicing: the switch…"(수락 후 E1 G-3f)·"E7 start fret…"(5,5,5,4,4,4,3…), `v11Records.test.ts` "E7 start fret from the records", 홈 추천 카드(HomeScreen `g-switch`), 무결성 9 호출 검사 |
 | AC-CT1 | 보이싱 29개 검증, 스케일 3개 검증, 리프 4개와 TAB 렌더, 패턴 P6–P8과 스윙 그리드, Stage 8–11 쌍, 연습곡 18곡+ 스테이지 코드 제약과 블루스 형식. | DONE | 보이싱 29개 `src/content/voicings.test.ts`, 스케일 3개 `src/content/scales.test.ts`, 리프 4개 `src/content/riffs.test.ts`·TAB 렌더 `src/ui/Tab.test.tsx`, P6–P8·스윙 그리드 `src/dsp/synth/v11.test.ts`·`e5/runner.test.ts` "swing patterns (§6.10)…", Stage 8–11 쌍 `curriculum.test.ts` "pairs and E5 progressions…", 18곡+·코드 제약·블루스 `curriculum.test.ts` "SPEC v1.1 §6.6: ≥ 18 songs…" |
-| AC-NE1 | K1 자가 체크 카드와 루틴 배정 규칙. | DOING | K1 플러그인·`k1/runner.test.ts`, 배정 규칙 `routine.test.ts` "Stage 0 (v1.1)…", E2E-15 K1 카드 저장. Stage 0·2 완료. 남음: Stage 8·10 항목(M13) |
+| AC-NE1 | K1 자가 체크 카드와 루틴 배정 규칙. | DONE | K1 플러그인·`k1/runner.test.ts`, 배정 규칙 `routine.test.ts` "Stage 0 (v1.1)…", E2E-15 K1 카드 저장. Stage 0·2 완료. 남음: Stage 8·10 항목(M13). M13: Stage 8·10 항목 `simulate.test.ts` "Stage 8 and 10 self-check cards (K1) are assigned in the first three sessions…" |
 | AC-NE2 | E16 프렛 위치 비교, E2E-15. | DONE | `e16/runner.test.ts`(Mode A 세 위치·자가 판정), E2E-15 `tests/e2e/stage0.mic.spec.ts` 두 개(키보드 Stage 0 세션 저장; fixture ① OK ③ MUTED, detectorVersion·processingMs) |
 | AC-NE3 | E3 정확 빠른 체인지, 통과·졸업·안내. | DONE | `src/exercises/e3/runner.test.ts`(마이크: 체인지 카운터 도착·Enter/↓ 표시·표시 안 함 = 아님, 무마이크: pass = 깨끗 ≥ 0.8 & ≥ 20/분), 졸업 `progression.test.ts` "SPEC v1.1 §11.11: an E3 pair graduates…", 안내·Mode B 베타 표시 `src/exercises/e3/plugin.tsx` |
 | AC-NE4 | E9 크로매틱, E10 스케일 사다리 1–5단계·사다리·암기, E12 새끼손가락, E2E-16. | DONE | E9 `src/exercises/e9/runner.test.ts`, E10 `src/exercises/e10/runner.test.ts`(마이크 청크 판정·졸업, 틀린 음 위치·반음, 자가 보고·암기, H, 반주 스피커 = 참고, 다음 실행·복습), E12 `src/exercises/e12/runner.test.ts`, E2E-16 `tests/e2e/e10.mic.spec.ts` |
 | AC-NE5 | E11 해머온, 하루 상한, 레가토 베타 표시. | DONE | `src/exercises/e11/runner.test.ts`(해머온 슬롯 = 레가토 베타, 하루 상한·사다리, 다음 실행), 루틴 상한 `routine.test.ts` "E11 carries today's minutes…", 레가토 베타 표시 `e11/plugin.tsx` `e11-legato`("참고·베타") |
 | AC-NE6 | E17 리프, Q5 TAB 퀴즈. | DONE | E17 자가 보고 경로 `e17/runner.test.ts`(사다리 4회 연속·−5 규칙, H 키), Q5 `quiz/cards.test.ts` "Q5 TAB reading…", TAB 렌더 `ui/Tab.tsx`. 남음: E17 §10.10 마이크 판정·R3·R4(M12). M12: E17 마이크 판정(§10.10) `e17/runner.test.ts` "with a microphone (§10.10): R3…", R3·R4 데이터 `src/content/riffs.test.ts` |
 | AC-NE7 | Q3 범위 확장, Q4 종류 확장, E2E-21. | DONE | `src/exercises/quiz/quiz.test.ts` "SPEC v1.1 §11.15 Q3 ranges and §11.21 Q4 kinds"(범위 3종·4지선다·카드, 인터벌 6지·진행 3지·소리), E2E-21 `tests/e2e/q3.mic.spec.ts` |
-| AC-NE8 | S 곡 단계(학습·연주·숨김)·완주·암기·레퍼토리 정의. | DOING | 곡 단계·완주·암기·레퍼토리 지표 `v11Records.test.ts` "song stages…", 멈춤 자동 집계·키 `song/v11.test.ts`, 루틴 곡 블록 단계 `simulate.test.ts`(Stage 2 연주 완주로 진급), 졸업 시험 5번 `examModel.test.ts`. 남음: 반주·코드 확인(M12), 레퍼토리 블록 곡 순환(M13). M12: 반주·코드 확인 `src/exercises/song/backing.test.ts`(이어폰/스피커/키), E2E-17. 남음: 레퍼토리 블록 곡 순환(M13) |
+| AC-NE8 | S 곡 단계(학습·연주·숨김)·완주·암기·레퍼토리 정의. | DONE | 곡 단계·완주·암기·레퍼토리 지표 `v11Records.test.ts` "song stages…", 멈춤 자동 집계·키 `song/v11.test.ts`, 루틴 곡 블록 단계 `simulate.test.ts`(Stage 2 연주 완주로 진급), 졸업 시험 5번 `examModel.test.ts`. 남음: 반주·코드 확인(M12), 레퍼토리 블록 곡 순환(M13). M12: 반주·코드 확인 `src/exercises/song/backing.test.ts`(이어폰/스피커/키), E2E-17. 남음: 레퍼토리 블록 곡 순환(M13). M13: 레퍼토리 블록 곡 순환 `routine.test.ts` "SPEC v1.1 §11.10 repertoire block: \"차례로 친다\"", 세션 "이어서 한 번 더" = 다음 레퍼토리 곡 |
 | AC-NE9 | E5 v1.1 추가(P6–P8, 모드 사다리, 보정 hit_rate 기준, 박 세기·발 박자 안내, 시각 큐 숨김 키, 셈여림 모드, 팜뮤트 옵션), E6 Stage 1·사다리·코드 확인, E8 사다리 저장. | DONE | E5: V 키·박 번호·셈여림 자가 평가·보정 hit_rate 사다리 `e5/v11.test.ts`; E6 Stage 1(템플릿)·사다리 `ladderBpm`·코드 확인 `e6/runner.test.ts` "chordCorrectRatio…"; E8 사다리 저장 `v11Records.test.ts`. 남음: P6–P8·스윙·팜뮤트 옵션(M12). M12: P6–P8·스윙 `e5/runner.test.ts` "swing patterns (§6.10)…", 팜뮤트 옵션 "palm-mute option (§11.6, §10.11)…" |
 | AC-EX1 | E0·온보딩 튜닝 방향 안내와 건너뛰기, E1 경향 요약·모드 키, E7 안내 문구. | DONE | `tuningGuide.test.ts`(조이기/풀기·줄감개 방향), `ui/TuningDirection.tsx`(온보딩·E0·튜너), `calibrationModel.test.ts` "AC-EX1 (v1.1 §9.3): strings skipped…", E1 경향 `e1/tendency.test.ts`, 모드 키 E2E-22, E7 안내 문구 `ko.exercises.e7.how` |
 | AC-SQ1 | §14.8 sequence 지표 전부 통과(합성 test split). | DONE | `npm run bench:dsp`(test, detector 1.4.0): sequence 8/8 — note onset F1 0.9994, clean 음 OK 0.9978, 틀린 음 1.000, MISSED 1.000, EXTRA 0.9875, 결함 사이클 무실수 오판 0.0021, clean 무실수 1.000(n 136), 불확실 0.000. 구현 `src/dsp/sequence.ts`, 단위 `src/dsp/sequence.test.ts`, 계약 커버리지 `tests/integrity/thresholds-contract.test.ts` "sequence: …"(3개) |

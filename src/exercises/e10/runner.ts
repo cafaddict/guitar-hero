@@ -143,6 +143,7 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
       hiddenThroughout: this.hiddenThroughout,
       withBacking: this.params.withBacking,
       ...(this.params.withBacking ? { backingAudible: this.backingAudible } : {}),
+      ...(this.params.review ? { review: true } : {}),
       cycles: [...this.cycleRecords],
       ladder: this.backingAudible ? 'stay' : sequenceLadder(this.cycleRecords, this.params.previousLow),
       graduated: run >= SEQUENCE_STREAK && this.params.bpm >= SCALE_GRADUATION_BPM,

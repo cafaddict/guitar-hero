@@ -153,3 +153,39 @@ export function sessionKeyCommand(
   if (action === 'next' || action === 'toggle') return view.isRest || view.runEnded ? 'advance' : null;
   return null;
 }
+
+// --- split 30-minute sessions (SPEC v1.1 §7.3-11) --------------------------------------------------------------
+
+/** The first half of a split session: what "이어서 하기" resumes on the same day (stored under `meta`). */
+export interface SplitResume {
+  sessionId: string;
+  /** Local day of the first half (`dayKey`); the resume option disappears once the day changes. */
+  day: string;
+  stage: number;
+  items: RoutineItem[];
+  /** Runner state paused at the first item of the second half. */
+  state: SessionState;
+}
+
+export const SPLIT_RESUME_KEY = 'splitResume';
+
+/** The runner stands at the first item after the template's split point (the rhythm block is done). */
+export function atSplitPoint(state: SessionState, splitAfterIndex: number | null): boolean {
+  return splitAfterIndex !== null && state.index === splitAfterIndex + 1;
+}
+
+export function splitHere(
+  sessionId: string,
+  day: string,
+  stage: number,
+  items: readonly RoutineItem[],
+  state: SessionState,
+  now: number,
+): SplitResume {
+  return { sessionId, day, stage, items: [...items], state: pause(state, now) };
+}
+
+/** Continues the second half: same items and records, the practice time kept, a fresh clock. */
+export function resumeSplit(saved: SessionState, now: number): SessionState {
+  return { ...saved, paused: false, runningSince: now, itemStartedAtMs: saved.practiceMs };
+}

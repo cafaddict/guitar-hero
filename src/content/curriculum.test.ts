@@ -9,14 +9,17 @@ import { BLUES_FORM, PRACTICE_SONGS, songChordClasses } from './songs';
 import { classOfVoicing, hasVoicing } from './voicings';
 
 describe('AC-D3 curriculum data', () => {
-  it('defines stages 0–11; 0–7 playable, 8–11 locked preview', () => {
+  // v1.1 §7.2 opens Stage 8–11 (v1: a locked preview) with a minimum stay of 8 sessions + 14 days.
+  it('defines stages 0–11, all playable; 0–7 keep 4 sessions, 8–11 need 8 sessions and 14 days', () => {
     expect(CURRICULUM.map((s) => s.stage)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     for (const s of CURRICULUM) {
       expect(() => stageSchema.parse(s)).not.toThrow();
-      expect(s.locked).toBe(s.stage >= 8);
-      if (!s.locked) {
-        expect(s.unlockRules.length, `stage ${s.stage} has rules`).toBeGreaterThan(0);
-        expect(s.unlockRules).toContainEqual({ kind: 'sessionsInStageAtLeast', count: 4 });
+      expect(s.locked).toBe(false);
+      expect(s.unlockRules.length, `stage ${s.stage} has rules`).toBeGreaterThan(0);
+      if (s.stage <= 7) expect(s.unlockRules).toContainEqual({ kind: 'sessionsInStageAtLeast', count: 4 });
+      else {
+        expect(s.unlockRules).toContainEqual({ kind: 'sessionsInStageAtLeast', count: 8 });
+        expect(s.unlockRules).toContainEqual({ kind: 'daysInStageAtLeast', days: 14 });
       }
     }
   });

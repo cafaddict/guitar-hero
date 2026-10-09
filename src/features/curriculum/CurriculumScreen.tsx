@@ -12,7 +12,7 @@ import { practiceRefLabel } from './practiceRefLabel';
 
 const linkClass = 'inline-flex min-h-12 items-center rounded-lg bg-surface-2 px-4 font-semibold';
 
-/** Curriculum (SPEC §12.1): stages 0–11, 8–11 shown as a locked preview. */
+/** Curriculum (SPEC §12.1): stages 0–11 (all open since v1.1 §7.2), Beginner 1 and 2 completion (§7.7). */
 export function CurriculumScreen() {
   const [progression, setProgression] = useState<ProgressionState | null>(null);
   useEffect(() => {
@@ -20,6 +20,12 @@ export function CurriculumScreen() {
   }, []);
   return (
     <Screen title={ko.curriculum.title}>
+      {progression?.completedBeginner1 && <p className="mb-2 text-ok">{ko.home.completedBeginner}</p>}
+      {progression?.completedBeginner2 && (
+        <p className="mb-2 font-bold text-ok" data-testid="curriculum-beginner2">
+          {ko.home.completedBeginner2(progression.beginner2CompletedAt ?? null)}
+        </p>
+      )}
       <ol className="space-y-2" data-testid="stage-list">
         {CURRICULUM.map((def) => {
           const current = progression?.stage === def.stage;

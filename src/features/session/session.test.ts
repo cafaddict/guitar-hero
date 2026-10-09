@@ -7,6 +7,7 @@ import { TEST_CONTENT } from '../../exercises/testing/fakes';
 import { pluginParamsFor } from './routineParams';
 import {
   acknowledgeBreak,
+  atSplitPoint,
   breakDue,
   completeItem,
   isFinished,
@@ -19,8 +20,10 @@ import {
   REPEATABLE_TYPES,
   restartItemClock,
   resume,
+  resumeSplit,
   sessionKeyCommand,
   skipItem,
+  splitHere,
   startSession,
 } from './sessionModel';
 
@@ -229,5 +232,29 @@ describe('SPEC v1.1 §7.3-12·13 block time in the session runner', () => {
     expect(itemRemainingSec(s, items, 65_000)).toBe(60);
     expect(itemRemainingSec(s, items, 125_000)).toBe(0);
     expect(REPEATABLE_TYPES.has('E5') && REPEATABLE_TYPES.has('S') && !REPEATABLE_TYPES.has('E1')).toBe(true);
+  });
+});
+
+describe('SPEC v1.1 §7.3-11 split sessions', () => {
+  it('the split point is the first item after the first half; the half is kept paused and resumes with its records', () => {
+    const items = Array.from({ length: 4 }, (_, k) => ({ id: `i${k}` }) as RoutineItem);
+    let state = startSession(0);
+    expect(atSplitPoint(state, 1)).toBe(false);
+    state = completeItem(markRecorded(state, 'i0'), items, 60_000);
+    state = completeItem(markRecorded(state, 'i1'), items, 120_000);
+    expect(atSplitPoint(state, 1)).toBe(true);
+    expect(atSplitPoint(state, null)).toBe(false);
+    const saved = splitHere('session-1', '2026-10-09', 9, items, state, 130_000);
+    expect(saved).toMatchObject({ sessionId: 'session-1', day: '2026-10-09', stage: 9 });
+    expect(saved.state).toMatchObject({
+      paused: true,
+      practiceMs: 130_000,
+      index: 2,
+      recorded: ['i0', 'i1'],
+    });
+    // Later (a new page clock): the same records, practice time kept, the clock running again.
+    const resumed = resumeSplit(saved.state, 5_000);
+    expect(resumed).toMatchObject({ paused: false, runningSince: 5_000, index: 2, recorded: ['i0', 'i1'] });
+    expect(practiceMs(resumed, 65_000)).toBe(190_000);
   });
 });

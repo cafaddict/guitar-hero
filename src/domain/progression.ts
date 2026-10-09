@@ -313,13 +313,16 @@ export function evaluateStage(def: StageDef, ctx: RuleContext): StageEvaluation 
       if (plateaued.length < r.rule.minCount - passed) pairRulesSatisfiable = false;
     }
   }
-  const conditionalAvailable = pairRulesSatisfiable && plateauedPairs.length > 0;
+  // Beginner 2 is completed only by meeting Stage 11's rules (§7.7): no conditional completion.
+  const conditionalAvailable = pairRulesSatisfiable && plateauedPairs.length > 0 && def.stage < FINAL_STAGE;
   const progress = rules.length ? rules.reduce((sum, r) => sum + r.progress, 0) / rules.length : 0;
   return { stage: def.stage, rules, allMet, conditionalAvailable, plateauedPairs, progress };
 }
 
-/** Last stage a user can be promoted into today (Stage 8–11 open in M13, SPEC v1.1 §7.2). */
-export const LAST_PLAYABLE_STAGE = 7;
+/** Stage 7's graduation exam completes Beginner 1; promotion then continues into Stage 8 (SPEC v1.1 §7.2). */
+export const BEGINNER1_LAST_STAGE = 7;
+/** The last stage: meeting its rules completes Beginner 2 and the routine stays at this stage (§7.7). */
+export const FINAL_STAGE = 11;
 
 /** Conditional-promotion and stagnation prescriptions run for 8 sessions (D-060); −10 BPM runs one week. */
 export const PRESCRIPTION_SESSIONS = 8;
@@ -327,8 +330,9 @@ export const SLOWER_TEMPO_DAYS = 7;
 export const SLOWER_TEMPO_BPM = 10;
 
 /**
- * Moves to the next stage (or marks Beginner 1 complete after the last playable stage). A conditional
- * promotion adds the plateaued pairs' prescriptions (precise fast changes + anchor/air drill) to the next stage.
+ * Moves to the next stage — leaving Stage 7 also marks Beginner 1 complete (§7.2) — or, at the final stage,
+ * records Beginner 2 complete and stays (§7.7). A conditional promotion adds the plateaued pairs' prescriptions
+ * (precise fast changes + anchor/air drill) to the next stage.
  */
 export function promote(
   state: ProgressionState,
@@ -341,8 +345,9 @@ export function promote(
     ...state.history,
     { stage: state.stage, enteredAt: state.stageEnteredAt, leftAt: now, conditional },
   ];
-  if (state.stage >= LAST_PLAYABLE_STAGE) {
-    return { ...state, history, completedBeginner1: true };
+  if (state.stage >= FINAL_STAGE) {
+    if (state.completedBeginner2) return state;
+    return { ...state, history, completedBeginner2: true, beginner2CompletedAt: now };
   }
   const added: Prescription[] = conditional
     ? pairs.map((id) => ({
@@ -357,6 +362,7 @@ export function promote(
   const kept = state.prescriptions.filter((p) => !added.some((a) => a.subjectKey === p.subjectKey));
   return {
     ...state,
+    ...(state.stage === BEGINNER1_LAST_STAGE ? { completedBeginner1: true } : {}),
     stage: state.stage + 1,
     stageEnteredAt: now,
     sessionsInStage: 0,

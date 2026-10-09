@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { actionForKey, isEditableTarget, isNativeActivation } from '../../app/keys';
 import { audioEngine, metronome, repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
 import { loadStoredState } from '../../app/storedState';
 import { simulatedRate } from '../../app/testRate';
 import type { RoutineItem } from '../../content/schemas';
+import { songById } from '../../content/songs';
 import { voicingById } from '../../content/voicings';
 import { newId } from '../../domain/ids';
-import type { Attempt, SelfReport } from '../../domain/records';
-import { generateRoutine } from '../../domain/routine';
+import { type Attempt, dayKey, type SelfReport } from '../../domain/records';
+import { generateRoutine, nextRepertoireSong, type RoutineInput } from '../../domain/routine';
 import { prepareSession } from '../../domain/sessionPrep';
 import { createExerciseOutput } from '../../exercises/audioAdapter';
 import { contentContextFor } from '../../exercises/contentContext';
@@ -25,6 +26,7 @@ import { itemTitle } from './itemTitle';
 import { pluginParamsFor } from './routineParams';
 import {
   acknowledgeBreak,
+  atSplitPoint,
   BLOCK_TRANSITION_MS,
   breakDue,
   completeItem,
@@ -38,17 +40,48 @@ import {
   REPEATABLE_TYPES,
   restartItemClock,
   resume,
+  resumeSplit,
   type SessionState,
+  SPLIT_RESUME_KEY,
   sessionKeyCommand,
   skipItem,
+  splitHere,
   startSession,
 } from './sessionModel';
+import { clearSplit, pendingSplit } from './splitResume';
 
 interface Loaded {
   items: RoutineItem[];
   stage: number;
   content: ContentContext;
   rest: boolean;
+  /** Last item of the first half when the session may be split here (Stage 8–11, §7.3-11), else null. */
+  splitAfterIndex: number | null;
+  /** What the repertoire block cycles through (§11.10 "차례로 친다"). */
+  repertoire: Pick<RoutineInput, 'songs' | 'stage' | 'skills'>;
+}
+
+/**
+ * "이어서 한 번 더" (§7.3-12): the ladder's next tempo — or, in the repertoire block, the next repertoire song
+ * (§11.10). Null = no suggestion (repeat at the same params).
+ */
+function repeatSuggestion(
+  item: RoutineItem,
+  attempt: Attempt,
+  repertoire: Loaded['repertoire'],
+): { params: unknown; label: string } | null {
+  const definition = exerciseDefinition(item.exerciseType);
+  if (!definition) return null;
+  if (item.block === 'repertoire') {
+    const current = (attempt.params as { songId?: string }).songId ?? '';
+    const next = nextRepertoireSong(repertoire, current);
+    if (next) {
+      const params = definition.parseParams({ ...(attempt.params as object), ...next, loopSection: null });
+      return { params, label: ko.session.nextRepertoireSong(songById(next.songId).title) };
+    }
+  }
+  const tempo = definition.suggestedTempoRetry(attempt.params, attempt.result);
+  return tempo ? { params: tempo.params, label: ko.session.repeatAtBpm(tempo.bpm) } : null;
 }
 
 /**
@@ -164,7 +197,9 @@ export function SessionScreen() {
   const navigate = useNavigate();
   const now = useClock();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [sessionId] = useState(newId);
+  /** "이어서 하기": the second half of a split session continues the same session (§7.3-11). */
+  const resuming = useSearchParams()[0].get('resume') !== null;
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
   /** Index of the item whose run has ended (its summary is showing). */
   const [endedIndex, setEndedIndex] = useState<number | null>(null);
@@ -189,6 +224,22 @@ export function SessionScreen() {
     let cancelled = false;
     void (async () => {
       const loadedAt = Date.now();
+      const split = await pendingSplit(loadedAt);
+      if (resuming && split) {
+        const resumed = await loadStoredState(loadedAt);
+        if (cancelled) return;
+        setLoaded({
+          items: split.items,
+          stage: split.stage,
+          content: contentContextFor(resumed.progression),
+          rest: false,
+          splitAfterIndex: null,
+          repertoire: { songs: resumed.songs, stage: split.stage, skills: resumed.skills },
+        });
+        setSessionId(split.sessionId);
+        setState(resumeSplit(split.state, now()));
+        return;
+      }
       const stored = await loadStoredState(loadedAt);
       // Session start (SPEC v1.1 §7.4): expire prescriptions, detect stagnation, then plan the routine.
       const prep = prepareSession({
@@ -207,10 +258,14 @@ export function SessionScreen() {
         stage: stored.progression.stage,
         content: contentContextFor(stored.progression),
         rest: plan.kind === 'rest',
+        splitAfterIndex: plan.kind === 'rest' ? null : plan.splitAfterIndex,
+        repertoire: { songs: stored.songs, stage: stored.progression.stage, skills: stored.skills },
       });
       if (plan.kind === 'rest') return;
+      const id = newId();
+      setSessionId(id);
       await repo.startSession({
-        id: sessionId,
+        id,
         startedAt: Date.now(),
         endedAt: null,
         routineId: null,
@@ -224,7 +279,7 @@ export function SessionScreen() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, now]);
+  }, [resuming, now]);
 
   // Once per second: item budget display and the 30-minute break reminder (decided outside the state updater).
   const stateRef = useRef<SessionState | null>(null);
@@ -287,9 +342,8 @@ export function SessionScreen() {
   /** "이어서 한 번 더" at the ladder's next tempo while block time remains (§7.3-12). */
   const repeatParams = (() => {
     const item = state ? items[state.index] : undefined;
-    if (!item || !lastAttempt || !REPEATABLE_TYPES.has(item.exerciseType)) return undefined;
-    const definition = exerciseDefinition(item.exerciseType);
-    return definition?.suggestedTempoRetry(lastAttempt.params, lastAttempt.result)?.params;
+    if (!item || !lastAttempt || !loaded || !REPEATABLE_TYPES.has(item.exerciseType)) return undefined;
+    return repeatSuggestion(item, lastAttempt, loaded.repertoire)?.params;
   })();
 
   // Keyboard / pedal between runs (§12.3); during a run the exercise's own keys apply.
@@ -347,8 +401,19 @@ export function SessionScreen() {
   ]);
 
   const finishSession = async (report: SelfReport) => {
-    if (!state) return;
+    if (!state || !sessionId) return;
     await repo.finishSession(sessionId, Date.now(), state.recorded.length, report, practiceMs(state, now()));
+    await clearSplit();
+    navigate('/');
+  };
+
+  /** "여기서 나눠 하기": keep the second half for later today; the session stays open until it ends (§7.3-11). */
+  const splitSession = async () => {
+    if (!state || !sessionId || !loaded) return;
+    await repo.setMeta(
+      SPLIT_RESUME_KEY,
+      splitHere(sessionId, dayKey(Date.now()), loaded.stage, loaded.items, state, now()),
+    );
     navigate('/');
   };
 
@@ -360,7 +425,7 @@ export function SessionScreen() {
       </Screen>
     );
   }
-  if (!state) return <Screen title={ko.session.title}>{null}</Screen>;
+  if (!state || !sessionId) return <Screen title={ko.session.title}>{null}</Screen>;
 
   if (ending || isFinished(state, items)) {
     return (
@@ -382,6 +447,8 @@ export function SessionScreen() {
         data-testid="session-header"
         data-index={state.index}
         data-item-type={item.exerciseType}
+        data-block={item.block}
+        data-count={items.length}
       >
         <h2 className="text-xl font-bold">
           {ko.session.itemOf(state.index + 1, items.length)} · {itemTitle(item)}
@@ -453,11 +520,12 @@ export function SessionScreen() {
           renderAfter={(attempt) => {
             const tempo = attempt ? definition.suggestedTempoRetry(attempt.params, attempt.result) : null;
             const repeatable = REPEATABLE_TYPES.has(item.exerciseType) && budget > 0 && attempt !== null;
+            const suggestion = attempt ? repeatSuggestion(item, attempt, loaded.repertoire) : null;
             return (
               <div className="mt-4 flex flex-wrap gap-2">
                 {repeatable && (
-                  <Button large onClick={() => retry(tempo?.params)} data-testid="repeat-item">
-                    {tempo ? ko.session.repeatAtBpm(tempo.bpm) : ko.session.repeat}
+                  <Button large onClick={() => retry(suggestion?.params)} data-testid="repeat-item">
+                    {suggestion ? suggestion.label : ko.session.repeat}
                   </Button>
                 )}
                 <Button large variant="secondary" onClick={() => retry()} data-testid="retry-item">
@@ -516,6 +584,19 @@ export function SessionScreen() {
           {ko.session.end}
         </Button>
       </div>
+      {!runActive && atSplitPoint(state, loaded.splitAfterIndex) && (
+        <div className="mt-4 rounded-lg bg-surface p-4" data-testid="split-point">
+          <p>{ko.session.splitPoint}</p>
+          <Button
+            className="mt-2"
+            variant="secondary"
+            onClick={() => void splitSession()}
+            data-testid="split-session"
+          >
+            {ko.session.splitHere}
+          </Button>
+        </div>
+      )}
       {runActive && <p className="mt-2 text-sm text-muted">{ko.session.finishRunFirst}</p>}
     </Screen>
   );

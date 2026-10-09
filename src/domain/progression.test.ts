@@ -187,7 +187,7 @@ describe('AC-R2 progression engine', () => {
     expect(pairsOnly.missing).toContain(sixth);
   });
 
-  it('promote(): next stage, history, conditional pair prescriptions (v1.1 §7.4); Stage 7 completes Beginner 1', () => {
+  it('promote(): next stage, history, conditional pair prescriptions (v1.1 §7.4); Stage 7 → 8 completes Beginner 1, Stage 11 Beginner 2', () => {
     const state = { ...initialProgression(NOW - 30 * DAY_MS), stage: 1, sessionsInStage: 6 };
     const next = promote(state, NOW, true, ['A|D'], 12);
     expect(next.stage).toBe(2);
@@ -206,9 +206,17 @@ describe('AC-R2 progression engine', () => {
       { stage: 1, enteredAt: state.stageEnteredAt, leftAt: NOW, conditional: true },
     ]);
     expect(promote(state, NOW, false).prescriptions).toEqual([]);
-    const done = promote({ ...state, stage: 7 }, NOW, false);
-    expect(done.stage).toBe(7);
-    expect(done.completedBeginner1).toBe(true);
+    // v1.1 §7.2: passing Stage 7 completes Beginner 1 and moves on to Stage 8.
+    const beginner1 = promote({ ...state, stage: 7 }, NOW, false);
+    expect(beginner1).toMatchObject({ stage: 8, completedBeginner1: true, completedBeginner2: false });
+    // §7.7: Stage 11's rules met = Beginner 2 complete (dated); the routine stays at Stage 11.
+    const beginner2 = promote({ ...beginner1, stage: 11 }, NOW + DAY_MS, false);
+    expect(beginner2).toMatchObject({
+      stage: 11,
+      completedBeginner2: true,
+      beginner2CompletedAt: NOW + DAY_MS,
+    });
+    expect(promote(beginner2, NOW + 2 * DAY_MS, false)).toBe(beginner2);
   });
 
   it('stagnation (v1.1 §7.4): 14-day window, ≥ 4 runs, first ≥ 9 days old, below the per-kind gain', () => {

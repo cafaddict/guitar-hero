@@ -143,6 +143,13 @@ describe('E10 scale ladder (SPEC v1.1 §11.13)', () => {
       bpm: 60,
     });
     expect(nextScaleRun(params(), [base({ bpm: 70, ladder: 'up' })])).toMatchObject({ step: 1, bpm: 75 });
+    // A review of a graduated step does not restart the step being climbed (M13 simulation finding).
+    expect(
+      nextScaleRun(params(), [
+        base({ step: 1, bpm: 80, graduated: true, ladder: 'up', review: true }),
+        base({ step: 2, bpm: 60, ladder: 'up' }),
+      ]),
+    ).toMatchObject({ step: 2, bpm: 65 });
     expect(
       nextScaleRun(params({ review: true, step: 1 }), [
         base({ step: 2, graduated: true }),

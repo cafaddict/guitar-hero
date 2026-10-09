@@ -14,7 +14,7 @@ import { Button } from '../../ui/Button';
 import { tempoRetry } from '../e5/runner';
 import { LOW_MISTAKE_RATIO, mistakeRatio } from '../e17/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
-import type { ExercisePlugin, ExerciseRunner } from '../types';
+import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { type E10Params, type E10View, e10ParamsSchema, ScaleRunner } from './runner';
 
@@ -66,13 +66,16 @@ function E10Summary({ result }: { result: ScaleResult; params: E10Params }) {
 
 /** The step and tempo to practise next from this scale's latest runs (newest first). */
 export function nextScaleRun(params: E10Params, recent: readonly ScaleResult[]): E10Params {
-  // Reference runs (backing on speakers, §8.6-3) do not move the step or the ladder.
-  const mine = recent.filter((r) => r.scaleId === params.scaleId && r.backingAudible !== true);
-  const last = mine[0];
+  // Reference runs (backing on speakers, §8.6-3) and reviews of a graduated step (§7.5) do not move the step or
+  // the ladder.
+  const mine = recent.filter((r) => r.scaleId === params.scaleId && r.backingAudible !== true && !r.review);
   // A review plays the step under review (the routine names it) at the graduation tempo (§7.5).
   if (params.review) return { ...params, bpm: SCALE_GRADUATION_BPM, previousLow: false };
+  // A memorization run (the routine hides the TAB on step 1, §7.3-10) stays on step 1 at step 1's ladder.
+  const memorizing = params.tabHidden && params.step === 1;
+  const last = memorizing ? mine.find((r) => r.step === 1) : mine[0];
   if (!last) return { ...params, step: 1, bpm: params.bpm ?? SCALE_START_BPM };
-  if (last.graduated && last.step < 5)
+  if (!memorizing && last.graduated && last.step < 5)
     return { ...params, step: last.step + 1, bpm: SCALE_START_BPM, previousLow: false };
   const bpm = ladderNextBpm(last.bpm, last.ladder);
   return {
@@ -105,6 +108,8 @@ export const e10Plugin: ExercisePlugin<E10Params, ScaleResult, E10View> = {
   View: E10ViewComponent,
   Summary: E10Summary,
   toMetrics: (result) => extractMetrics('E10', result),
+  // Several subjects (scales/steps, finger pairs, start frets) share the history: look far enough back.
+  historyDepth: SEQUENCE_HISTORY_DEPTH,
   withHistory: (params, recent) => nextScaleRun(params, recent),
   suggestedTempoRetry: (params, result) =>
     result.graduated && result.step < 5 ? null : tempoRetry(params, ladderNextBpm(result.bpm, result.ladder)),

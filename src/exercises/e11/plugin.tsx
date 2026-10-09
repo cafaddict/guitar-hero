@@ -9,7 +9,7 @@ import {
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { SequenceStage } from '../sequence/SequenceStage';
-import type { ExercisePlugin, ExerciseRunner } from '../types';
+import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { type E11Params, type E11View, e11ParamsSchema, HammerRunner } from './runner';
 
@@ -96,6 +96,8 @@ export const e11Plugin: ExercisePlugin<E11Params, HammerResult, E11View> = {
   View: E11ViewComponent,
   Summary: E11Summary,
   toMetrics: (result) => extractMetrics('E11', result),
+  // Several subjects (scales/steps, finger pairs, start frets) share the history: look far enough back.
+  historyDepth: SEQUENCE_HISTORY_DEPTH,
   withHistory: (params, recent) => nextHammerRun(params, recent),
   usesMicrophone: true,
 };
