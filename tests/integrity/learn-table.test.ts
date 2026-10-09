@@ -1,8 +1,8 @@
 /**
  * SPEC v1.1 §14.6-8: every curriculum learn item says what practises it (`practicedBy`), every reference names an
  * existing exercise (or self-check item), and the links are exactly the §7.1 learn table.
- * M9–M11 accept the planned v1.1 exercise ids of §11.2 that are not registered yet; from M12 every id must be a
- * registered plugin.
+ * M9–M11 accepted the planned v1.1 exercise ids of §11.2 before they were registered; from M12 every id must be
+ * a registered plugin and every E5 variant an existing pattern (or the dynamics mode).
  */
 import { describe, expect, it } from 'vitest';
 import { CURRICULUM } from '../../src/content/curriculum';
@@ -26,10 +26,6 @@ const LEARN_TABLE: Readonly<Record<number, readonly (readonly string[])[]>> = {
   11: [['E1', 'Q2'], ['S'], ['E5:P7', 'E5:P8'], ['E11'], ['Q4']],
 };
 
-/** §11.2 v1.1 exercise ids, accepted before their plugins exist (M9–M11 only). */
-const PLANNED_IDS = new Set(['E3', 'E9', 'E10', 'E11', 'E12', 'E16', 'E17', 'K1', 'Q5']);
-/** §6.10 v1.1 patterns, accepted before they exist (M9–M11 only). */
-const PLANNED_PATTERNS = new Set(['P6', 'P7', 'P8']);
 const E5_VARIANTS = new Set(['dynamics']);
 
 registerAllExercises();
@@ -43,11 +39,10 @@ function refProblem(ref: string): string | null {
       return `${ref}: unknown self-check item`;
     return null;
   }
-  if (!registered.has(exercise) && !PLANNED_IDS.has(exercise)) return `${ref}: unknown exercise`;
+  if (!registered.has(exercise)) return `${ref}: unknown exercise`;
   if (variant !== undefined) {
     if (exercise !== 'E5') return `${ref}: only E5 has variants`;
-    if (!patterns.has(variant) && !PLANNED_PATTERNS.has(variant) && !E5_VARIANTS.has(variant))
-      return `${ref}: unknown E5 variant`;
+    if (!patterns.has(variant) && !E5_VARIANTS.has(variant)) return `${ref}: unknown E5 variant`;
   }
   return null;
 }

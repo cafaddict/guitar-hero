@@ -30,7 +30,12 @@ export type CoachingHint =
   | { code: 'openStringFlat'; stringNo: number }
   | { code: 'unexpectedXString'; stringNo: number; lowestStringNo: number }
   | { code: 'weak'; stringNo: number }
-  | { code: 'generalTip'; tipIndex: number };
+  | { code: 'generalTip'; tipIndex: number }
+  // v1.1 (§6.7)
+  | { code: 'mutedBarre'; stringNo: number }
+  | { code: 'sequenceWrongNote'; position: number; semitones: number; stringNo: number; fret: number }
+  | { code: 'sequenceStopped' }
+  | { code: 'buzzSuspect' };
 
 export const REPEATED_FAILURE_THRESHOLD = 3;
 
@@ -58,6 +63,9 @@ export function hintForString(voicing: ChordVoicing, judgement: StringJudgement)
         }
         return { code: 'mutedOpenGeneric', stringNo };
       }
+      // A string under the barre finger (F, F-small): roll the index finger toward its bony edge (v1.1 §6.7).
+      const barre = voicing.barres?.find((b) => idx >= b.fromIdx && idx <= b.toIdx && fret === b.fret);
+      if (barre) return { code: 'mutedBarre', stringNo };
       const finger = fingerAt(voicing, idx);
       return finger !== null
         ? { code: 'mutedFretted', stringNo, finger }
@@ -103,5 +111,35 @@ export function coachingHints(
       tipIndex: (consecutiveFailures / REPEATED_FAILURE_THRESHOLD - 1) % tipCount,
     });
   }
+  return hints;
+}
+
+/** A sequence note (TAB position) and its verdict, for the sequence hints. */
+export interface SequenceNoteJudgement {
+  string: number;
+  fret: number;
+  status: 'OK' | 'WRONG_NOTE' | 'UNCLEAR' | 'MISSED' | 'HAMMER_OK';
+  semitones?: number;
+}
+
+/**
+ * Sequence hints (v1.1 §6.7, §10.10): the first wrong note of the cycle ("n번째 음이 반음 d개 높아요/낮아요"
+ * with its TAB position) and a stop (two or more MISSED in a row → "손은 계속 박에 맞춰").
+ */
+export function sequenceHints(notes: readonly SequenceNoteJudgement[]): CoachingHint[] {
+  const hints: CoachingHint[] = [];
+  const wrong = notes.findIndex((n) => n.status === 'WRONG_NOTE');
+  if (wrong >= 0) {
+    const n = notes[wrong]!;
+    hints.push({
+      code: 'sequenceWrongNote',
+      position: wrong + 1,
+      semitones: Math.round(n.semitones ?? 0),
+      stringNo: n.string,
+      fret: n.fret,
+    });
+  }
+  if (notes.some((n, i) => n.status === 'MISSED' && notes[i + 1]?.status === 'MISSED'))
+    hints.push({ code: 'sequenceStopped' });
   return hints;
 }

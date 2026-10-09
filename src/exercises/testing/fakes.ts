@@ -16,6 +16,8 @@ import type {
   ExerciseOutput,
   ExerciseSettings,
   JudgedEvent,
+  SequenceOutcome,
+  SequenceRequest,
 } from '../types';
 
 export class FakeClock {
@@ -78,6 +80,38 @@ export class FakeMic implements ExerciseMic {
     };
   }
 
+  readonly sequenceRequests: SequenceRequest[] = [];
+  /** Answers sequence requests (default: every slot OK, played on time, no extras). */
+  sequenceResponder: (request: SequenceRequest) => Omit<SequenceOutcome, 'detectorVersion' | 'processingMs'> =
+    (request) => ({
+      notes: request.slots.map((s, i) => ({
+        slot: i,
+        status: 'OK',
+        cents: 0,
+        onsetTime: s.time,
+        onsetOffsetMs: 0,
+      })),
+      extras: [],
+    });
+  captureSampleOf(time: number): number {
+    return Math.round(time * 48000);
+  }
+  readonly bleedRequests: { from: number; to: number; arrivals: readonly number[] }[] = [];
+  bleedGain = 0.01;
+  async measureBleedGain(request: {
+    from: number;
+    to: number;
+    arrivals: readonly number[];
+    templateRises: readonly number[];
+  }): Promise<number> {
+    this.bleedRequests.push(request);
+    return this.bleedGain;
+  }
+  async analyzeSequence(request: SequenceRequest): Promise<SequenceOutcome> {
+    this.sequenceRequests.push(request);
+    return { ...this.sequenceResponder(request), detectorVersion: DETECTOR_VERSION, processingMs: 3 };
+  }
+
   /** Emits a coarse onset and the judged event for it (with the current job kind). */
   strike(time: number, result: unknown, processingMs = 2): void {
     this.coarse.emit(time);
@@ -129,6 +163,14 @@ export class FakeOutput implements ExerciseOutput {
   }
   cue(kind: 'end'): void {
     this.cues.push(kind);
+  }
+  readonly backings: { samples: Float32Array; at: number; stopped: boolean }[] = [];
+  playBacking(samples: Float32Array, at: number): () => void {
+    const entry = { samples, at, stopped: false };
+    this.backings.push(entry);
+    return () => {
+      entry.stopped = true;
+    };
   }
   sampleRate(): number {
     return 48000;

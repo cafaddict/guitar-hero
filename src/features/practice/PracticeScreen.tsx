@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { repo } from '../../app/services';
+import { hammerMinutesOn } from '../../app/storedState';
+import { dayKey } from '../../domain/records';
 import { contentContextFor } from '../../exercises/contentContext';
 import { exerciseDefinition } from '../../exercises/registry';
 import { ExerciseHost } from '../../exercises/ui/ExerciseHost';
@@ -23,10 +25,17 @@ export function PracticeScreen() {
     setParams(null);
     setError(false);
     if (!definition) return;
-    void repo.progression(Date.now()).then((progression) => {
+    const now = Date.now();
+    // E11's daily cap also holds outside the routine (SPEC v1.1 §11.16 "단독 실행도 막는다").
+    const hammerMinutes =
+      definition.type === 'E11'
+        ? repo.attempts().then((a) => hammerMinutesOn(a, dayKey(now)))
+        : Promise.resolve(0);
+    void Promise.all([repo.progression(now), hammerMinutes]).then(([progression, minutesToday]) => {
       try {
-        const defaults = definition.defaultParams(contentContextFor(progression));
-        setParams(definition.parseParams(paramsFromQuery(defaults, new URLSearchParams(queryKey))));
+        const defaults = definition.defaultParams(contentContextFor(progression)) as Record<string, unknown>;
+        const withCap = definition.type === 'E11' ? { ...defaults, minutesToday } : defaults;
+        setParams(definition.parseParams(paramsFromQuery(withCap, new URLSearchParams(queryKey))));
       } catch {
         setError(true);
       }

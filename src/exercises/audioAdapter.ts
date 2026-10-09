@@ -4,6 +4,7 @@
 import type { AudioEngine } from '../audio/engine';
 import type { MetronomeRuntime } from '../audio/metronomeRuntime';
 import type { PluckFallbackResult } from '../audio/worker/protocol';
+import type { SequenceResult } from '../dsp/sequence';
 import type { ExerciseMic, ExerciseOutput, JudgedEvent } from './types';
 
 /** Seconds of audio the capture ring keeps (the fallback window must fit in it). */
@@ -48,6 +49,44 @@ export function createExerciseMic(engine: AudioEngine): ExerciseMic {
       };
     },
     analyzeTiming: (request) => engine.analyzeTiming(request),
+    captureSampleOf: (time) => engine.timeToSample(time),
+    async measureBleedGain(request) {
+      const from = Math.max(request.from, request.to - RING_S);
+      // An event before the captured range would read as "no rise" (gain 0): it is left out instead.
+      const inside = request.arrivals.flatMap((t, i) => (t - 0.1 >= from ? [i] : []));
+      const outcome = await engine.analyzeRange(from, request.to, {
+        kind: 'bleedGain',
+        arrivals: inside.map((i) => engine.timeToSample(request.arrivals[i]!)),
+        templateRises: inside.map((i) => request.templateRises[i]!),
+      });
+      return (outcome.result as { gain: number }).gain;
+    },
+    async analyzeSequence(request) {
+      const from = Math.max(request.from, request.to - RING_S);
+      const rel = (t: number) => t - from;
+      const outcome = await engine.analyzeRange(from, request.to, {
+        kind: 'sequence',
+        bpm: request.bpm,
+        slots: request.slots.map((s) => ({ ...s, time: rel(s.time) })),
+        ...(request.deltaCents ? { deltaCents: [...request.deltaCents] } : {}),
+        priorNotes: request.priorNotes.map((n) => ({
+          f0: n.f0,
+          ...(n.stringIdx === undefined ? {} : { stringIdx: n.stringIdx }),
+          time: rel(n.time),
+        })),
+        extraSpanS: [rel(request.extraSpan[0]), rel(request.extraSpan[1])],
+      });
+      const result = outcome.result as SequenceResult;
+      const fs = engine.sampleRate;
+      return {
+        notes: result.notes.map(({ onsetSample, ...n }) =>
+          onsetSample === undefined ? n : { ...n, onsetTime: from + onsetSample / fs },
+        ),
+        extras: result.extras.map((e) => from + e / fs),
+        detectorVersion: outcome.detectorVersion,
+        processingMs: outcome.processingMs,
+      };
+    },
   };
 }
 
@@ -71,5 +110,15 @@ export function createExerciseOutput(engine: AudioEngine, metronome: MetronomeRu
       engine.scheduleClick(now + 0.2, 'accent');
     },
     sampleRate: () => engine.sampleRate,
+    playBacking: (samples, at) => {
+      const node = engine.scheduleBacking(samples, at);
+      return () => {
+        try {
+          node.stop();
+        } catch {
+          // Already stopped or never started.
+        }
+      };
+    },
   };
 }

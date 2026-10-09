@@ -58,7 +58,13 @@ export abstract class BaseRunner<R, V> implements ExerciseRunner<R, V> {
 
   /** Registers cleanup (event subscriptions, jobs) released by dispose(). */
   protected own(dispose: () => void): void {
-    this.disposers.push(dispose);
+    // Registered by a late async callback after dispose(): released at once instead of leaking.
+    if (this.disposed) dispose();
+    else this.disposers.push(dispose);
+  }
+
+  protected get isDisposed(): boolean {
+    return this.disposed;
   }
 
   protected recordDsp(event: Pick<JudgedEvent, 'detectorVersion' | 'processingMs'>): void {

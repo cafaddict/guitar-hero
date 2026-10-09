@@ -61,7 +61,9 @@ describe('metric extractors', () => {
   it('covers every v1 exercise type', () => {
     const v1 = ['E0', 'E1', 'E2', 'E4', 'E5', 'E6', 'E7', 'E8', 'EXAM', 'Q1', 'Q2', 'Q3', 'Q4', 'S'];
     // v1.1 adds exercises (SPEC v1.1 §11.2); every v1 extractor stays.
-    expect(Object.keys(METRIC_EXTRACTORS).sort()).toEqual([...v1, 'E16', 'E17', 'K1', 'Q5'].sort());
+    expect(Object.keys(METRIC_EXTRACTORS).sort()).toEqual(
+      [...v1, 'E16', 'E17', 'K1', 'Q5', 'E3', 'E9', 'E10', 'E11', 'E12'].sort(),
+    );
   });
 
   it('E2 uses corrected ?? detected, scaled per minute', () => {

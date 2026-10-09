@@ -11,6 +11,7 @@ import type { Job } from '../audio/worker/protocol';
 import type { GVoicing } from '../content/voicings';
 import type { Calibration, MetricSampleInput } from '../domain/records';
 import type { ChordVoicing } from '../domain/voicing';
+import type { SequenceNoteResult, SequenceSlot } from '../dsp/sequence';
 import type { TimingAnalysis, TimingSlot } from '../dsp/timing';
 import type { Strictness } from '../dsp/types';
 
@@ -28,7 +29,8 @@ export type RunnerCommand =
   | 'ear'
   | 'cues'
   | 'loop'
-  | 'hide';
+  | 'hide'
+  | 'backing';
 
 /**
  * ready: waiting for the user · armed: waiting for the first strum (auto start) · countIn · running ·
@@ -108,6 +110,37 @@ export interface ExerciseMic {
   analyzeTiming(
     request: TimingRequest,
   ): Promise<{ result: TimingAnalysis; detectorVersion: string; processingMs: number }>;
+  /** Single-note sequence verification (SPEC v1.1 §10.10) over [from, to] (audio s, ≤ ~3.9 s back). */
+  analyzeSequence(request: SequenceRequest): Promise<SequenceOutcome>;
+  /** Capture sample index of an audio-clock time (jobs that name moments of the recording). */
+  captureSampleOf(time: number): number;
+  /** Backing bleed gain over [from, to] where the backing played alone (SPEC v1.1 §10.12). */
+  measureBleedGain(request: {
+    from: number;
+    to: number;
+    arrivals: readonly number[];
+    templateRises: readonly number[];
+  }): Promise<number>;
+}
+
+/** A chunk of a sequence take: slots, earlier notes and the EXTRA span in audio-clock seconds. */
+export interface SequenceRequest {
+  from: number;
+  to: number;
+  bpm: number;
+  slots: readonly SequenceSlot[];
+  deltaCents?: readonly number[];
+  priorNotes: readonly { f0: number; stringIdx?: number | undefined; time: number }[];
+  extraSpan: readonly [number, number];
+}
+
+export interface SequenceOutcome {
+  /** One per requested slot (onset times in audio s). */
+  notes: (Omit<SequenceNoteResult, 'onsetSample'> & { onsetTime?: number })[];
+  /** EXTRA onsets inside the span (audio s). */
+  extras: number[];
+  detectorVersion: string;
+  processingMs: number;
 }
 
 /** Output side (always available, also without a microphone). */
@@ -126,6 +159,11 @@ export interface ExerciseOutput {
   playSamples(samples: Float32Array): void;
   /** Short audible cue that is never blocked (e.g. the end of a timed run: two accent clicks). */
   cue(kind: 'end'): void;
+  /**
+   * Play-along backing at an audio-clock time (SPEC v1.1 §8.6): allowed while the microphone judges (the
+   * metronome's exception); returns a stop function.
+   */
+  playBacking(samples: Float32Array, at: number): () => void;
   sampleRate(): number;
 }
 
@@ -170,6 +208,8 @@ export interface ExercisePlugin<P, R, V> {
   toMetrics(result: R, params: P): MetricSampleInput[];
   /** Optional: adjusts params from this exercise's most recent results (newest first), e.g. ladder history. */
   withHistory?(params: P, recent: readonly R[]): P;
+  /** How many recent results withHistory sees (default 5). */
+  historyDepth?: number;
   /** Optional: the run again at the tempo its summary suggests (ladder up/down, passed → +5), or null. */
   suggestedTempoRetry?(params: P, result: R): { bpm: number; params: P } | null;
   usesMicrophone: boolean;

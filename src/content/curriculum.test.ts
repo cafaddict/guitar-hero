@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { pairId } from '../domain/pairs';
 import { unlockedChordClasses } from '../domain/progression';
+import { symbolRootPitchClass } from '../domain/theory';
 import { CURRICULUM } from './curriculum';
 import { patternById } from './patterns';
 import { songSchema, stageSchema } from './schemas';
-import { PRACTICE_SONGS, songChordClasses } from './songs';
+import { BLUES_FORM, PRACTICE_SONGS, songChordClasses } from './songs';
 import { classOfVoicing, hasVoicing } from './voicings';
 
 describe('AC-D3 curriculum data', () => {
@@ -97,5 +98,45 @@ describe('AC-D3 curriculum data', () => {
       expect(song.bpmMin).toBeLessThanOrEqual(song.bpmDefault);
     }
     expect(new Set(PRACTICE_SONGS.map((s) => s.id)).size).toBe(PRACTICE_SONGS.length);
+  });
+
+  it('SPEC v1.1 §6.6: ≥ 18 songs, ≥ 2 per stage 8–11, an F song without the barre, a palm-mute power song, three shuffle blues in G, A, E', () => {
+    expect(PRACTICE_SONGS.length).toBeGreaterThanOrEqual(18);
+    for (let stage = 8; stage <= 11; stage++)
+      expect(PRACTICE_SONGS.filter((s) => s.stage === stage).length, `stage ${stage}`).toBeGreaterThanOrEqual(
+        2,
+      );
+    const f = PRACTICE_SONGS.filter((s) => s.stage === 9);
+    expect(f.some((s) => songChordClasses(s).some((c) => c.startsWith('F')))).toBe(true);
+    expect(
+      f.some(
+        (s) =>
+          songChordClasses(s).some((c) => c === 'Fmaj7' || c === 'F-small') &&
+          !songChordClasses(s).includes('F'),
+      ),
+    ).toBe(true);
+    expect(PRACTICE_SONGS.some((s) => s.stage === 10 && s.palmMute === true)).toBe(true);
+    for (const s of PRACTICE_SONGS.filter((x) => x.stage === 10))
+      expect(songChordClasses(s).every((c) => c.endsWith('5'))).toBe(true);
+    const blues = PRACTICE_SONGS.filter((s) => s.stage === 11);
+    expect(blues).toHaveLength(3);
+    const keys: Record<string, [string, string, string]> = {};
+    for (const song of blues) {
+      expect(song.feel).toBe('shuffle');
+      expect(patternById(song.patternId).swing).toBe(true);
+      for (const section of song.sections) {
+        expect(section.bars).toHaveLength(12);
+        const [i, iv, v] = [section.bars[0]!, section.bars[4]!, section.bars[8]!];
+        keys[song.id] = [i, iv, v];
+        const degree = { I: i, IV: iv, V: v };
+        expect(section.bars).toEqual(BLUES_FORM.map((d) => degree[d]));
+        // I–IV–V a fourth and a fifth above the tonic, all 7th chords.
+        const pc = (c: string) => symbolRootPitchClass(c)!;
+        expect((pc(iv) - pc(i) + 12) % 12).toBe(5);
+        expect((pc(v) - pc(i) + 12) % 12).toBe(7);
+        for (const c of [i, iv, v]) expect(c.endsWith('7')).toBe(true);
+      }
+    }
+    expect(new Set(Object.values(keys).map((k) => k[0]))).toEqual(new Set(['G7', 'A7', 'E7']));
   });
 });

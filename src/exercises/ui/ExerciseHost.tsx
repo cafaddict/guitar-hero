@@ -223,7 +223,7 @@ export function ExerciseHost({
     const labels = micOk ? await audioEngine.deviceLabels() : null;
     const calibration = await repo.latestCalibration(labels?.input, labels?.output);
     const progression = await repo.progression(Date.now());
-    const recent = await repo.recentAttempts(definition.type, 5);
+    const recent = await repo.recentAttempts(definition.type, Math.max(5, definition.historyDepth));
     const rate = simulatedRate();
     const current = settings ?? (await repo.settings());
     const ctx: ExerciseContext = {
@@ -238,7 +238,7 @@ export function ExerciseHost({
         leftHanded: current.leftHanded,
         visualOnlyMetronome: current.visualOnlyMetronome,
       },
-      personalOffsetMs: personalOffsetFrom(recent),
+      personalOffsetMs: personalOffsetFrom(recent.slice(0, 5)),
     };
     const runParams = definition.withHistory(
       params,

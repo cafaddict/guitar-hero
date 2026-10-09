@@ -2,7 +2,7 @@
 import { CURRICULUM } from '../content/curriculum';
 import { PRACTICE_SONGS } from '../content/songs';
 import { samplesOf } from '../domain/derive';
-import { stretchResultSchema } from '../domain/exerciseResults';
+import { hammerResultSchema, stretchResultSchema } from '../domain/exerciseResults';
 import { practiceHistory } from '../domain/history';
 import { DAY_MS, dayKey } from '../domain/records';
 import { stretchStartFretFrom } from '../domain/safety';
@@ -20,6 +20,20 @@ function safeSamples(attempt: Parameters<typeof samplesOf>[0]): ReturnType<typeo
   } catch {
     return [];
   }
+}
+
+/** E11 minutes played on a day (the daily cap, SPEC v1.1 §11.16). */
+export function hammerMinutesOn(
+  attempts: readonly { exerciseType: string; startedAt: number; result: unknown }[],
+  day: string,
+): number {
+  let ms = 0;
+  for (const a of attempts) {
+    if (a.exerciseType !== 'E11' || dayKey(a.startedAt) !== day) continue;
+    const parsed = hammerResultSchema.safeParse(a.result);
+    if (parsed.success) ms += parsed.data.durationMs;
+  }
+  return ms / 60_000;
 }
 
 export async function loadStoredState(now: number): Promise<StoredState & { lastBackupAt: number | null }> {
@@ -55,6 +69,7 @@ export async function loadStoredState(now: number): Promise<StoredState & { last
     history: practiceHistory(sessions, attempts, now),
     recentSamples: attempts.filter((a) => a.endedAt >= since).flatMap(safeSamples),
     stretchStartFret: stretchStartFretFrom(stretchRuns),
+    hammerMinutesToday: hammerMinutesOn(attempts, today),
     userTemplates,
     lastBackupAt: lastBackupAt ?? null,
   };

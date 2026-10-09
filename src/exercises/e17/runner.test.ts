@@ -55,4 +55,48 @@ describe('E17 single-note riff (SPEC v1.1 §11.19)', () => {
       ]),
     );
   });
+
+  it('with a microphone (§10.10): R3 eighths are judged per pass; a wrong note is a mistake, 4 clean passes step up', async () => {
+    const t = testContext();
+    let seen = 0;
+    t.mic.sequenceResponder = (request) => ({
+      notes: request.slots.map((s, i) =>
+        ++seen === 3
+          ? { slot: i, status: 'WRONG_NOTE', semitones: 2, cents: 200, onsetTime: s.time }
+          : { slot: i, status: 'OK', cents: 0, onsetTime: s.time },
+      ),
+      extras: [],
+    });
+    const runner = new RiffRunner(t.ctx, { riffId: 'R3', bpm: 70, tabHidden: false, previousLow: false });
+    runner.start();
+    runner.command('toggle');
+    // R3 = 16 eighths = 2 bars ≈ 6.9 s per pass at 70 BPM; five passes + count-in.
+    for (let s = 0; s < 40; s += 0.025) {
+      t.output.run(t.clock, 0.025);
+      runner.tick();
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+    runner.command('toggle');
+    for (let s = 0; s < 2; s += 0.025) {
+      t.output.run(t.clock, 0.025);
+      runner.tick();
+      await Promise.resolve();
+    }
+    const result = riffResultSchema.parse(runner.finish());
+    expect(result.source).toBe('mic');
+    expect(result.cycles[0]).toMatchObject({
+      flawless: false,
+      faults: [{ index: 2, status: 'WRONG_NOTE', semitones: 2 }],
+    });
+    expect(result.cycles.slice(1, 5).every((c) => c.flawless)).toBe(true);
+    expect(result.ladder).toBe('up');
+    for (const r of t.mic.sequenceRequests) expect(r.to - r.from).toBeLessThanOrEqual(3.2 + 1e-9);
+    expect(
+      t.mic.sequenceRequests
+        .flatMap((r) => r.slots)
+        .slice(0, 16)
+        .map((s) => s.midi),
+    ).toEqual([40, 43, 45, 47, 50, 52, 47, 45, 40, 43, 45, 47, 52, 50, 43, 40]);
+  });
 });

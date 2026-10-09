@@ -549,6 +549,7 @@ export const ko = {
       cues: '시각 큐 숨기기',
       loop: '구간 반복',
       hide: '악보·TAB 숨기기',
+      backing: '반주 켜기·끄기',
     } as Record<string, string>,
     keyNames: {
       ' ': 'Space',
@@ -660,7 +661,17 @@ export const ko = {
         perform: '연주 단계(멈추지 않기)',
         hidden: '숨김 단계(악보 없이 멈추지 않기)',
       },
-      optionKeys: '↑↓ 템포 · L 구간 반복(학습) · H 악보 숨기기 · M 들어 보기',
+      optionKeys:
+        '↑↓ 템포 · L 구간 반복(학습) · H 악보 숨기기 · M 들어 보기 · B 반주(연주) · E 이어폰/스피커',
+      backingOn: '반주 켜짐 (B)',
+      backingOff: '반주 꺼짐 (B)',
+      earphones: '이어폰(유선 권장)을 쓰고 있어요 (E)',
+      speakers: '스피커로 들어요 (E)',
+      bluetooth: '블루투스 출력은 지연이 커요. 유선 이어폰을 권장해요.',
+      iosNote: 'iPhone·iPad에서는 마이크를 켜면 반주 소리가 작아지거나 거칠어질 수 있어요.',
+      speakerNote: '스피커 반주: 박자는 그대로 재고, 코드 판정은 참고로만 보여 줘요.',
+      chordCheck: (ratio: number) => `코드 맞음 ${(ratio * 100).toFixed(0)}%`,
+      chordCheckReference: (ratio: number) => `코드 맞음 ${(ratio * 100).toFixed(0)}% (참고)`,
       listen: '들어 보기',
       again: '처음부터 다시 (Space)',
       start: '시작',
@@ -709,6 +720,9 @@ export const ko = {
     q3: {
       namePrompt: (stringNo: number) => `${stringNo}번 줄 개방현의 음이름은?`,
       pluckPrompt: (note: string) => `${note} 음이 나는 개방현을 튕기세요`,
+      positionNamePrompt: (stringNo: number, fret: number) => `${stringNo}번 줄 ${fret}프렛의 음이름은?`,
+      positionPluckPrompt: (stringNo: number, note: string) =>
+        `${stringNo}번 줄에서 ${note} 음을 짚어 튕기세요 (다른 줄의 같은 음도 정답)`,
       heard: (note: string) => `들린 음: ${note}`,
     },
     q5: {
@@ -734,6 +748,7 @@ export const ko = {
       position: '위치',
       result: '판정',
       clarity: '명료도',
+      buzzBeta: '버징 의심(참고·베타)',
       retry: '잘 안 들렸어요. 같은 위치에서 한 번 더 튕겨 주세요.',
       status: {
         OK: '깨끗',
@@ -746,6 +761,94 @@ export const ko = {
       },
       self: { clean: '1 깨끗', muted: '2 막힘', buzz: '3 버징' },
       takeaway: '프렛 바로 뒤를 누를 때 가장 적은 힘으로 깨끗하게 울려요.',
+    },
+    sequence: {
+      bpm: (bpm: number) => `${bpm} BPM`,
+      tabTopLine: 'TAB의 맨 위 선이 1번 줄이에요.',
+      countIn: '한 마디 세고 시작해요…',
+      readyMic: 'Space로 메트로놈을 켜고 클릭에 맞춰 쳐요. 한 바퀴가 끝날 때마다 마이크가 음을 확인해요.',
+      readySelf:
+        'Space로 메트로놈을 켜고 클릭에 맞춰 쳐요. 한 바퀴가 끝날 때마다 1(실수 없음) 또는 2(실수 있음)를 눌러요.',
+      cycles: (n: number, flawless: number, streak: number) =>
+        `${n}바퀴 · 실수 없음 ${flawless} · 연속 ${streak}`,
+      cycleNumber: (n: number) => `${n}바퀴째`,
+      flawless: '1 실수 없음',
+      mistake: '2 실수 있음',
+      showTab: 'TAB 보이기 (H)',
+      hideTab: 'TAB 숨기기 (H)',
+      finish: '마치기',
+      analyzing: '마지막 바퀴를 확인하고 있어요…',
+      lastCycle: {
+        flawless: '방금 바퀴: 실수 없음',
+        uncertain: '방금 바퀴: 소리가 불분명해서 판정하지 않았어요(연속 기록은 이어져요)',
+        mistake: '방금 바퀴: 실수 있음',
+      },
+      extra: (n: number) => `기대하지 않은 음 ${n}개`,
+      summary: (n: number, flawless: number) => `${n}바퀴 중 실수 없이 ${flawless}바퀴`,
+      micNote: '마이크로 음높이와 박을 확인해요.',
+      selfNote: '마이크 없이 스스로 판단해요.',
+      ladder: {
+        up: (bpm: number) => `연속 실수 없음! 다음엔 ${bpm} BPM으로 올려요.`,
+        down: (bpm: number) => `실수가 많았어요. 다음엔 ${bpm} BPM으로 낮춰요.`,
+        stay: (bpm: number) => `다음에도 ${bpm} BPM으로 해요.`,
+      },
+    },
+    e10: {
+      title: (scale: string, step: number) => `${scale} · ${step}단계`,
+      tabLabel: (scale: string, step: number) => `${scale} ${step}단계 TAB`,
+      steps: {
+        1: '위아래로: 모든 음을 올라갔다가 내려와요.',
+        2: '방향 바꾸기: 한 음씩 움직이다 가끔 방향을 바꿔요.',
+        3: '무작위 음: TAB에 나오는 다음 음을 미리 보고 쳐요.',
+        4: '3도: 한 음 건너 짝지어 올라갔다 내려와요.',
+        5: '4음씩: 네 음씩 묶어 한 칸씩 올라갔다 내려와요.',
+      } as Record<number, string>,
+      graduated: (step: number) => `${step}단계 졸업! 다음 단계가 60 BPM으로 열려요.`,
+      memorized: '암기 완료: TAB 없이 4바퀴 연속 실수 없음.',
+      withBacking: '반주와 함께 1단계',
+      backingNote: '반주와 함께 쳐요. 이어폰으로 들어 주세요(스피커 소리는 음 판정을 흔들 수 있어요).',
+      speakerReference:
+        '스피커 반주: 판정은 참고로만 보여 주고 기록·졸업에는 넣지 않아요. 이어폰이면 E를 누르세요.',
+    },
+    e3: {
+      how: '코드에 도착할 때마다 천천히 스트럼(또는 아르페지오)해서 모든 줄을 확인해요. 깨끗하면 Enter, 먹히거나 버징이면 ↓. 표시하지 않은 도착은 깨끗하지 않은 것으로 세요.',
+      normal: '1분 체인지보다 점수가 낮은 게 정상이에요.',
+      arrivals: (n: number, clean: number) => `도착 ${n} · 깨끗 ${clean}`,
+      clean: '깨끗 (Enter)',
+      unclean: '깨끗하지 않음 (↓)',
+      unmarked: '이번 도착을 표시해 주세요',
+      strumBeta: (verdict: string) => `스트럼 판정(참고·베타): ${verdict}`,
+      verdict: { PASS: '깨끗', FAIL: '문제 있음', RETRY: '불확실' } as Record<string, string>,
+      review: '시간 끝! 확인(Enter)을 누르세요.',
+      score: (perMin: number, rate: number) =>
+        `분당 깨끗한 체인지 ${perMin.toFixed(1)}회 · 깨끗 비율 ${Math.round(rate * 100)}%`,
+      passed: '통과! (깨끗 비율 80% 이상, 분당 20회 이상)',
+      notYet: '아직이에요. 천천히 정확하게 도착하는 데 집중해요.',
+    },
+    e9: {
+      title: (fret: number) => `크로매틱 ${fret}프렛부터`,
+      tabLabel: (fret: number) => `크로매틱 ${fret}프렛 TAB`,
+      how: '줄마다 1-2-3-4번 손가락으로 한 프렛씩, 다운·업 교대 피킹. 6번 줄에서 1번 줄로 올라간 뒤 4-3-2-1로 돌아와요. 네 음이 한 묶음이에요.',
+      goal: '목표 100 BPM. 10묶음 연속 실수 없으면 5 BPM 올려요.',
+    },
+    e11: {
+      title: (pair: string) => `해머온 ${pair}번 손가락`,
+      tabLabel: (pair: string) => `해머온 ${pair} TAB`,
+      how: (a: string, b: string) =>
+        `한 박에 두 음: ${a}번 손가락으로 누르고 피킹, ${b}번 손가락으로 해머온(피킹 없이 손가락으로 때려 소리 내기). 줄마다 4박, 6번 줄에서 1번 줄까지.`,
+      daily: '하루 5분이면 충분해요. 같은 날 10분을 넘기면 오늘은 쉬어요.',
+      capped: '오늘 해머온 운동은 10분을 채웠어요. 내일 다시 해요.',
+      legato: (heard: number, total: number) => `해머온 소리 ${heard}/${total} (참고·베타)`,
+      ratePrompt: '해머온 간격이 고르게 들렸나요? 1 아니요 · 2 조금 · 3 고르게',
+      rate: { 1: '1 아니요', 2: '2 조금', 3: '3 고르게' } as Record<number, string>,
+    },
+    e12: {
+      how: '6번 줄 7프렛 3번 손가락 + 8프렛 4번 손가락 → 1번 줄까지 → 4·3번 순서로 돌아와요. 그다음 2-4, 1-4 조합을 반복해요.',
+      notSpeed: '속도 연습이 아니에요. 한 음씩 깨끗하게.',
+      safety: '늘어나는 느낌까지만, 아프면 멈추세요. 3번 손가락이 대신 힘을 쓰면 쉬어 가세요.',
+      clarityPrompt: '새끼손가락 음이 또렷했나요? 1 아니요 · 2 조금 · 3 또렷함',
+      clarity: { 1: '1 아니요', 2: '2 조금', 3: '3 또렷함' } as Record<number, string>,
+      stop: '그만하기',
     },
     e17: {
       bpm: (bpm: number) => `${bpm} BPM`,
@@ -773,6 +876,21 @@ export const ko = {
       major: '메이저(밝은 소리)',
       minor: '마이너(어두운 소리)',
       replay: '다시 듣기',
+      prompts: {
+        majmin: '들려준 코드는 메이저일까요, 마이너일까요?',
+        interval: '두 음은 얼마나 떨어져 있을까요? (아래 음 → 위 음)',
+        progression: '첫 코드(I) 다음에 온 코드는 무엇일까요?',
+      },
+      // App-made memory aids only (no song titles or melodies, §3.2, §11.21).
+      intervals: {
+        2: '장2도 (한 걸음 위)',
+        3: '단3도 (어둡게 조금 위)',
+        4: '장3도 (밝게 조금 위)',
+        5: '완전4도 (차분한 도약)',
+        7: '완전5도 (힘찬 도약)',
+        12: '옥타브 (같은 음, 높게)',
+      } as Record<number, string>,
+      degrees: { IV: 'IV (밝게 떠나는 느낌)', V: 'V (돌아오고 싶은 긴장)', I: 'I (그대로 머묾)' },
     },
     e6: {
       how: '마디마다 코드 하나. 다음 마디 첫 박에 맞춰 바꾸고, 멈추지 말고 계속 쳐요.',
@@ -844,6 +962,13 @@ export const ko = {
       loud: '세게 (f)',
       dynamicsPrompt: '여리게·세게가 잘 구분됐나요? 1 잘 구분됨 · 2 조금 · 3 거의 안 됨',
       dynamicsSelf: { manual1: '잘 구분됨', manual2: '조금', manual3: '거의 안 됨' },
+      beta: {
+        direction: (down: number, up: number, unknown: number) =>
+          `스트럼 방향(참고·베타): 다운 ${down} · 업 ${up} · 모름 ${unknown}`,
+        palmMute: (share: number) => `팜뮤트로 들린 스트럼(참고·베타): ${Math.round(share * 100)}%`,
+        dynamics: (bars: string) => `마디별 셈여림(참고·베타): ${bars}`,
+        bar: { soft: 'p', loud: 'f', even: '–' } as Record<string, string>,
+      },
       analyzing: '채점하는 중…',
       analysisFailed: '채점하지 못했어요. 이번 연주는 기록하지 않았어요.',
       armed: '첫 스트럼이나 Space로 시작해요(카운트인 1마디).',
@@ -990,6 +1115,17 @@ export const ko = {
           return '조금 더 세게, 또는 기기를 기타 가까이(30–60cm) 두세요.';
         case 'generalTip':
           return GENERAL_TIPS[hint.tipIndex % GENERAL_TIPS.length] ?? '';
+        case 'mutedBarre':
+          return `${hint.stringNo}번 줄이 막혔어요. 1번 손가락을 프렛 바로 뒤에 두고, 손가락을 엄지 쪽으로 살짝 굴려 뼈 쪽으로 누르세요.`;
+        case 'sequenceWrongNote': {
+          const n = Math.abs(hint.semitones);
+          const dir = hint.semitones > 0 ? '높아요' : '낮아요';
+          return `${hint.position}번째 음이 반음 ${n}개 ${dir} — ${hint.stringNo}번 줄 ${hint.fret}프렛인지 TAB을 다시 보세요.`;
+        }
+        case 'sequenceStopped':
+          return '멈췄어요. 틀려도 손은 계속 박에 맞춰 움직여요.';
+        case 'buzzSuspect':
+          return '버징 소리가 섞였을 수 있어요(참고). 프렛 가까이 누르기를 확인해 보세요.';
       }
     },
   },

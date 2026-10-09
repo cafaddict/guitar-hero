@@ -2,7 +2,8 @@
  * SPEC v1.1 §14.6-9: functions the SPEC requires the app to use have a call site in production code — v1 had
  * several defined, tested and never called (GAP_AUDIT A-16, 18, 22, 33). Call sites count only in non-test files
  * under src/ (tools/ and tests/ excluded); `generateRoutine` and `evaluateStage` must be called outside the
- * simulation. `verifySequence` joins the list in M12 (SPEC v1.1 §16 "무결성 9 단계화").
+ * simulation. `verifySequence` joined the list in M12 (SPEC v1.1 §16 "무결성 9 단계화"): the DSP worker runs it
+ * for the sequence exercises' chunks.
  */
 import { describe, expect, it } from 'vitest';
 import { listFiles, readSource, stripComments } from './source-scan';
@@ -15,6 +16,7 @@ const REQUIRED = [
   'userRoutineTemplates',
   'generateRoutine',
   'evaluateStage',
+  'verifySequence',
 ] as const;
 /** Calls inside these files do not count for the listed functions (the simulation drives its own copies). */
 const EXCLUDED_CALLERS: Readonly<Record<string, readonly string[]>> = {

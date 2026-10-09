@@ -45,6 +45,8 @@ export interface StoredState {
   stretchStartFret: number;
   /** Saved user routine templates (one per stage, §7.3-9). */
   userTemplates: readonly RoutineTemplate[];
+  /** E11 minutes played today (daily cap, SPEC v1.1 §11.16). */
+  hammerMinutesToday?: number;
 }
 
 const finished = (sessions: readonly Session[]) => sessions.filter((s) => s.endedAt !== null);
@@ -82,6 +84,7 @@ export function routineInputFrom(state: StoredState, now: number): RoutineInput 
     history: state.history,
     sessionsInStage: state.progression.sessionsInStage,
     stretchStartFret: state.stretchStartFret,
+    hammerMinutesToday: state.hammerMinutesToday ?? 0,
     userTemplate: userTemplateFor(state.userTemplates, state.progression.stage),
     // Same day → same routine (SPEC §7.3 rule 14), a new one tomorrow.
     seed: deriveSeed(1, dayKey(now)),

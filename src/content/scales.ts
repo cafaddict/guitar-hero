@@ -16,6 +16,7 @@ export interface ScaleNote {
 
 export interface ScaleShape {
   id: 'em-pent-open' | 'c-major-open' | 'am-pent-pos1';
+  name: string;
   stage: number;
   /** Pitch classes of the scale (0 = C). */
   pitchClasses: readonly number[];
@@ -38,18 +39,21 @@ function shape(spec: string): ScaleNote[] {
 export const SCALES: readonly ScaleShape[] = [
   {
     id: 'em-pent-open',
+    name: 'E 마이너 펜타토닉(개방)',
     stage: 8,
     pitchClasses: [4, 7, 9, 11, 2],
     notes: shape('6: 0, 3(3) · 5: 0, 2(2) · 4: 0, 2(2) · 3: 0, 2(2) · 2: 0, 3(3) · 1: 0, 3(3)'),
   },
   {
     id: 'c-major-open',
+    name: 'C 메이저(개방, 1옥타브)',
     stage: 9,
     pitchClasses: [0, 2, 4, 5, 7, 9, 11],
     notes: shape('5: 3(3) · 4: 0, 2(2), 3(3) · 3: 0, 2(2) · 2: 0, 1(1)'),
   },
   {
     id: 'am-pent-pos1',
+    name: 'A 마이너 펜타토닉 1포지션',
     stage: 10,
     pitchClasses: [9, 0, 2, 4, 7],
     notes: shape(

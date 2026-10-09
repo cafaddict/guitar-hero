@@ -14,7 +14,7 @@ registerAllExercises();
 
 const V1_TYPES = ['E0', 'E1', 'E2', 'E4', 'E5', 'E6', 'E7', 'E8', 'Q1', 'Q2', 'Q3', 'Q4', 'S'];
 /** v1 types plus the v1.1 exercises registered so far (SPEC v1.1 §11.2). */
-const EXPECTED_TYPES = [...V1_TYPES, 'K1', 'E16', 'E17', 'Q5'];
+const EXPECTED_TYPES = [...V1_TYPES, 'K1', 'E16', 'E17', 'Q5', 'E3', 'E9', 'E10', 'E11', 'E12'];
 /** A "keyboard only" user: start, confirm, self-judge clean, adjust, confirm again. */
 const SCRIPT: RunnerCommand[] = ['toggle', 'next', 'manual1', 'manual1', 'inc', 'next'];
 const flush = async () => {

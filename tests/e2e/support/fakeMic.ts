@@ -12,11 +12,13 @@
 export interface FakeMicConfig {
   loopbackDelayMs: number | null;
   deny: boolean;
+  /** Loopback level (1 = as played; a speaker leaking into a microphone is far quieter). */
+  loopbackGain?: number;
 }
 
 export interface FakeMicApi {
   play(url: string, options?: { at?: number; gain?: number }): Promise<number>;
-  setLoopback(delayMs: number | null): void;
+  setLoopback(delayMs: number | null, gain?: number): void;
   readonly constraints: unknown[];
   readonly contextTime: number | null;
 }
@@ -28,8 +30,15 @@ export function installFakeMic(config: FakeMicConfig): void {
     ctx: AudioContext | null;
     dest: MediaStreamAudioDestinationNode | null;
     loopbackDelayMs: number | null;
+    loopbackGain: number;
     constraints: unknown[];
-  } = { ctx: null, dest: null, loopbackDelayMs: config.loopbackDelayMs, constraints: [] };
+  } = {
+    ctx: null,
+    dest: null,
+    loopbackDelayMs: config.loopbackDelayMs,
+    loopbackGain: config.loopbackGain ?? 1,
+    constraints: [],
+  };
 
   const NativeAudioContext = window.AudioContext;
   class FakeMicAudioContext extends NativeAudioContext {
@@ -49,8 +58,11 @@ export function installFakeMic(config: FakeMicConfig): void {
     if (state.loopbackDelayMs !== null && state.dest && target === this.context.destination) {
       const delay = this.context.createDelay(2);
       delay.delayTime.value = state.loopbackDelayMs / 1000;
+      const level = this.context.createGain();
+      level.gain.value = state.loopbackGain;
       nativeConnect.call(this, delay);
-      nativeConnect.call(delay, state.dest);
+      nativeConnect.call(delay, level);
+      nativeConnect.call(level, state.dest);
     }
     return result;
   } as typeof AudioNode.prototype.connect;
@@ -59,8 +71,12 @@ export function installFakeMic(config: FakeMicConfig): void {
   mediaDevices.getUserMedia = async (constraints?: MediaStreamConstraints) => {
     state.constraints.push(JSON.parse(JSON.stringify(constraints ?? null)));
     if (config.deny) throw new DOMException('Permission denied', 'NotAllowedError');
-    if (!state.dest)
+    if (!state.dest || !state.ctx)
       throw new DOMException('fake mic: AudioContext must exist before getUserMedia', 'InvalidStateError');
+    // Like a real device, every request after the app released the microphone (stopped its track) gets a live
+    // track: an ended destination track would stay silent forever.
+    if (state.dest.stream.getAudioTracks().some((t) => t.readyState === 'ended'))
+      state.dest = state.ctx.createMediaStreamDestination();
     // A destination track is labelled "MediaStreamAudioDestinationNode"; give it the fake device's label so
     // the app sees the same name in getSettings diagnostics and enumerateDevices.
     for (const track of state.dest.stream.getAudioTracks()) {
@@ -91,8 +107,9 @@ export function installFakeMic(config: FakeMicConfig): void {
       source.start(at);
       return at;
     },
-    setLoopback(delayMs) {
+    setLoopback(delayMs, gain) {
       state.loopbackDelayMs = delayMs;
+      if (gain !== undefined) state.loopbackGain = gain;
     },
     get constraints() {
       return state.constraints;

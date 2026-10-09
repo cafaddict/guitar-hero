@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CURRICULUM } from '../content/curriculum';
+import { CURRICULUM, stageDef } from '../content/curriculum';
 import { PRACTICE_SONGS } from '../content/songs';
 import { EMPTY_HISTORY, type PracticeHistory } from './history';
-import { DAY_MS, dayKey, type MetricSample, type ReviewItem } from './records';
-import { generateRoutine, interleave, type RoutineInput } from './routine';
+import { pairId, parseDirected } from './pairs';
+import { DAY_MS, dayKey, type MetricSample, type ReviewItem, type SkillState } from './records';
+import { entryKey, generateRoutine, interleave, type RoutineInput } from './routine';
 import { stageTemplate, templateTotal } from './routineTemplates';
 import { buildSkills } from './skills';
 
@@ -357,5 +358,115 @@ describe('AC-R1 routine generation (SPEC §7.3)', () => {
     const seven = generateRoutine(input({ stage: 7, lastPracticeAt: NOW - 5 * DAY_MS }));
     expect(seven.items.some((i) => i.block === 'stageReview')).toBe(false);
     expect(seven.notices.some((n) => n.code === 'gapReview')).toBe(false);
+  });
+});
+
+describe('SPEC v1.1 §11.16 E11 daily cap', () => {
+  const hammerItems = (minutes: number) =>
+    generateRoutine(
+      input({ stage: 11, sessionMinutes: 30, sessionsInStage: 5, hammerMinutesToday: minutes }),
+    ).items.filter((i) => i.exerciseType === 'E11');
+  it("E11 carries today's minutes and is left out once ten minutes are reached", () => {
+    // Stage 11's technique rotation is E11 alone; whether it plays today depends on the rotation, so look at
+    // every session of the cycle.
+    const plans = [0, 1, 2].map((n) =>
+      generateRoutine(
+        input({
+          stage: 11,
+          sessionMinutes: 30,
+          sessionsInStage: 5 + n,
+          hammerMinutesToday: 4,
+          history: { ...input().history, sessionNumber: 20 + n },
+        }),
+      ).items.filter((i) => i.exerciseType === 'E11'),
+    );
+    const any = plans.flat();
+    expect(any.length).toBeGreaterThan(0);
+    for (const item of any) expect(item.params.minutesToday).toBe(4);
+    expect(hammerItems(10)).toEqual([]);
+  });
+});
+
+describe('SPEC v1.1 §7.4 PFC ↔ OMC prescriptions at Stage 8', () => {
+  const prescription = (kind: 'omcToPfc' | 'pfcToOmc', pair: string) => ({
+    kind,
+    subjectKey: `pair:${pair}`,
+    startedSession: 9,
+    startedAt: NOW - DAY_MS,
+    expiresAfterSessions: 8,
+    reason: 'stagnation' as const,
+  });
+  /** Canonical pairs of the plan's items of one exercise type (E2/E3 carry a direction 'A>B'). */
+  const pairsIn = (plan: ReturnType<typeof generateRoutine>, type: string) =>
+    plan.items
+      .filter((i) => i.exerciseType === type)
+      .map((i) => pairId(...parseDirected(String(i.params.direction))));
+
+  it('OMC → PFC puts the pair in the E3 slot; PFC → OMC takes it out of E3 and back to a one-minute change', () => {
+    const base = { stage: 8, gVoicing: 'G-4f', sessionMinutes: 30 } as const;
+    const plain = generateRoutine(input(base));
+    const [natural] = pairsIn(plain, 'E3');
+    expect(natural).toBeDefined();
+    expect(pairsIn(plain, 'E2')).not.toContain(natural);
+
+    const other = stageDef(8).stagePairs.find((id) => id !== natural && !pairsIn(plain, 'E2').includes(id))!;
+    const toPfc = generateRoutine(input({ ...base, prescriptions: [prescription('omcToPfc', other)] }));
+    expect(pairsIn(toPfc, 'E3')).toEqual([other]);
+
+    const toOmc = generateRoutine(input({ ...base, prescriptions: [prescription('pfcToOmc', natural!)] }));
+    expect(pairsIn(toOmc, 'E3')).not.toContain(natural);
+    expect(pairsIn(toOmc, 'E2')).toContain(natural);
+  });
+});
+
+describe('SPEC v1.1 §7.5 scale and riff review drafts', () => {
+  const due = (subjectKey: string, kind: 'scale' | 'riff'): ReviewItem => ({
+    subjectKey,
+    kind,
+    step: 1,
+    due: NOW - 1000,
+    enqueuedAt: NOW - 9 * DAY_MS,
+    lastReviewedAt: NOW - 3 * DAY_MS,
+    lapses: 0,
+  });
+
+  const ladderAt = (subjectKey: string, bpm: number): SkillState => ({
+    subjectKey,
+    lastPracticedAt: NOW - DAY_MS,
+    metrics: {
+      ladderBpm: {
+        count: 1,
+        last: bpm,
+        best: bpm,
+        lastAt: NOW - DAY_MS,
+        firstAt: NOW - DAY_MS,
+        recent: [bpm],
+        dayBest: {},
+      },
+    },
+  });
+
+  it('a scale review plays the reviewed step; a riff review plays at its ladder tempo', () => {
+    // Every rotation entry appeared last session, so rule ③ (a due review of the block's kind) applies.
+    const recent = Object.values(stageDef(9).rotation)
+      .flat()
+      .map((e) => [entryKey(e), { session: 10, day: 10 }] as const);
+    const plan = generateRoutine(
+      input({
+        stage: 9,
+        gVoicing: 'G-4f',
+        sessionMinutes: 30,
+        history: { sessionNumber: 11, practiceDay: 11, appearances: new Map(recent) },
+        dueReviews: [due('scale:em-pent-open:s2', 'scale'), due('riff:R2', 'riff')],
+        skills: new Map([['riff:R2', ladderAt('riff:R2', 85)]]),
+      }),
+    );
+    expect(plan.items.find((i) => i.reviewOf === 'scale:em-pent-open:s2')?.params).toMatchObject({
+      scaleId: 'em-pent-open',
+      step: 2,
+      review: true,
+    });
+    // Rule 10: the riff's current ladder tempo (above its goal tempo 80 once graduated).
+    expect(plan.items.find((i) => i.reviewOf === 'riff:R2')?.params).toMatchObject({ riffId: 'R2', bpm: 85 });
   });
 });

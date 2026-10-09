@@ -1,11 +1,14 @@
+import { patternById } from '../../content/patterns';
 import { PRACTICE_SONGS, songById } from '../../content/songs';
+import { voicingById, voicingForClass } from '../../content/voicings';
 import { extractMetrics, type SongResult, songResultSchema } from '../../domain/exerciseResults';
+import { renderBacking } from '../../dsp/synth/backing';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { renderChordProgression } from './listen';
-import { type SongParams, SongRunner, type SongView, songParamsSchema } from './runner';
+import { isBluetoothLabel, type SongParams, SongRunner, type SongView, songParamsSchema } from './runner';
 
 function SongViewComponent({
   runner,
@@ -57,6 +60,43 @@ function SongViewComponent({
         </ol>
       )}
       <p className="text-sm text-muted">{ko.exercises.song.optionKeys}</p>
+      {view.mode === 'perform' && (phase === 'ready' || phase === 'armed') && (
+        <div className="flex flex-col gap-2" data-testid="song-backing">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={view.backingOn ? 'primary' : 'secondary'}
+              aria-pressed={view.backingOn}
+              onClick={() => runner.command('backing')}
+              data-testid="song-backing-toggle"
+            >
+              {view.backingOn ? ko.exercises.song.backingOn : ko.exercises.song.backingOff}
+            </Button>
+            {view.backingOn && (
+              <Button
+                variant="secondary"
+                aria-pressed={view.earphones}
+                onClick={() => runner.command('ear')}
+                data-testid="song-earphones"
+                data-earphones={view.earphones}
+              >
+                {view.earphones ? ko.exercises.song.earphones : ko.exercises.song.speakers}
+              </Button>
+            )}
+          </div>
+          {view.backingOn && isBluetoothLabel(view.outputLabel) && (
+            <p className="text-retry">{ko.exercises.song.bluetooth}</p>
+          )}
+          {view.backingOn && <p className="text-sm text-muted">{ko.exercises.song.iosNote}</p>}
+        </div>
+      )}
+      {view.backingAudible && <p className="text-sm text-muted">{ko.exercises.song.speakerNote}</p>}
+      {phase === 'review' && view.chordCorrectRatio !== null && (
+        <p data-testid="song-chord" data-reference={view.backingAudible}>
+          {view.backingAudible
+            ? ko.exercises.song.chordCheckReference(view.chordCorrectRatio)
+            : ko.exercises.song.chordCheck(view.chordCorrectRatio)}
+        </p>
+      )}
       {phase === 'countIn' && <p>{ko.exercises.e5.countIn}</p>}
       {(phase === 'armed' || phase === 'ready') && (
         <p>{phase === 'armed' ? ko.exercises.e5.armed : ko.exercises.e5.ready}</p>
@@ -130,6 +170,13 @@ function SongSummary({ result }: { result: SongResult; params: SongParams }) {
         {result.memorized && ` · ${ko.exercises.song.memorizedTag}`}
       </p>
       {result.beat1HitRate !== null && <p>{ko.exercises.song.beat1(result.beat1HitRate)}</p>}
+      {typeof result.chordCorrectRatio === 'number' && (
+        <p>
+          {result.backingAudible
+            ? ko.exercises.song.chordCheckReference(result.chordCorrectRatio)
+            : ko.exercises.song.chordCheck(result.chordCorrectRatio)}
+        </p>
+      )}
     </div>
   );
 }
@@ -143,12 +190,40 @@ export const songPlugin: ExercisePlugin<SongParams, SongResult, SongView> = {
   defaultParams: (content) => {
     const song =
       [...PRACTICE_SONGS].reverse().find((s) => s.stage <= Math.max(1, content.stage)) ?? PRACTICE_SONGS[0]!;
-    return { songId: song.id, mode: 'learn', bpm: song.bpmDefault, chartHidden: false, loopSection: null };
+    return songParamsSchema.parse({
+      songId: song.id,
+      mode: 'learn',
+      bpm: song.bpmDefault,
+      chartHidden: false,
+      loopSection: null,
+    });
   },
   createRunner: (ctx, params) =>
-    new SongRunner(ctx, params, (chords, bpm, beatsPerBar) =>
-      renderChordProgression(chords, bpm, ctx.output.sampleRate(), ctx.content.gVoicing, beatsPerBar),
+    new SongRunner(
+      ctx,
+      params,
+      (chords, bpm, beatsPerBar) =>
+        renderChordProgression(chords, bpm, ctx.output.sampleRate(), ctx.content.gVoicing, beatsPerBar),
+      (chords, patternId, bpm) =>
+        renderBacking({
+          chords: chords.map((c) => voicingById(voicingForClass(c, ctx.content.gVoicing))),
+          pattern: patternById(patternId),
+          bpm,
+          bars: chords.length,
+          sampleRate: ctx.output.sampleRate(),
+          model: 'karplus-strong',
+          seed: 7,
+        }),
     ),
+  // The earphone choice is remembered per output device: the latest backing run on that output (§8.6-1).
+  // Learn runs carry no choice, so the window reaches far enough back for them not to erase it.
+  historyDepth: 50,
+  withHistory: (params, recent) => {
+    const byOutput: Record<string, boolean> = { ...params.earphonesByOutput };
+    for (const r of [...recent].reverse())
+      if (r.backingOn && r.outputLabel) byOutput[r.outputLabel] = r.backingAudible !== true;
+    return { ...params, earphonesByOutput: byOutput };
+  },
   View: SongViewComponent,
   Summary: SongSummary,
   toMetrics: (result) => extractMetrics('S', result),

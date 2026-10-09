@@ -42,6 +42,8 @@ export interface BackingSchedule {
   templateRises: readonly number[];
   /** How many leading events the backing plays alone (bleed-gain calibration). */
   introCount: number;
+  /** A bleed gain measured earlier (the app learns it from the intro bar before the user plays). */
+  gain?: number;
 }
 
 function energy(x: ArrayLike<number>, start: number, end: number): number {
@@ -133,7 +135,7 @@ export function backingKeepFlags(
 ): boolean[] {
   if (schedule.arrivals.length === 0) return candidateSamples.map(() => true);
   const low = lowBand(signal, sampleRate, params);
-  const gain = bleedGain(low, sampleRate, schedule, params);
+  const gain = schedule.gain ?? bleedGain(low, sampleRate, schedule, params);
   const win = (params.maskWindowMs / 1000) * sampleRate;
   const reach = ((params.maskWindowMs + params.reRefineMs) / 1000) * sampleRate;
   const keepFactor = 10 ** (params.keepLowBandDb / 10);

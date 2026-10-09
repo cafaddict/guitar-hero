@@ -28,6 +28,8 @@ interface PositionRecord {
   statuses: Status[];
   clarity: number[];
   decay: number[];
+  /** Plucks the beta buzz detector suspected (SPEC v1.1 §10.11, "참고(베타)"). */
+  buzzSuspect: number;
 }
 
 export interface E16View {
@@ -40,6 +42,8 @@ export interface E16View {
     statuses: readonly Status[];
     clarity: number | null;
     decayRatio: number | null;
+    /** Beta buzz suspicions (microphone runs only). */
+    buzzSuspect?: number | undefined;
   }[];
   /** Last pluck could not be judged (Mode A RETRY). */
   retry: boolean;
@@ -54,6 +58,7 @@ export class FretPositionRunner extends BaseRunner<FretPositionResult, E16View> 
     statuses: [],
     clarity: [],
     decay: [],
+    buzzSuspect: 0,
   }));
   private posIndex = 0;
   private retry = false;
@@ -84,6 +89,7 @@ export class FretPositionRunner extends BaseRunner<FretPositionResult, E16View> 
         statuses: [...r.statuses],
         clarity: mean(r.clarity),
         decayRatio: mean(r.decay),
+        ...(this.source === 'mic' ? { buzzSuspect: r.buzzSuspect } : {}),
       })),
       retry: this.retry,
     };
@@ -101,6 +107,7 @@ export class FretPositionRunner extends BaseRunner<FretPositionResult, E16View> 
         ...(template === undefined ? {} : { templateDecayRatio: template }),
         strictness: this.ctx.settings.strictness,
         silent: false,
+        buzz: true,
       });
     }
     this.setPhase('running');
@@ -109,7 +116,7 @@ export class FretPositionRunner extends BaseRunner<FretPositionResult, E16View> 
   private onJudged(event: JudgedEvent): void {
     if (this.phase !== 'running' || event.jobKind !== 'pluck') return;
     this.recordDsp(event);
-    const result = event.result as PluckResult;
+    const result = event.result as PluckResult & { buzz?: { suspected: boolean } };
     if (result.verdict === 'RETRY') {
       this.retry = true;
       this.publish();
@@ -122,6 +129,8 @@ export class FretPositionRunner extends BaseRunner<FretPositionResult, E16View> 
       result.status === 'WRONG_NOTE'
         ? result.status
         : 'WEAK';
+    const record = this.records[this.posIndex];
+    if (record && result.buzz?.suspected) record.buzzSuspect += 1;
     this.add(status, result.clarity, result.decayRatio);
   }
 
@@ -163,6 +172,7 @@ export class FretPositionRunner extends BaseRunner<FretPositionResult, E16View> 
           statuses: [...r.statuses],
           clarity: mean(r.clarity),
           decayRatio: mean(r.decay),
+          ...(this.source === 'mic' ? { buzzSuspect: r.buzzSuspect } : {}),
         })),
       source: this.source,
     };

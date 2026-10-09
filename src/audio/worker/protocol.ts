@@ -19,15 +19,29 @@ const workerVoicing = voicingSchema.transform(
 );
 
 export const jobSchema = z.discriminatedUnion('kind', [
-  /** Onset times only (timing exercises). */
-  z.object({ kind: z.literal('onsets') }),
-  /** Mode A: one expected string. `silent` = x-string check. */
+  /**
+   * Onset times (timing exercises), optionally with beta readings per strum (SPEC v1.1 §10.11): direction
+   * (per-string order, with the voicing when known), palm-mute probability and the strum level (dynamics).
+   */
+  z.object({
+    kind: z.literal('onsets'),
+    beta: z
+      .object({
+        voicing: workerVoicing.optional(),
+        direction: z.boolean().default(false),
+        palmMute: z.boolean().default(false),
+        level: z.boolean().default(false),
+      })
+      .optional(),
+  }),
+  /** Mode A: one expected string. `silent` = x-string check; `buzz` adds the beta buzz score (§10.11). */
   z.object({
     kind: z.literal('pluck'),
     expectedF0: z.number().positive(),
     templateDecayRatio: z.number().optional(),
     strictness: strictness.default('lenient'),
     silent: z.boolean().default(false),
+    buzz: z.boolean().optional(),
   }),
   /** Calibration template: one open-string pluck → harmonic profile + decay ratio (SPEC §9.1-4). */
   z.object({ kind: z.literal('template'), expectedF0: z.number().positive() }),
@@ -44,6 +58,29 @@ export const jobSchema = z.discriminatedUnion('kind', [
     voicings: z.tuple([workerVoicing, workerVoicing]),
     deltaCents: z.array(z.number()).length(6).optional(),
   }),
+  /** E3 (SPEC v1.1 §11.11): Mode C pair classification plus Mode B on the winning chord ("참고(베타)"). */
+  z.object({
+    kind: z.literal('pfc'),
+    voicings: z.tuple([workerVoicing, workerVoicing]),
+    deltaCents: z.array(z.number()).length(6).optional(),
+  }),
+  /**
+   * Song perform/hidden with a microphone (SPEC v1.1 §11.10, §8.6): Mode C set scores for the chord check and,
+   * when the backing plays on speakers, whether the onset is the user's strum or backing bleed (§10.12) —
+   * `arrivals` are capture samples of the backing events (scheduled time + RTT).
+   */
+  z.object({
+    kind: z.literal('songStrum'),
+    voicings: z.array(workerVoicing).min(1),
+    deltaCents: z.array(z.number()).length(6).optional(),
+    backing: z
+      .object({
+        arrivals: z.array(z.number()),
+        templateRises: z.array(z.number()),
+        gain: z.number().min(0),
+      })
+      .optional(),
+  }),
   /** Mode C: recall quiz set. */
   z.object({
     kind: z.literal('set'),
@@ -57,6 +94,38 @@ export const rangeRequestSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('rtt'), scheduledSamples: z.array(z.number()) }),
   z.object({ kind: z.literal('noise') }),
   z.object({ kind: z.literal('raw') }),
+  /**
+   * Single-note sequence verification (SPEC v1.1 §10.10) over the range: times are seconds from the range
+   * start; earlier notes (negative times allowed) may still ring; EXTRA onsets are counted in extraSpanS only.
+   */
+  z.object({
+    kind: z.literal('sequence'),
+    bpm: z.number().positive(),
+    slots: z
+      .array(
+        z.object({
+          time: z.number(),
+          midi: z.number(),
+          stringIdx: z.number().int().min(0).max(5).optional(),
+          legatoAllowed: z.boolean().optional(),
+          cycle: z.number().int().optional(),
+        }),
+      )
+      .min(1),
+    deltaCents: z.array(z.number()).length(6).optional(),
+    priorNotes: z
+      .array(
+        z.object({ f0: z.number().positive(), stringIdx: z.number().int().optional(), time: z.number() }),
+      )
+      .default([]),
+    extraSpanS: z.tuple([z.number(), z.number()]).optional(),
+  }),
+  /** Backing bleed gain from the intro bar (§10.12): arrivals in capture samples, templates of those events. */
+  z.object({
+    kind: z.literal('bleedGain'),
+    arrivals: z.array(z.number()),
+    templateRises: z.array(z.number()),
+  }),
   /** Mode A fallback (src/dsp/take.ts energyOnset) when the flux detector found no pluck after arming. */
   z.object({
     kind: z.literal('pluck'),

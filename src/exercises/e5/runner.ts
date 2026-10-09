@@ -8,14 +8,16 @@
  */
 import { z } from 'zod';
 import { clampBpm, DEFAULT_METRONOME_CONFIG, type MetronomeConfig } from '../../audio/metronome';
-import { patternById, type StrumPattern, slotsPerBeat } from '../../content/patterns';
+import { patternById, patternSlotTimes, type StrumPattern, slotsPerBeat } from '../../content/patterns';
+import { voicingById, voicingForClass } from '../../content/voicings';
 import type { StrumResult } from '../../domain/exerciseResults';
+import { barDynamics } from '../../dsp/beta/dynamics';
 import type { TimingAnalysis, TimingSlot } from '../../dsp/timing';
 import { BaseRunner } from '../baseRunner';
 import type { ExerciseContext, JudgedEvent, RunnerCommand } from '../types';
 
 export const e5ParamsSchema = z.object({
-  patternId: z.enum(['P0', 'P1', 'P2', 'P3', 'P4', 'P5']),
+  patternId: z.enum(['P0', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8']),
   bpm: z.number().int().min(30).max(240),
   bars: z.number().int().min(1).max(32),
   mode: z.enum(['mute', 'single', 'progression']),
@@ -96,6 +98,13 @@ export function nextBpmFor(bpm: number, ladder: Ladder): number {
 }
 
 /** The same run at `nextBpm` (the tempo a summary suggests), or null when that is the current tempo. */
+/** E5 beta readings summary (stored in StrumResult.beta). */
+export type E5Beta = {
+  direction: { down: number; up: number; unknown: number };
+  palmMuteShare?: number;
+  dynamics?: ('soft' | 'loud' | 'even')[];
+};
+
 export function tempoRetry<P extends { bpm: number }>(
   params: P,
   nextBpm: number,
@@ -126,20 +135,17 @@ export function metronomeFor(
 
 /** Eighth-note slot grid from the grid origin (bar 0, beat 0). `bpm` is the pattern's beat tempo. */
 export function slotGrid(pattern: StrumPattern, bpm: number, bars: number, gridStart: number): TimingSlot[] {
-  const slotS = 60 / bpm / slotsPerBeat(pattern);
-  const slots: TimingSlot[] = [];
-  for (let bar = 0; bar < bars; bar++) {
-    pattern.slots.forEach((s, i) => {
-      slots.push({ time: gridStart + (bar * pattern.slots.length + i) * slotS, expected: s !== '-' });
-    });
-  }
-  return slots;
+  // Swing patterns (P7, P8) put the off-beat eighth at t + T·r/(1+r) (§6.10); the chop X is a timed strum.
+  return patternSlotTimes(pattern, gridStart, bpm, bars);
 }
 
 export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
   private readonly pattern: StrumPattern;
   private readonly source: 'mic' | 'self';
   private readonly strums: number[] = [];
+  /** Beta readings per strum (direction, palm-mute probability, level) — "참고(베타)" only (§10.11). */
+  private readonly betaReadings: { time: number; direction?: string; palmMute?: number; levelDb?: number }[] =
+    [];
   private gridStart: number | null = null;
   private endTime: number | null = null;
   private analyzing = false;
@@ -180,6 +186,18 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
 
   private get slotS(): number {
     return 60 / this.params.bpm / slotsPerBeat(this.pattern);
+  }
+
+  /** Bar and slot sounding `elapsed` seconds after the grid start (swing-aware, §6.10). */
+  private positionAt(elapsed: number): { bar: number; slot: number } | null {
+    if (elapsed < 0) return null;
+    const oneBar = slotGrid(this.pattern, this.params.bpm, 1, 0);
+    const barS = (this.pattern.slots.length / slotsPerBeat(this.pattern)) * (60 / this.params.bpm);
+    const bar = Math.floor(elapsed / barS);
+    const within = elapsed - bar * barS;
+    let slot = 0;
+    while (slot + 1 < oneBar.length && oneBar[slot + 1]!.time <= within) slot++;
+    return { bar, slot };
   }
 
   private ladder(): Ladder | null {
@@ -240,7 +258,16 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
 
   /** Count-in and bars start (first strum while armed, Space, or the start button). */
   private begin(): void {
-    this.ctx.audio?.setJob({ kind: 'onsets' });
+    const chord = this.params.mode === 'mute' ? undefined : this.params.chords?.[0];
+    this.ctx.audio?.setJob({
+      kind: 'onsets',
+      beta: {
+        direction: true,
+        palmMute: this.params.palmMute === true,
+        level: this.params.dynamics === true,
+        ...(chord ? { voicing: voicingById(voicingForClass(chord, this.ctx.content.gVoicing)) } : {}),
+      },
+    });
     const metronome = this.ctx.output.metronome;
     this.own(metronome.onEnd((t) => this.onBarsDone(t)));
     this.own(() => metronome.stop());
@@ -263,6 +290,10 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     if (this.endTime !== null && event.time > this.endTime + this.slotS) return;
     this.recordDsp(event);
     this.strums.push(event.time);
+    const beta = (
+      event.result as { beta?: { direction?: string; palmMute?: number; levelDb?: number } } | null
+    )?.beta;
+    if (beta) this.betaReadings.push({ time: event.time, ...beta });
   }
 
   private onBarsDone(time: number): void {
@@ -334,9 +365,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
           this.publish();
         }
       } else this.countInBeat = null;
-      const index = Math.floor((now - this.gridStart) / this.slotS);
-      const perBar = this.pattern.slots.length;
-      const next = index >= 0 ? { bar: Math.floor(index / perBar), slot: index % perBar } : null;
+      const next = this.positionAt(now - this.gridStart);
       if (next?.bar !== this.position?.bar || next?.slot !== this.position?.slot) {
         this.position = next && next.bar < this.params.bars ? next : null;
         this.publish();
@@ -390,6 +419,27 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       });
   }
 
+  /** Beta summary (SPEC v1.1 §10.11): down/up counts, palm-mute share, bar dynamics — "참고(베타)", never a metric. */
+  betaSummary(): E5Beta {
+    const r = this.betaReadings;
+    const count = (d: string) => r.filter((x) => x.direction === d).length;
+    const out: E5Beta = { direction: { down: count('down'), up: count('up'), unknown: count('unknown') } };
+    const palm = r.flatMap((x) => (x.palmMute === undefined ? [] : [x.palmMute]));
+    if (palm.length) out.palmMuteShare = palm.filter((p) => p >= 0.5).length / palm.length;
+    const levels = r.flatMap((x) => (x.levelDb === undefined ? [] : [x]));
+    if (levels.length && this.gridStart !== null) {
+      const barS = (this.pattern.slots.length / slotsPerBeat(this.pattern)) * (60 / this.params.bpm);
+      const rtt = (this.ctx.calibration?.rttMs ?? 0) / 1000;
+      const barOf = levels.map((x) => Math.floor((x.time - this.gridStart! - rtt + 0.1) / barS));
+      out.dynamics = barDynamics(
+        levels.map((x) => x.levelDb!),
+        barOf,
+        this.params.bars,
+      ).map((b) => b.value);
+    }
+    return out;
+  }
+
   /** Only a scored (or self-rated) run is recorded; an aborted or unscored one is not. */
   hasResult(): boolean {
     return this.analysis !== null;
@@ -426,6 +476,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       source: this.source,
       ...(this.params.dynamics ? { dynamics: { selfRating: this.dynamicsRating } } : {}),
       ...(this.params.palmMute ? { palmMute: true } : {}),
+      ...(this.betaReadings.length > 0 ? { beta: this.betaSummary() } : {}),
       ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
     };
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { patternById } from '../../content/patterns';
-import { strumResultSchema } from '../../domain/exerciseResults';
+import { extractMetrics, strumResultSchema } from '../../domain/exerciseResults';
 import { DETECTOR_VERSION } from '../../dsp/version';
 import { testContext } from '../testing/fakes';
 import {
@@ -97,7 +97,8 @@ describe('E5 strumming ladder', () => {
   it('scores grid-aligned strums (RTT-corrected): hit rate 1, mean/sd, ladder +5', async () => {
     const t = await setup({}, { rttMs: 40 });
     expect(t.runner.snapshot().phase).toBe('countIn');
-    expect(t.mic.job).toEqual({ kind: 'onsets' });
+    // v1.1 §10.11: the onsets job also asks for the beta readings (direction, palm mute, level).
+    expect(t.mic.job).toMatchObject({ kind: 'onsets', beta: { direction: true } });
     expect(t.output.lastRttMs).toBe(40);
     const slots = slotGrid(patternById('P3'), 80, 8, 0).filter((s) => s.expected);
     // Strums at the slots ±8 ms of human jitter (deterministic), captured RTT later.
@@ -128,6 +129,59 @@ describe('E5 strumming ladder', () => {
       source: 'mic',
     });
     expect(t.runner.dspStats().detectorVersion).toBe(DETECTOR_VERSION);
+  });
+
+  it('swing patterns (§6.10): P7 off-beats at 2/3 of the beat are hits, straight eighths miss them', async () => {
+    const grid = slotGrid(patternById('P7'), 80, 2, 0);
+    expect(grid[1]!.time).toBeCloseTo((60 / 80) * (2 / 3), 9);
+    const swung = await setup({ patternId: 'P7', bars: 2 });
+    play(
+      swung,
+      grid.map((s) => s.time),
+      0,
+      12,
+    );
+    await flush();
+    expect(swung.view().analysis?.hitRate).toBe(1);
+
+    const straight = await setup({ patternId: 'P7', bars: 2 });
+    // The highlighted slot follows the swing grid: 0.6 of the first beat is still the down-beat slot.
+    const start = straight.output.metronome.gridStartTime()!;
+    straight.output.run(straight.clock, start + (60 / 80) * 0.6 - straight.clock.t, () =>
+      straight.runner.tick(),
+    );
+    expect(straight.view().slot).toBe(0);
+    play(
+      straight,
+      grid.map((_, i) => (i * 60) / 80 / 2),
+      0,
+      12,
+    );
+    await flush();
+    expect(straight.view().analysis?.hitRate).toBe(0.5);
+  });
+
+  it('palm-mute option (§11.6, §10.11): asks the beta reading and reports its share as reference only', async () => {
+    const t = await setup({ patternId: 'P6', bars: 2, palmMute: true });
+    expect(t.mic.job).toMatchObject({ kind: 'onsets', beta: { palmMute: true } });
+    const grid = t.output.metronome.gridStartTime()!;
+    const readings = [0.9, 0.8, 0.2, 0.7];
+    t.output.run(t.clock, 1, () => t.runner.tick());
+    readings.forEach((palmMute, i) => {
+      t.mic.judged.emit({
+        time: grid + i * 0.375,
+        result: { beta: { palmMute } },
+        jobKind: 'onsets',
+        detectorVersion: DETECTOR_VERSION,
+        processingMs: 1,
+      });
+    });
+    t.output.run(t.clock, 10, () => t.runner.tick());
+    await flush();
+    expect(t.runner.betaSummary().palmMuteShare).toBe(0.75);
+    const result = t.runner.finish();
+    expect(result).toMatchObject({ patternId: 'P6', palmMute: true });
+    expect(extractMetrics('E5', result).some((m) => /palm/i.test(m.metric))).toBe(false);
   });
 
   it('missing strums and strums in rest slots → stay, extras counted', async () => {
@@ -194,7 +248,8 @@ describe('E5 strumming ladder', () => {
     await flush();
     expect(runner.snapshot().phase).toBe('countIn');
     expect(t.output.lastConfig).toMatchObject({ bpm: 60, countInBars: 1, stopAfterBars: 8 });
-    expect(t.mic.job).toEqual({ kind: 'onsets' });
+    // v1.1 §10.11: the onsets job also asks for the beta readings (direction, palm mute, level).
+    expect(t.mic.job).toMatchObject({ kind: 'onsets', beta: { direction: true } });
   });
 
   it('a perfect run shorter than 8 bars does not step the ladder up', async () => {

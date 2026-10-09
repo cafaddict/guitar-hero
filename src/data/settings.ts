@@ -14,11 +14,13 @@ export const KEY_ACTIONS = [
   'manual1',
   'manual2',
   'manual3',
-  // v1.1 practice options inside the session runner (SPEC v1.1 §12.3): ear-first, visual cues, loop, hide.
+  // v1.1 practice options inside the session runner (SPEC v1.1 §12.3): ear-first, visual cues, loop, hide,
+  // play-along backing.
   'ear',
   'cues',
   'loop',
   'hide',
+  'backing',
 ] as const;
 export type KeyAction = (typeof KEY_ACTIONS)[number];
 

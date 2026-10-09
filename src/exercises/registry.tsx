@@ -14,11 +14,16 @@ import type {
   ExerciseTitleKey,
 } from './types';
 
+/** Recent results an exercise's withHistory sees unless its plugin asks for more. */
+const DEFAULT_HISTORY_DEPTH = 5;
+
 export interface ExerciseDefinition {
   type: string;
   version: number;
   titleKey: ExerciseTitleKey;
   usesMicrophone: boolean;
+  /** How many recent results withHistory sees. */
+  historyDepth: number;
   resultSchema: z.ZodType<unknown>;
   defaultParams(content: ContentContext): unknown;
   /** Validates (and fills defaults of) raw params; throws on invalid input. */
@@ -48,6 +53,7 @@ export function definePlugin<P, R, V>(plugin: ExercisePlugin<P, R, V>): Exercise
     version: plugin.version,
     titleKey: plugin.titleKey,
     usesMicrophone: plugin.usesMicrophone,
+    historyDepth: plugin.historyDepth ?? DEFAULT_HISTORY_DEPTH,
     resultSchema: plugin.resultSchema,
     defaultParams: (content) => plugin.defaultParams(content),
     parseParams: parse,

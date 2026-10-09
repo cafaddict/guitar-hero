@@ -3,7 +3,13 @@
  * that can always be recomputed by replaying attempts in order through applyAttempt().
  */
 import { modeOpenBpm } from '../content/patterns';
-import { extractMetrics, quizResultSchema, recallResultSchema } from './exerciseResults';
+import { RIFF_TARGET_EXTRA_BPM, RIFFS } from '../content/riffs';
+import {
+  extractMetrics,
+  quizResultSchema,
+  recallResultSchema,
+  SCALE_GRADUATION_BPM,
+} from './exerciseResults';
 import { graduatedItems } from './progression';
 import { type Attempt, dayKey, type MetricSample, type ReviewItem, type SkillState } from './records';
 import { applySample } from './skills';
@@ -35,6 +41,16 @@ export function reviewPassed(reviewOf: string, samples: readonly MetricSample[])
   }
   // A song review is a perform-stage run to the end with ≤ 2 stops (SPEC v1.1 §11.10 "완주").
   if (reviewOf.startsWith('song:')) return mine.some((s) => s.metric === 'performCompleted' && s.value >= 1);
+  // Scale steps and riffs pass a review the way they graduated (SPEC v1.1 §11.13, §11.19, §7.5).
+  if (reviewOf.startsWith('scale:'))
+    return mine.some((s) => s.metric === 'streakBpm' && s.value >= SCALE_GRADUATION_BPM);
+  if (reviewOf.startsWith('riff:')) {
+    const riff = RIFFS.find((r) => r.id === reviewOf.slice('riff:'.length));
+    return (
+      riff !== undefined &&
+      mine.some((s) => s.metric === 'passBpm' && s.value >= riff.bpm + RIFF_TARGET_EXTRA_BPM)
+    );
+  }
   return false;
 }
 

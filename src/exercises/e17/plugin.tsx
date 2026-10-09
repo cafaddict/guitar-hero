@@ -1,4 +1,3 @@
-import { riffNotes } from '../../content/riffs';
 import {
   extractMetrics,
   ladderNextBpm,
@@ -6,11 +5,9 @@ import {
   riffResultSchema,
 } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
-import { Button } from '../../ui/Button';
-import { Tab } from '../../ui/Tab';
 import { tempoRetry } from '../e5/runner';
+import { SequenceStage } from '../sequence/SequenceStage';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
-import { useRunnerSnapshot } from '../ui/hooks';
 import {
   type E17Params,
   type E17View,
@@ -21,48 +18,16 @@ import {
 } from './runner';
 
 function E17ViewComponent({ runner }: { runner: ExerciseRunner<RiffResult, E17View>; params: E17Params }) {
-  const { view, phase } = useRunnerSnapshot(runner);
-  const flawless = view.cycles.filter((c) => c.flawless).length;
+  const view = runner.snapshot().view;
   return (
-    <section className="flex flex-col gap-3" data-testid="e17-view">
-      <p className="text-3xl font-bold tabular-nums">
-        {view.riff.id} · {ko.exercises.e17.bpm(view.bpm)}
-      </p>
-      <Tab
-        notes={riffNotes(view.riff)}
-        hidden={view.tabHidden}
-        label={ko.exercises.e17.tabLabel(view.riff.id)}
-      />
-      <p className="text-sm text-muted">{ko.exercises.e17.tabTopLine}</p>
+    <SequenceStage
+      runner={runner}
+      title={view.riff.id}
+      tabLabel={ko.exercises.e17.tabLabel(view.riff.id)}
+      testId="e17-view"
+    >
       {view.riff.palmMute && <p>{ko.exercises.e17.palmMute}</p>}
-      {phase === 'ready' && <p>{ko.exercises.e17.ready}</p>}
-      {phase === 'running' && (
-        <>
-          <p aria-live="polite" data-testid="e17-cycles">
-            {ko.exercises.e17.cycles(view.cycles.length, flawless, view.streak)}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button large onClick={() => runner.command('manual1')} data-testid="e17-flawless">
-              {ko.exercises.e17.flawless}
-            </Button>
-            <Button
-              large
-              variant="secondary"
-              onClick={() => runner.command('manual2')}
-              data-testid="e17-mistake"
-            >
-              {ko.exercises.e17.mistake}
-            </Button>
-            <Button variant="secondary" onClick={() => runner.command('hide')}>
-              {view.tabHidden ? ko.exercises.e17.showTab : ko.exercises.e17.hideTab}
-            </Button>
-            <Button variant="secondary" onClick={() => runner.command('toggle')}>
-              {ko.exercises.e17.finish}
-            </Button>
-          </div>
-        </>
-      )}
-    </section>
+    </SequenceStage>
   );
 }
 
@@ -92,5 +57,5 @@ export const e17Plugin: ExercisePlugin<E17Params, RiffResult, E17View> = {
     return { ...params, previousLow: last !== undefined && mistakeRatio(last.cycles) >= LOW_MISTAKE_RATIO };
   },
   suggestedTempoRetry: (params, result) => tempoRetry(params, ladderNextBpm(result.bpm, result.ladder)),
-  usesMicrophone: false,
+  usesMicrophone: true,
 };

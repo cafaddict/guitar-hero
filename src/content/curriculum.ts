@@ -387,7 +387,7 @@ export const CURRICULUM: readonly StageDef[] = [
       learn('리프', 'E17'),
     ],
     tips: ['파워코드는 연주하지 않는 줄을 왼손 손가락으로 살짝 덮어 뮤트하세요.'],
-    newChords: ['G5', 'C5'],
+    newChords: ['G5', 'C5', 'E5', 'A5', 'D5', 'F5'],
     stagePairs: pairsOf([
       ['E5', 'A5'],
       ['A5', 'D5'],

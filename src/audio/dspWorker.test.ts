@@ -227,3 +227,135 @@ describe('dsp worker', () => {
     expect(lastOf('rangeResult')!.result).toBeNull();
   });
 });
+
+describe('dsp worker — v1.1 requests', () => {
+  it('sequence range: verifySequence over the chunk with earlier notes and the EXTRA span', () => {
+    // Two plucked notes 0.5 s apart in a 1.6 s chunk (A2 then B2).
+    const take = new Float32Array(Math.round(1.6 * FS));
+    for (const [k, midi] of [45, 47].entries()) {
+      const seg = pluckSegment(midiToHz(midi), 20 + k);
+      const at = Math.round((0.5 + 0.5 * k) * FS) - Math.round(0.5 * FS);
+      for (let i = 0; i < seg.length && at + i < take.length; i++) take[at + i] = take[at + i]! + seg[i]!;
+    }
+    send({
+      type: 'analyzeRange',
+      id: 31,
+      request: {
+        kind: 'sequence',
+        bpm: 120,
+        slots: [
+          { time: 0.5, midi: 45, stringIdx: 1, cycle: 0 },
+          { time: 1.0, midi: 47, stringIdx: 1, cycle: 0 },
+        ],
+        priorNotes: [{ f0: midiToHz(40), stringIdx: 0, time: -0.4 }],
+        extraSpanS: [0.3, 1.2],
+      },
+    });
+    fromCapture({ type: 'range', id: 31, fromSample: 0, copied: take.length, samples: take });
+    const res = lastOf('rangeResult')!;
+    expect(res.id).toBe(31);
+    const result = res.result as { notes: { status: string }[]; extras: number[] };
+    expect(result.notes.map((n) => n.status)).toEqual(['OK', 'OK']);
+    expect(result.extras).toEqual([]);
+  });
+
+  it('pluck with buzz: Mode A plus a beta buzz score; onsets with beta: direction / palm mute / level', () => {
+    send({ type: 'job', job: { kind: 'pluck', expectedF0: midiToHz(55), buzz: true } });
+    fromCapture({
+      type: 'segment',
+      onsetSample: 200_000 + 24_000,
+      segmentStart: 200_000,
+      strength: 5,
+      broadband: true,
+      samples: pluckSegment(midiToHz(55), 4),
+    });
+    const pluck = lastOf('onset')!.result as { status: string; buzz: { beta: true; suspected: boolean } };
+    expect(pluck.status).toBe('OK');
+    expect(pluck.buzz.beta).toBe(true);
+    send({
+      type: 'job',
+      job: {
+        kind: 'onsets',
+        beta: { voicing: voicingById('E'), direction: true, palmMute: true, level: true },
+      },
+    });
+    fromCapture({
+      type: 'segment',
+      onsetSample: 300_000 + 24_000,
+      segmentStart: 300_000,
+      strength: 5,
+      broadband: true,
+      samples: pluckSegment(midiToHz(40), 5),
+    });
+    const beta = (lastOf('onset')!.result as { beta: Record<string, unknown> }).beta;
+    expect(['down', 'up', 'unknown']).toContain(beta.direction);
+    expect(typeof beta.palmMute).toBe('number');
+    expect(typeof beta.levelDb).toBe('number');
+  });
+
+  it('songStrum: set scores, and with a speaker backing a strum far above the bleed is kept', () => {
+    const voicings = [voicingById('D'), voicingById('A')];
+    send({ type: 'job', job: { kind: 'songStrum', voicings } });
+    const samples = pluckSegment(midiToHz(50), 6);
+    fromCapture({
+      type: 'segment',
+      onsetSample: 400_000 + 24_000,
+      segmentStart: 400_000,
+      strength: 5,
+      broadband: true,
+      samples,
+    });
+    const plain = lastOf('onset')!.result as { keep: boolean; set: { scores: number[] } };
+    expect(plain.keep).toBe(true);
+    expect(plain.set.scores).toHaveLength(2);
+    send({
+      type: 'job',
+      job: {
+        kind: 'songStrum',
+        voicings,
+        backing: { arrivals: [500_000 + 24_000], templateRises: [1], gain: 1e-9 },
+      },
+    });
+    fromCapture({
+      type: 'segment',
+      onsetSample: 500_000 + 24_000,
+      segmentStart: 500_000,
+      strength: 5,
+      broadband: true,
+      samples,
+    });
+    expect((lastOf('onset')!.result as { keep: boolean }).keep).toBe(true);
+    // A huge predicted bleed: the same onset is judged to be the backing.
+    send({
+      type: 'job',
+      job: {
+        kind: 'songStrum',
+        voicings,
+        backing: { arrivals: [600_000 + 24_000], templateRises: [1], gain: 1e9 },
+      },
+    });
+    fromCapture({
+      type: 'segment',
+      onsetSample: 600_000 + 24_000,
+      segmentStart: 600_000,
+      strength: 5,
+      broadband: true,
+      samples,
+    });
+    expect((lastOf('onset')!.result as { keep: boolean }).keep).toBe(false);
+  });
+
+  it('bleedGain: the intro events give the observed / template rise ratio', () => {
+    const intro = new Float32Array(Math.round(2 * FS));
+    const seg = pluckSegment(midiToHz(45), 7);
+    for (let i = 0; i < seg.length && i < intro.length; i++) intro[i] = seg[i]!;
+    send({
+      type: 'analyzeRange',
+      id: 32,
+      request: { kind: 'bleedGain', arrivals: [10_000 + Math.round(0.5 * FS)], templateRises: [1] },
+    });
+    fromCapture({ type: 'range', id: 32, fromSample: 10_000, copied: intro.length, samples: intro });
+    const gain = (lastOf('rangeResult')!.result as { gain: number }).gain;
+    expect(gain).toBeGreaterThan(0);
+  });
+});

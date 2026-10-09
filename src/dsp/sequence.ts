@@ -140,6 +140,13 @@ export interface SequenceInput {
   deltaCents?: readonly number[];
   params?: SequenceParams;
   onsetParams?: OnsetParams;
+  /**
+   * Notes judged before this stretch of audio (a long take is verified in chunks): they may still ring at the
+   * first slots, so they join the cancellation. `startSample` is relative to `samples` (negative = earlier).
+   */
+  priorNotes?: readonly RingingNote[];
+  /** Only onsets in [from, to] s may be EXTRA (a chunk owns the extras up to its last slot's window). */
+  extraSpanS?: readonly [number, number];
 }
 
 /** Offline sequence onset path: flux → peaks → refinement → grouping (no anticipation suppression). */
@@ -316,7 +323,13 @@ export function judgeSequenceNote(input: {
   return { status: 'WRONG_NOTE', cents, semitones, f0: pitch.f0, clarity: pitch.clarity };
 }
 
-function matchingWindowS(slots: readonly SequenceSlot[], i: number, bpm: number, params: SequenceParams) {
+/** Matching window of slot i (s): min(§10.8 BPM window, gapWindowFraction × the nearer neighbour gap). */
+export function matchingWindowS(
+  slots: readonly SequenceSlot[],
+  i: number,
+  bpm: number,
+  params: SequenceParams = DEFAULT_SEQUENCE_PARAMS,
+) {
   const gaps: number[] = [];
   if (i > 0) gaps.push(slots[i]!.time - slots[i - 1]!.time);
   if (i + 1 < slots.length) gaps.push(slots[i + 1]!.time - slots[i]!.time);
@@ -330,6 +343,30 @@ function cvOf(times: readonly number[]): number | null {
   const mean = iois.reduce((s, x) => s + x, 0) / iois.length;
   const sd = Math.sqrt(iois.reduce((s, x) => s + (x - mean) ** 2, 0) / (iois.length - 1));
   return mean > 0 ? sd / mean : null;
+}
+
+/**
+ * Cycle verdict (§10.10-4): flawless = every non-legato slot OK and no EXTRA; otherwise uncertain when a
+ * non-legato slot is UNCLEAR; otherwise a mistake. Legato slots are beta-only and never decide.
+ */
+export function cycleVerdict(
+  notes: readonly { status: NoteStatus; legato: boolean }[],
+  extraCount: number,
+): { flawless: boolean; uncertain: boolean } {
+  const statuses = notes.filter((n) => !n.legato).map((n) => n.status);
+  const flawless = statuses.every((st) => st === 'OK') && extraCount === 0;
+  return { flawless, uncertain: !flawless && statuses.includes('UNCLEAR') };
+}
+
+/** Stops (§10.10-5): every run of ≥ 2 consecutive MISSED slots counts once. */
+export function countStops(statuses: readonly NoteStatus[]): number {
+  let stops = 0;
+  let run = 0;
+  for (const st of statuses) {
+    run = st === 'MISSED' ? run + 1 : 0;
+    if (run === 2) stops++;
+  }
+  return stops;
 }
 
 export function verifySequence(input: SequenceInput): SequenceResult {
@@ -357,12 +394,14 @@ export function verifySequence(input: SequenceInput): SequenceResult {
   }
   const matchedSamples = slotOnset.flatMap((j) => (j === null ? [] : [onsets[j]!.sample]));
   const dup = (params.duplicateMs / 1000) * fs;
+  const span = input.extraSpanS;
   const extras = onsets
     .filter((o, j) => !usedOnset.has(j) && !matchedSamples.some((m) => Math.abs(m - o.sample) <= dup))
-    .map((o) => o.sample);
+    .map((o) => o.sample)
+    .filter((e) => !span || (e / fs >= span[0] && e / fs <= span[1]));
   // 2–3. Pitch per slot, cancelling notes that still ring on other strings.
   const delta = (idx: number | undefined) => (idx === undefined ? 0 : (input.deltaCents?.[idx] ?? 0));
-  const played: RingingNote[] = [];
+  const played: RingingNote[] = [...(input.priorNotes ?? [])];
   const notes: SequenceNoteResult[] = slots.map((slot, i) => {
     const expectedF0 = midiHz(slot.midi) * 2 ** (delta(slot.stringIdx) / 1200);
     const j = slotOnset[i] ?? null;
@@ -409,12 +448,11 @@ export function verifySequence(input: SequenceInput): SequenceResult {
   // 4. Cycles (extras belong to the cycle whose span — first slot − window … last slot + window — holds them).
   const cycleIds = [...new Set(slots.map((s) => s.cycle ?? 0))];
   const cycleOf = (s: SequenceSlot) => s.cycle ?? 0;
-  // Legato slots are beta-only (§10.10-3): they never make a cycle fail or uncertain.
-  const judgeCycle = (indices: number[], extraCount: number) => {
-    const statuses = indices.filter((i) => !slots[i]!.legatoAllowed).map((i) => notes[i]!.status);
-    const flawless = statuses.every((st) => st === 'OK') && extraCount === 0;
-    return { flawless, uncertain: !flawless && statuses.includes('UNCLEAR') };
-  };
+  const judgeCycle = (indices: number[], extraCount: number) =>
+    cycleVerdict(
+      indices.map((i) => ({ status: notes[i]!.status, legato: slots[i]!.legatoAllowed === true })),
+      extraCount,
+    );
   const extrasIn = (indices: number[]) => {
     const first = slots[indices[0]!]!;
     const last = slots[indices.at(-1)!]!;
@@ -428,12 +466,7 @@ export function verifySequence(input: SequenceInput): SequenceResult {
     return { cycle, ...judgeCycle(indices, count), extras: count };
   });
   // 5. Stops: runs of ≥ 2 consecutive MISSED slots.
-  let stops = 0;
-  let run = 0;
-  for (const n of notes) {
-    run = n.status === 'MISSED' ? run + 1 : 0;
-    if (run === 2) stops++;
-  }
+  const stops = countStops(notes.map((n) => n.status));
   const whole = judgeCycle(
     slots.map((_, i) => i),
     extras.length,

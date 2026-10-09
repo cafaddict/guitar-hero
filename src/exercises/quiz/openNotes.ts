@@ -1,7 +1,8 @@
 /**
- * Q3 open-string note names (SPEC §11.9): "string n → note name" (choice) or "note name → pluck that string"
- * (chromatic tuner: a stable reading of the right pitch class answers correctly, any other stable pitch
- * class answers wrongly).
+ * Q3 fretboard note names (SPEC §11.9, v1.1 §11.15): "position → note name" (choice) or "note name → pluck that
+ * position" (chromatic tuner: a stable reading of the right pitch class answers correctly — the string is not
+ * judged, the same note elsewhere counts — and any other stable pitch class answers wrongly). Ranges: open
+ * strings, open position (frets 0–3), strings 6 and 5 (frets 0–12).
  */
 import { z } from 'zod';
 import type { ExerciseContext } from '../types';
@@ -11,7 +12,7 @@ import { type OpenNotePrompt, openNoteCard, openNoteQuestions } from './question
 export const q3ParamsSchema = z.object({
   mode: z.enum(['name', 'pluck']),
   seed: z.number().int().min(0),
-  /** Fretboard range (SPEC v1.1 §11.15); 'open' until the wider ranges arrive. */
+  /** Fretboard range (SPEC v1.1 §11.15). */
   scope: z.enum(['open', 'openPosition', 'strings65']).default('open'),
   questions: z.number().int().min(1).max(40).default(10),
   /** Due note cards to ask first (SPEC v1.1 §7.5). */
@@ -27,7 +28,7 @@ export class OpenNotesRunner extends ChoiceQuizRunner<OpenNotePrompt> {
     // Each pluck question restarts the tuner so a reading from the previous string cannot answer it.
     super(
       ctx,
-      openNoteQuestions(seed, mode, params.questions, params.focus),
+      openNoteQuestions(seed, mode, params.questions, params.focus, params.scope),
       (q) => {
         if (q.prompt.kind === 'pluck') ctx.audio?.setTuner(true, null);
       },

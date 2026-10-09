@@ -128,7 +128,145 @@ export const PRACTICE_SONGS: readonly PracticeSong[] = [
       { name: 'C', bars: ['D', 'A', 'E', 'E'], repeat: 1 },
     ],
   },
+  // --- Beginner 2 (SPEC v1.1 §6.6): two or more songs per stage, only chords learned by the stage ---------
+  {
+    id: 's11',
+    title: '물결 드론',
+    stage: 8,
+    timeSignature: '4/4',
+    bpmDefault: 75,
+    bpmMin: 55,
+    patternId: 'P4',
+    sections: [
+      { name: 'A', bars: ['G-4f', 'G-4f', 'Cadd9', 'Cadd9'], repeat: 2 },
+      { name: 'B', bars: ['Em7', 'Em7', 'Dsus4', 'Dsus4'], repeat: 2 },
+    ],
+  },
+  {
+    id: 's12',
+    title: '창가의 아침',
+    stage: 8,
+    timeSignature: '4/4',
+    bpmDefault: 75,
+    bpmMin: 55,
+    patternId: 'P3',
+    sections: [
+      { name: 'A', bars: ['G-4f', 'Dsus4', 'Em7', 'Cadd9'], repeat: 2 },
+      { name: 'B', bars: ['Cadd9', 'Dsus4', 'A7sus4', 'A7sus4'], repeat: 1 },
+      { name: 'C', bars: ['G-4f', 'Cadd9', 'Dsus4', 'G-4f'], repeat: 1 },
+    ],
+  },
+  {
+    id: 's13',
+    title: '첫 F, 가볍게',
+    stage: 9,
+    timeSignature: '4/4',
+    bpmDefault: 70,
+    bpmMin: 50,
+    patternId: 'P1',
+    // Playable without the full barre: Fmaj7 and the small F only (§6.6).
+    sections: [
+      { name: 'A', bars: ['C', 'C', 'Fmaj7', 'Fmaj7'], repeat: 2 },
+      { name: 'B', bars: ['Am', 'F-small', 'C', 'G'], repeat: 2 },
+    ],
+  },
+  {
+    id: 's14',
+    title: '해질녘 언덕',
+    stage: 9,
+    timeSignature: '4/4',
+    bpmDefault: 75,
+    bpmMin: 55,
+    patternId: 'P3',
+    sections: [
+      { name: 'A', bars: ['Am', 'F', 'C', 'G'], repeat: 2 },
+      { name: 'B', bars: ['F', 'G', 'C', 'Am'], repeat: 1 },
+      { name: 'C', bars: ['Dm', 'F', 'G', 'C'], repeat: 1 },
+    ],
+  },
+  {
+    id: 's15',
+    title: '차고 리허설',
+    stage: 10,
+    timeSignature: '4/4',
+    bpmDefault: 85,
+    bpmMin: 60,
+    patternId: 'P4',
+    palmMute: true,
+    sections: [
+      { name: 'A', bars: ['E5', 'E5', 'A5', 'A5'], repeat: 2 },
+      { name: 'B', bars: ['D5', 'A5', 'E5', 'E5'], repeat: 2 },
+    ],
+  },
+  {
+    id: 's16',
+    title: '지하철 라이더',
+    stage: 10,
+    timeSignature: '4/4',
+    bpmDefault: 85,
+    bpmMin: 60,
+    patternId: 'P6',
+    sections: [
+      { name: 'A', bars: ['G5', 'G5', 'C5', 'C5'], repeat: 2 },
+      { name: 'B', bars: ['F5', 'G5', 'E5', 'G5'], repeat: 2 },
+    ],
+  },
+  // Stage 11: 12-bar blues | I | I | I | I | IV | IV | I | I | V | IV | I | V | in shuffle, I–IV–V as 7th chords.
+  {
+    id: 's17',
+    title: 'G 셔플 블루스',
+    stage: 11,
+    timeSignature: '4/4',
+    bpmDefault: 80,
+    bpmMin: 60,
+    patternId: 'P7',
+    feel: 'shuffle',
+    sections: [
+      {
+        name: '12',
+        bars: ['G7', 'G7', 'G7', 'G7', 'C7', 'C7', 'G7', 'G7', 'D7', 'C7', 'G7', 'D7'],
+        repeat: 2,
+      },
+    ],
+  },
+  {
+    id: 's18',
+    title: 'A 셔플 블루스',
+    stage: 11,
+    timeSignature: '4/4',
+    bpmDefault: 80,
+    bpmMin: 60,
+    patternId: 'P8',
+    feel: 'shuffle',
+    sections: [
+      {
+        name: '12',
+        bars: ['A7', 'A7', 'A7', 'A7', 'D7', 'D7', 'A7', 'A7', 'E7', 'D7', 'A7', 'E7'],
+        repeat: 2,
+      },
+    ],
+  },
+  {
+    id: 's19',
+    title: 'E 셔플 블루스',
+    stage: 11,
+    timeSignature: '4/4',
+    bpmDefault: 80,
+    bpmMin: 60,
+    patternId: 'P7',
+    feel: 'shuffle',
+    sections: [
+      {
+        name: '12',
+        bars: ['E7', 'E7', 'E7', 'E7', 'A7', 'A7', 'E7', 'E7', 'B7', 'A7', 'E7', 'B7'],
+        repeat: 2,
+      },
+    ],
+  },
 ];
+
+/** The 12-bar blues form of SPEC v1.1 §6.6 (degrees per bar; quick change none). */
+export const BLUES_FORM = ['I', 'I', 'I', 'I', 'IV', 'IV', 'I', 'I', 'V', 'IV', 'I', 'V'] as const;
 
 export function songById(id: string): PracticeSong {
   const song = PRACTICE_SONGS.find((s) => s.id === id);

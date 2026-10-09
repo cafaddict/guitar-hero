@@ -257,3 +257,79 @@ describe('review fixes (M10 code review)', () => {
     expect(thrice.due).toBe(once.due);
   });
 });
+
+describe('scale and riff reviews (M12 code review)', () => {
+  const T = new Date(2026, 9, 5, 19).getTime();
+  const flawless = { flawless: true, uncertain: false, stops: 0, okRatio: 1 };
+  const scaleRun = (id: string, startedAt: number, reviewOf: string | null, clean: boolean): Attempt => ({
+    id,
+    sessionId: 's',
+    exerciseType: 'E10',
+    exerciseVersion: 1,
+    startedAt,
+    endedAt: startedAt + 60_000,
+    params: {},
+    result: {
+      scaleId: 'em-pent-open',
+      step: 1,
+      bpm: 80,
+      tabHidden: false,
+      hiddenThroughout: false,
+      withBacking: false,
+      cycles: clean ? [flawless, flawless, flawless, flawless] : [flawless, { ...flawless, flawless: false }],
+      ladder: clean ? 'up' : 'stay',
+      graduated: clean,
+      memorized: false,
+      source: 'mic',
+    },
+    detectorVersion: null,
+    processingMs: 0,
+    reviewOf,
+  });
+  const riffRun = (id: string, startedAt: number, reviewOf: string | null, bpm: number): Attempt => ({
+    id,
+    sessionId: 's',
+    exerciseType: 'E17',
+    exerciseVersion: 1,
+    startedAt,
+    endedAt: startedAt + 60_000,
+    params: {},
+    result: {
+      riffId: 'R1',
+      bpm,
+      tabHidden: false,
+      cycles: [flawless, flawless, flawless, flawless],
+      ladder: 'up',
+      source: 'mic',
+    },
+    detectorVersion: null,
+    processingMs: 0,
+    reviewOf,
+  });
+
+  it('a graduated scale step passes its review with four flawless cycles at ≥ 80, else it lapses', () => {
+    const graduated = deriveAll([scaleRun('a', T, null, true)]).reviews.get('scale:em-pent-open:s1')!;
+    expect(graduated).toMatchObject({ kind: 'scale', step: 0 });
+    const at = graduated.due + 1000;
+    const passed = deriveAll([
+      scaleRun('a', T, null, true),
+      scaleRun('b', at, 'scale:em-pent-open:s1', true),
+    ]);
+    expect(passed.reviews.get('scale:em-pent-open:s1')).toMatchObject({ step: 1, lapses: 0 });
+    const failed = deriveAll([
+      scaleRun('a', T, null, true),
+      scaleRun('b', at, 'scale:em-pent-open:s1', false),
+    ]);
+    expect(failed.reviews.get('scale:em-pent-open:s1')).toMatchObject({ lapses: 1 });
+  });
+
+  it('a riff passes its review at its goal tempo (its tempo + 20)', () => {
+    const graduated = deriveAll([riffRun('a', T, null, 80)]).reviews.get('riff:R1')!;
+    expect(graduated).toMatchObject({ kind: 'riff', step: 0 });
+    const at = graduated.due + 1000;
+    const passed = deriveAll([riffRun('a', T, null, 80), riffRun('b', at, 'riff:R1', 80)]);
+    expect(passed.reviews.get('riff:R1')).toMatchObject({ step: 1, lapses: 0 });
+    const slow = deriveAll([riffRun('a', T, null, 80), riffRun('b', at, 'riff:R1', 70)]);
+    expect(slow.reviews.get('riff:R1')).toMatchObject({ lapses: 1 });
+  });
+});

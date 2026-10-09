@@ -5,8 +5,21 @@ import { midiToHz } from '../../domain/theory';
 import { DETECTOR_VERSION } from '../../dsp/version';
 import { testContext } from '../testing/fakes';
 import { ChoiceQuizRunner } from './choiceQuiz';
+import { EAR_SOUND_GAP_S, renderEarChord } from './earAudio';
 import { OpenNotesRunner } from './openNotes';
-import { diagramQuestions, earChordHz, earQuestions, openNoteQuestions, quizVoicings } from './questions';
+import {
+  diagramQuestions,
+  EAR_DEGREES,
+  EAR_INTERVALS,
+  earCard,
+  earChordHz,
+  earQuestions,
+  earSounds,
+  notePositions,
+  openNoteCard,
+  openNoteQuestions,
+  quizVoicings,
+} from './questions';
 import { RecallRunner } from './recall';
 
 describe('question generators', () => {
@@ -26,8 +39,10 @@ describe('question generators', () => {
     for (const q of openNoteQuestions(7, 'name'))
       expect(q.options).toContain(['E', 'A', 'D', 'G', 'B', 'E'][q.prompt.idx]);
     const ear = earQuestions(3);
-    expect(ear.every((q) => q.answer === (q.prompt.quality === 'major' ? 0 : 1))).toBe(true);
-    const hz = earChordHz({ rootMidi: 57, quality: 'minor', seed: 1 });
+    expect(
+      ear.every((q) => q.prompt.kind === 'majmin' && q.answer === (q.prompt.quality === 'major' ? 0 : 1)),
+    ).toBe(true);
+    const hz = earChordHz({ kind: 'majmin', rootMidi: 57, quality: 'minor', seed: 1 });
     expect(hz.map((f) => Math.round(f))).toEqual([220, 330, 440, 523]);
   });
 
@@ -173,5 +188,49 @@ describe('Q2 recall', () => {
       [true, 1500, 'self'],
       [false, null, 'self'],
     ]);
+  });
+});
+
+describe('SPEC v1.1 §11.15 Q3 ranges and §11.21 Q4 kinds', () => {
+  it('ranges: open strings, natural notes at frets 0–3 on every string, 16 natural notes on strings 6 and 5', () => {
+    expect(notePositions('open')).toHaveLength(6);
+    const s65 = notePositions('strings65');
+    expect(s65).toHaveLength(16);
+    expect(s65.every((p) => p.idx <= 1 && p.fret <= 12)).toBe(true);
+    const openPosition = notePositions('openPosition');
+    expect(openPosition).toContainEqual({ idx: 1, fret: 3 }); // C on the 5th string
+    expect(openPosition).not.toContainEqual({ idx: 0, fret: 2 }); // F#: not natural
+  });
+
+  it('position → name: 4 choices with the answer, focus cards first, one card per position', () => {
+    const qs = openNoteQuestions(5, 'name', 20, ['card:note:1:3', 'card:note:5:0'], 'strings65');
+    expect(qs[0]!.prompt).toMatchObject({ idx: 1, fret: 3 });
+    expect(qs[0]!.options[qs[0]!.answer]).toBe('C');
+    // 5:0 is not in the strings-6/5 range, so it is not forced in.
+    for (const q of qs) {
+      expect(q.options).toHaveLength(4);
+      expect(new Set(q.options).size).toBe(4);
+      expect(q.prompt.idx).toBeLessThanOrEqual(1);
+    }
+    expect(openNoteCard(qs[0]!.prompt)).toBe('card:note:1:3');
+  });
+
+  it('intervals (6 choices) and progressions (I → IV / V / I, 3 choices) with type cards and audio', () => {
+    const iv = earQuestions(4, 12, ['card:ear:interval:7'], 'interval');
+    expect(iv[0]!.prompt).toMatchObject({ kind: 'interval', semitones: 7 });
+    for (const q of iv) {
+      expect(q.options).toHaveLength(6);
+      if (q.prompt.kind === 'interval') expect(EAR_INTERVALS[q.answer]).toBe(q.prompt.semitones);
+    }
+    expect(earCard(iv[0]!.prompt)).toBe('card:ear:interval:7');
+    const pr = earQuestions(9, 12, [], 'progression');
+    for (const q of pr) {
+      expect(q.options).toHaveLength(3);
+      if (q.prompt.kind === 'progression') expect(EAR_DEGREES[q.answer]).toBe(q.prompt.degree);
+    }
+    const sounds = earSounds({ kind: 'progression', tonicMidi: 55, degree: 'IV', seed: 1 });
+    expect(sounds.map((s) => s[0])).toEqual([55, 60]);
+    const audio = renderEarChord({ kind: 'interval', rootMidi: 48, semitones: 12, seed: 2 }, 48000);
+    expect(audio.length).toBeGreaterThan(EAR_SOUND_GAP_S * 48000);
   });
 });

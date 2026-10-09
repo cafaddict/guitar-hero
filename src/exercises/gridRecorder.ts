@@ -24,8 +24,19 @@ export class GridRecorder {
     private readonly onBarsDone: () => void,
     private readonly onEvent: (event: JudgedEvent) => void = () => {},
     /** Worker job for the strums: plain onsets, or a closed-set classification that also yields onsets. */
-    private readonly job: Job = { kind: 'onsets' },
+    private job: Job = { kind: 'onsets' },
   ) {}
+
+  private disposed = false;
+
+  /** Replaces the job mid-take (same kind, e.g. the song backing mask once its bleed gain is known). */
+  updateJob(job: Job): void {
+    if (job.kind !== this.job.kind) throw new Error('updateJob keeps the job kind');
+    // A late async update (e.g. the bleed gain) must not re-arm the job after the take was left.
+    if (this.disposed) return;
+    this.job = job;
+    this.ctx.audio?.setJob(job);
+  }
 
   get rttS(): number {
     return (this.ctx.calibration?.rttMs ?? 0) / 1000;
@@ -49,6 +60,7 @@ export class GridRecorder {
       () => metronome.stop(),
     );
     void metronome.start(this.config, { rttMs: this.ctx.calibration?.rttMs ?? 0 }).then(() => {
+      if (this.disposed) return;
       this.gridStart = metronome.gridStartTime();
       onGrid();
     });
@@ -73,6 +85,7 @@ export class GridRecorder {
   }
 
   dispose(): void {
+    this.disposed = true;
     for (const d of this.disposers.splice(0)) d();
   }
 }

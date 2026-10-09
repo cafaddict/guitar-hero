@@ -3,7 +3,7 @@ import { songById } from '../../content/songs';
 import { songResultSchema } from '../../domain/exerciseResults';
 import { DETECTOR_VERSION } from '../../dsp/version';
 import { testContext } from '../testing/fakes';
-import { expandChart, type SongParams, SongRunner } from './runner';
+import { expandChart, type SongParamsInput, SongRunner } from './runner';
 
 const flush = async () => {
   for (let i = 0; i < 4; i++) await Promise.resolve();
@@ -19,7 +19,7 @@ describe('S practice song', () => {
 
   it('perform mode: plays the whole song, measures beat 1, then the self-report', async () => {
     const t = testContext();
-    const params: SongParams = {
+    const params: SongParamsInput = {
       songId: 's01',
       mode: 'perform',
       bpm: 60,
@@ -46,7 +46,8 @@ describe('S practice song', () => {
         t.mic.judged.emit({
           time: pending.shift()!,
           result: null,
-          jobKind: 'onsets',
+          // The fake worker answers with the job the runner set (v1.1 perform runs use 'songStrum').
+          jobKind: t.mic.job?.kind ?? 'onsets',
           detectorVersion: DETECTOR_VERSION,
           processingMs: 1,
         });

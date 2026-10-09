@@ -27,6 +27,7 @@ import {
   openModes,
   PAIR_METRIC,
   pairPassed,
+  pfcGraduated,
   recallPassed,
   SLOWER_TEMPO_BPM,
   songCompleted,
@@ -75,6 +76,8 @@ export interface RoutineInput {
   stretchStartFret: number;
   /** The user's saved template for this stage (§7.3-9), or null for the default template. */
   userTemplate: RoutineTemplate | null;
+  /** E11 minutes already played today (daily cap 10 min, SPEC v1.1 §11.16); absent = 0. */
+  hammerMinutesToday?: number;
   seed: number;
 }
 
@@ -357,13 +360,16 @@ function planChanges(ctx: Ctx): ChangePlan {
   const slot1Review =
     slot1 && headPair?.subjectKey === `pair:${slot1}` ? takeDue(ctx, 'pair')!.subjectKey : null;
 
+  // PFC → OMC prescriptions (§7.4): that pair goes back to one-minute changes (E2) and leaves the PFC slot.
+  const backToOmc = activePrescriptions(input, 'pfcToOmc').map((p) => p.subjectKey.slice('pair:'.length));
+
   // PFC slot (Stage 8–11): an OMC → PFC prescription, else a stage pair not graduated in E3.
   let pfc: string | null = null;
   if (def.stagePairs.length > 0) {
     const prescribed = activePrescriptions(input, 'omcToPfc')
       .map((p) => p.subjectKey.slice('pair:'.length))
       .filter((id) => !taken.has(id));
-    const graduated = (id: string) => (input.skills.get(`pfc:${id}`)?.metrics.graduated?.best ?? 0) >= 1;
+    const graduated = (id: string) => pfcGraduated(input.skills, id);
     const passedHere = universe.filter((id) => pairPassed(input.skills, id));
     const pool =
       input.stage >= 10
@@ -374,18 +380,20 @@ function planChanges(ctx: Ctx): ChangePlan {
     pfc =
       prescribed[0] ??
       firstFree(
-        pool.filter((id) => !graduated(id)).sort(oldestFirst(history, (id) => itemKey('E3', `pair:${id}`))),
+        pool
+          .filter((id) => !graduated(id) && !backToOmc.includes(id))
+          .sort(oldestFirst(history, (id) => itemKey('E3', `pair:${id}`))),
       );
     if (pfc) taken.add(pfc);
   }
 
-  // Slot 2: at-risk required pairs → due pair reviews → weakest required pair → rotation → reverse of slot 1.
+  // Slot 2: at-risk required pairs → PFC → OMC pair → due pair reviews → weakest required pair → rotation → slot 1.
   const required = requiredUnpassedPairs(input, def);
   const neverAssigned = (id: string) => (history.appearances.has(lastKey(id)) ? 1 : 0);
   const atRisk = required
     .filter((id) => !taken.has(id) && practiceDaysSince(history, lastKey(id)) >= RISK_PRACTICE_DAYS)
     .sort((a, b) => neverAssigned(a) - neverAssigned(b) || pairMedian(input, a) - pairMedian(input, b));
-  let slot2: string | null = atRisk[0] ?? null;
+  let slot2: string | null = atRisk[0] ?? firstFree(backToOmc);
   let slot2Review: string | null = null;
   if (!slot2) {
     const review = takeDue(ctx, 'pair', (r) => !taken.has(r.subjectKey.slice('pair:'.length)));
@@ -624,13 +632,15 @@ function reviewDraft(
   slot: TemplateSlot,
 ): Draft {
   const subject = review.subjectKey;
-  const id = subject.split(':')[1]!;
+  const [, id, stepPart] = subject.split(':') as [string, string, string | undefined];
   const entry: ExerciseRef =
     review.kind === 'pattern'
       ? { type: 'E5', params: { patternId: id, mode: 'progression' } }
       : review.kind === 'riff'
         ? { type: 'E17', params: { riffId: id } }
-        : { type: 'E10', params: { scaleId: id } };
+        : { type: 'E10', params: { scaleId: id, step: Number(stepPart?.slice(1)), review: true } };
+  // Pattern and riff reviews play at the ladder's current tempo (rule 10); a graduated riff's ladder is at or
+  // above its goal tempo.
   return { ...entryDraft(ctx, entry, sec, block, slot), reviewOf: subject, note: 'review' };
 }
 
@@ -945,6 +955,9 @@ function applyChangeCap(drafts: Draft[], allowed: number): Draft[] {
   );
 }
 
+/** E11 hammer-on minutes per day (SPEC v1.1 §11.16, 01:343). */
+export const HAMMER_DAILY_CAP_MIN = 10;
+
 /** Rule 7: pain ≥ 5 → fingertip-load items at 50 % (15 s steps, ≥ 30 s), E11/E12 left out, nothing refilled. */
 function applyPainReduction(drafts: Draft[]): Draft[] {
   return drafts
@@ -1106,6 +1119,14 @@ export function generateRoutine(input: RoutineInput): RoutinePlan {
     notices.push({ code: 'painReduced' });
     drafts = applyPainReduction(drafts);
   }
+  // E11 daily cap (§11.16): ten minutes a day at most — left out once reached, otherwise told what is left.
+  const hammerToday = input.hammerMinutesToday ?? 0;
+  drafts =
+    hammerToday >= HAMMER_DAILY_CAP_MIN
+      ? drafts.filter((d) => d.exerciseType !== 'E11')
+      : drafts.map((d) =>
+          d.exerciseType === 'E11' ? { ...d, params: { ...d.params, minutesToday: hammerToday } } : d,
+        );
 
   // Songs stay last (rule 2); everything before them is interleaved (rule 4).
   const songStart = drafts.findIndex((d) => d.block === 'song');

@@ -84,7 +84,7 @@ export const q3Plugin: ExercisePlugin<Q3Params, QuizResult, QuizView<OpenNotePro
 
 const q4ParamsSchema = z.object({
   seed: z.number().int().min(0),
-  /** Question kind (SPEC v1.1 §11.21); major/minor until intervals and progressions arrive. */
+  /** Question kind (SPEC v1.1 §11.21). */
   kind: z.enum(['majmin', 'interval', 'progression']).default('majmin'),
   questions: z.number().int().min(1).max(40).default(10),
   /** Due question-type cards to ask first (SPEC v1.1 §7.5). */
@@ -102,10 +102,10 @@ export const q4Plugin: ExercisePlugin<Q4Params, QuizResult, QuizView<EarPrompt>>
   createRunner: (ctx, params) =>
     new ChoiceQuizRunner(
       ctx,
-      earQuestions(seedOf(params.seed, ctx.clock.now()), params.questions, params.focus),
+      earQuestions(seedOf(params.seed, ctx.clock.now()), params.questions, params.focus, params.kind),
       (q) => ctx.output.playSamples(renderEarChord(q.prompt, ctx.output.sampleRate())),
       earCard,
-      { kind: 'majmin' },
+      { kind: params.kind },
     ),
   View: Q4View,
   Summary: QuizSummary,

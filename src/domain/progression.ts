@@ -4,8 +4,10 @@
  * queue. Pure: time and the recent metric samples are arguments.
  */
 import { modeOpenBpm, STRUM_MODES } from '../content/patterns';
+import { RIFF_TARGET_EXTRA_BPM, RIFFS } from '../content/riffs';
 import type { PracticeSong, StageDef, UnlockRule } from '../content/schemas';
 import { classOfVoicing, type GVoicing } from '../content/voicings';
+import { PFC_GRADUATION_DAYS, SCALE_GRADUATION_BPM } from './exerciseResults';
 import { pairKey, pairsAmong, parsePairId } from './pairs';
 import {
   DAY_MS,
@@ -542,7 +544,22 @@ export function graduatedItems(skills: ReadonlyMap<string, SkillState>): Graduat
         out.push({ subjectKey: `strum:${parts[1]}`, kind: 'pattern' });
     } else if (key.startsWith('song:') && parts.length === 2) {
       if ((skill.metrics.repertoire?.best ?? 0) >= 1) out.push({ subjectKey: key, kind: 'song' });
+    } else if (key.startsWith('scale:') && parts.length === 3 && /^s\d$/.test(parts[2]!)) {
+      // A graduated scale step (SPEC v1.1 §11.13, §7.5): four flawless cycles in a row at ≥ 80 BPM.
+      if ((skill.metrics.streakBpm?.best ?? 0) >= SCALE_GRADUATION_BPM)
+        out.push({ subjectKey: key, kind: 'scale' });
+    } else if (key.startsWith('riff:') && parts.length === 2) {
+      // A riff passed at its goal tempo (its own tempo + 20, §11.19).
+      const riff = RIFFS.find((r) => r.id === parts[1]);
+      if (riff && (skill.metrics.passBpm?.best ?? 0) >= riff.bpm + RIFF_TARGET_EXTRA_BPM)
+        out.push({ subjectKey: key, kind: 'riff' });
     }
   }
   return out.sort((a, b) => a.subjectKey.localeCompare(b.subjectKey));
+}
+
+/** E3 pair graduation (SPEC v1.1 §11.11): a pass on two different days. */
+export function pfcGraduated(skills: ReadonlyMap<string, SkillState>, pair: string): boolean {
+  const skill = skills.get(`pfc:${pair}`);
+  return skill !== undefined && daysReaching(skill, 'pass', 1) >= PFC_GRADUATION_DAYS;
 }

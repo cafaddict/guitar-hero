@@ -177,6 +177,8 @@ export const songResultSchema = z.object({
   backingAudible: z.boolean().optional(),
   /** Without a microphone the hidden-chart completion is self-reported (§7.6-5). */
   memorizedSelfReport: z.boolean().optional(),
+  /** Output device of the run (the earphone choice is remembered per device, §8.6-1). */
+  outputLabel: z.string().optional(),
 });
 
 export const examResultSchema = z.object({
@@ -198,6 +200,8 @@ export const fretPositionResultSchema = z.object({
       statuses: z.array(z.enum(['OK', 'WEAK', 'MUTED', 'WRONG_NOTE', 'clean', 'muted', 'buzz'])),
       clarity: z.number().nullable(),
       decayRatio: z.number().nullable(),
+      /** Plucks the beta buzz detector suspected ("참고(베타)", microphone runs). */
+      buzzSuspect: z.number().int().min(0).optional(),
     }),
   ),
   source: z.enum(['mic', 'self']),
@@ -210,6 +214,91 @@ export const sequenceCycleSchema = z.object({
   stops: z.number().int().min(0),
   /** Share of OK notes (null when self-reported). */
   okRatio: z.number().nullable(),
+  /** Microphone runs: share of slots with a matched onset, EXTRA onsets, and every note that was not OK. */
+  hitRate: z.number().optional(),
+  extras: z.number().int().min(0).optional(),
+  faults: z
+    .array(
+      z.object({
+        index: z.number().int().min(0),
+        status: z.enum(['WRONG_NOTE', 'UNCLEAR', 'MISSED']),
+        semitones: z.number().int().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/** E10 scale ladder (SPEC v1.1 §11.13). */
+export const scaleResultSchema = z.object({
+  scaleId: z.string(),
+  step: z.number().int().min(1).max(5),
+  bpm: z.number(),
+  tabHidden: z.boolean(),
+  /** TAB hidden for the whole run (memorization, §11.13). */
+  hiddenThroughout: z.boolean(),
+  /** "반주와 함께 1단계" option (§11.13 step 6). */
+  withBacking: z.boolean(),
+  /** The backing played on speakers (§8.6-3/4): the cycles are shown as reference only and record nothing. */
+  backingAudible: z.boolean().optional(),
+  cycles: z.array(sequenceCycleSchema),
+  ladder: z.enum(['up', 'down', 'stay']),
+  /** 4 flawless cycles in a row at ≥ SCALE_GRADUATION_BPM: the step is graduated. */
+  graduated: z.boolean(),
+  /** Step 1 with the TAB hidden throughout, 4 flawless cycles in a row at ≥ 60 BPM. */
+  memorized: z.boolean(),
+  source: z.enum(['mic', 'self']),
+  ladderBase: z.number().optional(),
+});
+
+/** E9 chromatic 1-2-3-4 (SPEC v1.1 §11.14): one cycle = one four-note group. */
+export const chromaticResultSchema = z.object({
+  startFret: z.number().int().min(1).max(12),
+  bpm: z.number(),
+  cycles: z.array(sequenceCycleSchema),
+  ladder: z.enum(['up', 'down', 'stay']),
+  source: z.enum(['mic', 'self']),
+  hitRate: z.number().nullable(),
+  okRatio: z.number().nullable(),
+  ioiCv: z.number().nullable(),
+  ladderBase: z.number().optional(),
+});
+
+export const HAMMER_PAIRS = ['1-2', '1-3', '1-4', '2-3', '2-4', '3-4'] as const;
+
+/** E11 hammer-on finger gym (SPEC v1.1 §11.16): picked notes judged, hammer-ons as legato beta. */
+export const hammerResultSchema = z.object({
+  pair: z.enum(HAMMER_PAIRS),
+  bpm: z.number(),
+  cycles: z.array(sequenceCycleSchema),
+  source: z.enum(['mic', 'self']),
+  /** Picked notes with a matched onset (null without a microphone). */
+  pickedHitRate: z.number().nullable(),
+  /** Legato beta: hammer-ons heard (HAMMER_OK or OK) of all hammer slots — "참고(베타)", never a score. */
+  legatoBeta: z.object({ heard: z.number().int().min(0), total: z.number().int().min(0) }).nullable(),
+  /** "간격이 고르게 들렸나요" 1–3 (null when skipped). */
+  evenRating: z.number().int().min(1).max(3).nullable(),
+  ladder: z.enum(['up', 'stay']),
+  durationMs: z.number().min(0),
+});
+
+/** E12 pinky exercise (SPEC v1.1 §11.17): completion and clarity self-report, no speed score. */
+export const pinkyResultSchema = z.object({
+  completed: z.boolean(),
+  clarity: z.number().int().min(1).max(3).nullable(),
+  pain: z.number().min(0).max(10).nullable(),
+  durationMs: z.number().min(0),
+});
+
+/** E3 precise fast change (SPEC v1.1 §11.11). */
+export const pfcResultSchema = z.object({
+  pair: z.string(),
+  direction: z.string(),
+  durationMs: z.number().min(0),
+  arrivals: z.number().int().min(0),
+  cleanArrivals: z.number().int().min(0),
+  source: z.enum(['mic', 'self']),
+  /** Mode B per arrival, "참고(베타)" only. */
+  strumBeta: z.array(z.enum(['PASS', 'FAIL', 'RETRY'])).optional(),
 });
 
 /** E17 single-note riff (SPEC v1.1 §11.19): ladder over flawless cycles. */
@@ -241,6 +330,60 @@ export type SelfCheckResult = z.infer<typeof selfCheckResultSchema>;
 export type FretPositionResult = z.infer<typeof fretPositionResultSchema>;
 export type SequenceCycle = z.infer<typeof sequenceCycleSchema>;
 export type RiffResult = z.infer<typeof riffResultSchema>;
+export type ScaleResult = z.infer<typeof scaleResultSchema>;
+export type ChromaticResult = z.infer<typeof chromaticResultSchema>;
+export type HammerResult = z.infer<typeof hammerResultSchema>;
+export type PinkyResult = z.infer<typeof pinkyResultSchema>;
+export type PfcResult = z.infer<typeof pfcResultSchema>;
+
+/** E10 step graduation tempo and ladder edges (SPEC v1.1 §11.13, design values). */
+export const SCALE_GRADUATION_BPM = 80;
+export const SCALE_START_BPM = 60;
+export const SCALE_MEMORIZE_MIN_BPM = 60;
+/** Flawless cycles in a row that move a sequence ladder up (E10, E17) and graduate/memorize (E10). */
+export const SEQUENCE_STREAK = 4;
+/** E9 (§11.14): 10 flawless groups in a row → +5; goal 100 BPM; default start fret 5. */
+export const CHROMATIC_STREAK = 10;
+export const CHROMATIC_GOAL_BPM = 100;
+export const CHROMATIC_START_FRET = 5;
+/** E11 (§11.16): start 60, cap 80; picked hit_rate ≥ 0.9 and an even rating of 3 → +5. */
+export const HAMMER_MAX_BPM = 80;
+export const HAMMER_PICKED_HIT_RATE = 0.9;
+/** E3 pass (§11.11, 01:296): clean_rate ≥ 0.8 and ≥ 20 clean changes per minute; graduation = 2 days. */
+export const PFC_CLEAN_RATE = 0.8;
+export const PFC_CLEAN_PER_MIN = 20;
+export const PFC_GRADUATION_DAYS = 2;
+
+export function pfcScores(r: Pick<PfcResult, 'arrivals' | 'cleanArrivals' | 'durationMs'>) {
+  const minutes = r.durationMs / 60_000;
+  const cleanPerMin = minutes > 0 ? r.cleanArrivals / minutes : 0;
+  const cleanRate = r.arrivals > 0 ? r.cleanArrivals / r.arrivals : 0;
+  return { cleanPerMin, cleanRate, passed: cleanRate >= PFC_CLEAN_RATE && cleanPerMin >= PFC_CLEAN_PER_MIN };
+}
+
+const mean = (xs: readonly number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+
+/** Mean OK ratio and hit rate over judged (microphone) cycles. */
+export function sequenceRates(cycles: readonly SequenceCycle[]): {
+  okRatio: number | null;
+  hitRate: number | null;
+} {
+  return {
+    okRatio: mean(cycles.flatMap((c) => (c.okRatio === null ? [] : [c.okRatio]))),
+    hitRate: mean(cycles.flatMap((c) => (c.hitRate === undefined ? [] : [c.hitRate]))),
+  };
+}
+
+/** Longest run of flawless cycles (uncertain cycles neither extend nor break it). */
+export function longestFlawlessRun(cycles: readonly Pick<SequenceCycle, 'flawless' | 'uncertain'>[]): number {
+  let best = 0;
+  let n = 0;
+  for (const c of cycles) {
+    if (c.flawless) best = Math.max(best, ++n);
+    else if (!c.uncertain) n = 0;
+  }
+  return best;
+}
 
 /** Song stage thresholds (SPEC v1.1 §11.10). */
 export const SONG_COMPLETE_MAX_STOPS = 2;
@@ -412,6 +555,9 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
     ];
     if (r.chartHidden) out.push(m(key, 'hiddenCompleted', r.completed ? 1 : 0));
     if (r.beat1HitRate !== null) out.push(m(key, 'beat1HitRate', r.beat1HitRate));
+    // The chord check counts only when no backing leaked into the microphone (§8.6-3b, §11.10).
+    if (typeof r.chordCorrectRatio === 'number' && r.backingAudible !== true)
+      out.push(m(`${key}:chord`, 'chordCorrect', r.chordCorrectRatio));
     // Song stages (SPEC v1.1 §11.10): a full learn run opens perform after two; "완주" = perform (or hidden)
     // to the end with ≤ 2 stops; memorized = hidden with ≤ 1 stop; repertoire = perform/hidden with no stop.
     if (r.mode === 'learn' && r.completed) out.push(m(key, 'learnFull', 1));
@@ -444,6 +590,76 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
   Q5: (raw) => {
     const r = quizResultSchema.parse(raw);
     return [m('quiz:tab', 'accuracy', r.correct / r.questions)];
+  },
+  E10: (raw) => {
+    const r = scaleResultSchema.parse(raw);
+    // Backing bleed can pass for the expected notes (no masking on the note path): reference only (§8.6-3).
+    if (r.backingAudible === true) return [];
+    const key = `scale:${r.scaleId}:s${r.step}`;
+    const out = [
+      m(key, 'flawlessCycles', r.cycles.filter((c) => c.flawless).length),
+      m(key, 'ladderBpm', storedLadder(r.bpm, r.ladder, r.ladderBase)),
+    ];
+    // The tempo at which this step ran four flawless cycles in a row (graduation at ≥ 80, §11.13).
+    if (longestFlawlessRun(r.cycles) >= SEQUENCE_STREAK) out.push(m(key, 'streakBpm', r.bpm));
+    const rates = sequenceRates(r.cycles);
+    if (rates.okRatio !== null) out.push(m(key, 'pitchOk', rates.okRatio));
+    if (rates.hitRate !== null) out.push(m(key, 'hitRate', rates.hitRate));
+    out.push(
+      m(
+        key,
+        'stops',
+        r.cycles.reduce((a, c) => a + c.stops, 0),
+      ),
+    );
+    if (r.memorized) out.push(m(`scale:${r.scaleId}:memorized`, 'memorized', 1));
+    return out;
+  },
+  E9: (raw) => {
+    const r = chromaticResultSchema.parse(raw);
+    const key = `chromatic:${r.startFret}`;
+    const out = [
+      m(key, 'flawlessCycles', r.cycles.filter((c) => c.flawless).length),
+      m(key, 'ladderBpm', storedLadder(r.bpm, r.ladder, r.ladderBase)),
+    ];
+    if (r.ladder === 'up') out.push(m(key, 'passBpm', r.bpm));
+    if (r.okRatio !== null) out.push(m(key, 'pitchOk', r.okRatio));
+    if (r.hitRate !== null) out.push(m(key, 'hitRate', r.hitRate));
+    if (r.ioiCv !== null) out.push(m(key, 'ioiCv', r.ioiCv));
+    return out;
+  },
+  E11: (raw) => {
+    const r = hammerResultSchema.parse(raw);
+    const key = `hammer:${r.pair}`;
+    const out = [
+      m(
+        key,
+        'ladderBpm',
+        ladderNextBpm(r.bpm, r.ladder) > HAMMER_MAX_BPM ? HAMMER_MAX_BPM : ladderNextBpm(r.bpm, r.ladder),
+      ),
+      m('hammer', 'minutes', r.durationMs / 60_000),
+    ];
+    if (r.evenRating !== null) out.push(m(key, 'selfRating', r.evenRating));
+    if (r.pickedHitRate !== null) out.push(m(key, 'hitRate', r.pickedHitRate));
+    return out;
+  },
+  E12: (raw) => {
+    const r = pinkyResultSchema.parse(raw);
+    const out = [m('pinky', 'done', r.completed ? 1 : 0)];
+    if (r.clarity !== null) out.push(m('pinky', 'clarity', r.clarity));
+    if (r.pain !== null) out.push(m('pinky', 'pain', r.pain));
+    return out;
+  },
+  E3: (raw) => {
+    const r = pfcResultSchema.parse(raw);
+    const { cleanPerMin, cleanRate, passed } = pfcScores(r);
+    return [
+      m(`pfc:${r.direction}`, 'cleanCpm', cleanPerMin),
+      m(`pfc:${r.direction}`, 'cleanRate', cleanRate),
+      m(`pfc:${r.pair}`, 'cleanCpm', cleanPerMin),
+      m(`pfc:${r.pair}`, 'cleanRate', cleanRate),
+      m(`pfc:${r.pair}`, 'pass', passed ? 1 : 0),
+    ];
   },
   EXAM: (raw) => {
     const r = examResultSchema.parse(raw);

@@ -22,7 +22,8 @@ const DEFAULT_KEYS: Readonly<Record<string, KeyAction>> = {
   '3': 'manual3',
   m: 'mark',
   M: 'mark',
-  // v1.1 option keys (SPEC v1.1 §12.3): E1 E = ear first, E5 V = visual cues, S L = loop, H = hide chart/TAB.
+  // v1.1 option keys (SPEC v1.1 §12.3): E1 E = ear first, E5 V = visual cues, S L = loop, H = hide chart/TAB,
+  // S B = play-along backing.
   e: 'ear',
   E: 'ear',
   v: 'cues',
@@ -31,6 +32,8 @@ const DEFAULT_KEYS: Readonly<Record<string, KeyAction>> = {
   L: 'loop',
   h: 'hide',
   H: 'hide',
+  b: 'backing',
+  B: 'backing',
 };
 
 /** Default keys per action (for the settings screen). */

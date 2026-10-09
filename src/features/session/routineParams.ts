@@ -30,6 +30,15 @@ export function pluginParamsFor(
       Object.assign(merged, { from, to, durationMs: clampMs(item.durationSec, 30_000, 120_000) });
       break;
     }
+    case 'E3': {
+      // Precise fast change (SPEC v1.1 §11.11): 60–120 s on the routine's direction.
+      const [from, to] = parseDirected(String(p.direction));
+      Object.assign(merged, { from, to, durationMs: clampMs(item.durationSec, 60_000, 120_000) });
+      break;
+    }
+    case 'E12':
+      merged.durationMs = clampMs(item.durationSec, 30_000, 300_000);
+      break;
     case 'E4': {
       const [from, to] = parsePairId(String(p.pair));
       Object.assign(merged, { from, to, durationMs: clampMs(item.durationSec, 60_000, 120_000) });

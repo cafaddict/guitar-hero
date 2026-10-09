@@ -17,8 +17,9 @@ function withAnswer<P>(
   correct: string,
   distractors: readonly string[],
   rng: Rng,
+  size = 3,
 ): ChoiceQuestion<P> {
-  const options = shuffled(rng, [correct, ...distractors.filter((d) => d !== correct).slice(0, 2)]);
+  const options = shuffled(rng, [correct, ...distractors.filter((d) => d !== correct).slice(0, size - 1)]);
   return { prompt, options, answer: options.indexOf(correct) };
 }
 
@@ -93,13 +94,35 @@ export function quizVoicings(
 // --- Q3 ---------------------------------------------------------------------------------------
 
 export type OpenNotePrompt =
-  | { kind: 'name'; idx: number }
-  | { kind: 'pluck'; idx: number; pitchClass: number };
+  | { kind: 'name'; idx: number; fret: number }
+  | { kind: 'pluck'; idx: number; fret: number; pitchClass: number };
+
+export type NoteScope = 'open' | 'openPosition' | 'strings65';
 
 const OPEN_NAMES = STANDARD_TUNING.openMidi.map((m) => pitchClassName(m));
+const NATURAL_PCS = new Set([0, 2, 4, 5, 7, 9, 11]);
+const NATURAL_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
-/** Knowledge card of an open-string note question: `card:note:<idx>:0` (SPEC v1.1 §7.5). */
-export const openNoteCard = (prompt: OpenNotePrompt) => `card:note:${prompt.idx}:0`;
+/**
+ * Positions a Q3 range asks (SPEC v1.1 §11.15): the six open strings; natural notes at frets 0–3 on every string;
+ * natural notes at frets 0–12 on strings 6 and 5 (16 positions).
+ */
+export function notePositions(scope: NoteScope): { idx: number; fret: number }[] {
+  const natural = (idx: number, fret: number) =>
+    NATURAL_PCS.has((STANDARD_TUNING.openMidi[idx]! + fret) % 12);
+  const out: { idx: number; fret: number }[] = [];
+  if (scope === 'open') for (let idx = 0; idx < 6; idx++) out.push({ idx, fret: 0 });
+  if (scope === 'openPosition')
+    for (let idx = 0; idx < 6; idx++)
+      for (let fret = 0; fret <= 3; fret++) if (natural(idx, fret)) out.push({ idx, fret });
+  if (scope === 'strings65')
+    for (const idx of [0, 1])
+      for (let fret = 0; fret <= 12; fret++) if (natural(idx, fret)) out.push({ idx, fret });
+  return out;
+}
+
+/** Knowledge card of a note question: one card per position, `card:note:<idx>:<fret>` (SPEC v1.1 §7.5). */
+export const openNoteCard = (prompt: OpenNotePrompt) => `card:note:${prompt.idx}:${prompt.fret}`;
 
 export function openNoteQuestions(
   seed: number,
@@ -107,63 +130,137 @@ export function openNoteQuestions(
   count = QUIZ_LENGTH,
   /** Due card keys asked first (SPEC v1.1 §7.5 "due 카드를 먼저 묻는다"). */
   focus: readonly string[] = [],
+  scope: NoteScope = 'open',
 ): ChoiceQuestion<OpenNotePrompt>[] {
   const rng = mulberry32(seed);
-  const distinct = [...new Set(OPEN_NAMES)];
-  const focusIdx = focus
-    .map((card) => /^card:note:(\d):0$/.exec(card)?.[1])
-    .filter((x): x is string => x !== undefined)
-    .map(Number)
-    .filter((idx) => idx >= 0 && idx < 6);
+  const positions = notePositions(scope);
+  const inScope = (p: { idx: number; fret: number }) =>
+    positions.some((q) => q.idx === p.idx && q.fret === p.fret);
+  const focused = focus
+    .map((card) => /^card:note:(\d):(\d+)$/.exec(card))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => ({ idx: Number(m[1]), fret: Number(m[2]) }))
+    .filter(inScope);
   return Array.from({ length: count }, (_, k) => {
-    const idx = k < focusIdx.length ? focusIdx[k]! : Math.floor(rng() * 6);
-    const name = OPEN_NAMES[idx]!;
+    // The open range keeps the v1 draw (one random string per question).
+    const pos =
+      k < focused.length
+        ? focused[k]!
+        : scope === 'open'
+          ? { idx: Math.floor(rng() * 6), fret: 0 }
+          : positions[Math.floor(rng() * positions.length)]!;
+    const midi = STANDARD_TUNING.openMidi[pos.idx]! + pos.fret;
+    const name = pitchClassName(midi);
     if (mode === 'pluck') {
       return {
-        prompt: { kind: 'pluck' as const, idx, pitchClass: STANDARD_TUNING.openMidi[idx]! % 12 },
+        prompt: { kind: 'pluck' as const, idx: pos.idx, fret: pos.fret, pitchClass: midi % 12 },
         options: [],
         answer: 0,
       };
     }
-    return withAnswer<OpenNotePrompt>({ kind: 'name', idx }, name, shuffled(rng, distinct), rng);
+    // v1 open range: 3 choices among the open-string names; the wider ranges: 4 choices (§11.15).
+    const prompt: OpenNotePrompt = { kind: 'name', idx: pos.idx, fret: pos.fret };
+    return scope === 'open'
+      ? withAnswer(prompt, name, shuffled(rng, [...new Set(OPEN_NAMES)]), rng)
+      : withAnswer(prompt, name, shuffled(rng, NATURAL_NAMES), rng, 4);
   });
 }
 
 // --- Q4 ---------------------------------------------------------------------------------------
 
-export interface EarPrompt {
-  rootMidi: number;
-  quality: 'major' | 'minor';
-  seed: number;
-}
+export type EarKind = 'majmin' | 'interval' | 'progression';
 
-/** Knowledge card of a major/minor question: `card:ear:majmin:<quality>` (SPEC v1.1 §11.21, §7.5). */
-export const earCard = (prompt: EarPrompt) => `card:ear:majmin:${prompt.quality}`;
+/** Ascending intervals of the interval questions (semitones, SPEC v1.1 §11.21: M2, m3, M3, P4, P5, P8). */
+export const EAR_INTERVALS = [2, 3, 4, 5, 7, 12] as const;
+/** Second chord of a progression question, as a degree of the key (I → IV, V or back to I). */
+export const EAR_DEGREES = ['IV', 'V', 'I'] as const;
+/** Keys of the progression questions (tonic MIDI near the guitar's middle register). */
+const EAR_KEYS: readonly number[] = [55, 48, 50, 57, 52]; // G3, C3, D3, A3, E3
+
+export type EarPrompt =
+  | { kind: 'majmin'; rootMidi: number; quality: 'major' | 'minor'; seed: number }
+  | { kind: 'interval'; rootMidi: number; semitones: number; seed: number }
+  | { kind: 'progression'; tonicMidi: number; degree: (typeof EAR_DEGREES)[number]; seed: number };
+
+/** Knowledge card per question type: `card:ear:<kind>:<type>` (SPEC v1.1 §11.21, §7.5). */
+export const earCard = (prompt: EarPrompt) =>
+  prompt.kind === 'majmin'
+    ? `card:ear:majmin:${prompt.quality}`
+    : prompt.kind === 'interval'
+      ? `card:ear:interval:${prompt.semitones}`
+      : `card:ear:progression:${prompt.degree}`;
+
+function focusTypes(focus: readonly string[], kind: EarKind): string[] {
+  const re = new RegExp(`^card:ear:${kind}:(.+)$`);
+  return focus.map((card) => re.exec(card)?.[1]).filter((x): x is string => x !== undefined);
+}
 
 export function earQuestions(
   seed: number,
   count = QUIZ_LENGTH,
   focus: readonly string[] = [],
+  kind: EarKind = 'majmin',
 ): ChoiceQuestion<EarPrompt>[] {
   const rng = mulberry32(seed);
-  const focusQualities = focus
-    .map((card) => /^card:ear:majmin:(major|minor)$/.exec(card)?.[1] as 'major' | 'minor' | undefined)
-    .filter((x): x is 'major' | 'minor' => x !== undefined);
+  const focused = focusTypes(focus, kind);
+  const q4 = ko.exercises.q4;
   return Array.from({ length: count }, (_, k) => {
-    const quality = k < focusQualities.length ? focusQualities[k]! : rng() < 0.5 ? 'major' : 'minor';
-    const prompt: EarPrompt = { rootMidi: 48 + Math.floor(rng() * 10), quality, seed: seed * 100 + k };
+    const given = focused[k];
+    const qSeed = seed * 100 + k;
+    if (kind === 'interval') {
+      const semitones =
+        given !== undefined && EAR_INTERVALS.includes(Number(given) as (typeof EAR_INTERVALS)[number])
+          ? Number(given)
+          : EAR_INTERVALS[Math.floor(rng() * EAR_INTERVALS.length)]!;
+      const prompt: EarPrompt = { kind, rootMidi: 48 + Math.floor(rng() * 10), semitones, seed: qSeed };
+      return {
+        prompt,
+        options: EAR_INTERVALS.map((s) => q4.intervals[s] ?? ''),
+        answer: EAR_INTERVALS.indexOf(semitones as (typeof EAR_INTERVALS)[number]),
+      };
+    }
+    if (kind === 'progression') {
+      const degree = (EAR_DEGREES as readonly string[]).includes(given ?? '')
+        ? (given as (typeof EAR_DEGREES)[number])
+        : EAR_DEGREES[Math.floor(rng() * EAR_DEGREES.length)]!;
+      const tonicMidi = EAR_KEYS[Math.floor(rng() * EAR_KEYS.length)]!;
+      return {
+        prompt: { kind, tonicMidi, degree, seed: qSeed },
+        options: EAR_DEGREES.map((d) => q4.degrees[d]),
+        answer: EAR_DEGREES.indexOf(degree),
+      };
+    }
+    const quality = given === 'major' || given === 'minor' ? given : rng() < 0.5 ? 'major' : 'minor';
     return {
-      prompt,
-      options: [ko.exercises.q4.major, ko.exercises.q4.minor],
+      prompt: { kind: 'majmin', rootMidi: 48 + Math.floor(rng() * 10), quality, seed: qSeed },
+      options: [q4.major, q4.minor],
       answer: quality === 'major' ? 0 : 1,
     };
   });
 }
 
-/** Root-position triad plus octave (Hz) of an ear-training chord. */
+/** Root-position major or minor triad plus octave (MIDI) built on `root`. */
+function triad(root: number, minor: boolean): number[] {
+  return [0, 7, 12, 12 + (minor ? 3 : 4)].map((s) => root + s);
+}
+
+/** The sounds of a question, in order: chords as MIDI sets (a single note is a one-element set). */
+export function earSounds(prompt: EarPrompt): number[][] {
+  switch (prompt.kind) {
+    case 'majmin':
+      return [triad(prompt.rootMidi, prompt.quality === 'minor')];
+    case 'interval':
+      return [[prompt.rootMidi], [prompt.rootMidi + prompt.semitones]];
+    case 'progression': {
+      const offset = { I: 0, IV: 5, V: 7 }[prompt.degree];
+      return [triad(prompt.tonicMidi, false), triad(prompt.tonicMidi + offset, false)];
+    }
+  }
+}
+
+/** Root-position triad plus octave (Hz) of a major/minor question (kept for the v1 callers). */
 export function earChordHz(prompt: EarPrompt): number[] {
-  const third = prompt.quality === 'major' ? 4 : 3;
-  return [0, 7, 12, 12 + third].map((s) => midiToHz(prompt.rootMidi + s));
+  return (earSounds(prompt)[0] ?? []).map(midiToHz);
 }
 
 // --- Q5 TAB reading (SPEC v1.1 §11.20) -----------------------------------------------------------------------

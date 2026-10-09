@@ -5,11 +5,17 @@
 import '../../app/zodConfig';
 import { classOfVoicing } from '../../content/voicings';
 import { STANDARD_TUNING } from '../../domain/theory';
+import { backingKeepFlags, bleedGain, DEFAULT_BACKING_MASK_PARAMS, lowBand } from '../../dsp/backingMask';
+import { buzzScore } from '../../dsp/beta/buzz';
+import { strumDirection } from '../../dsp/beta/direction';
+import { eventLevelsDb } from '../../dsp/beta/dynamics';
+import { palmMuteProbability } from '../../dsp/beta/palmMute';
 import { verifyPluck, verifySilentString } from '../../dsp/modeA';
 import { verifyStrum } from '../../dsp/modeB';
 import { classifyPair, classifySet } from '../../dsp/modeC';
 import { DEFAULT_ONSET_PARAMS, refineOnset } from '../../dsp/onset';
 import { estimateRtt } from '../../dsp/rtt';
+import { verifySequence } from '../../dsp/sequence';
 import { magnitudeSpectrum, partialPeak, rms } from '../../dsp/spectrum';
 import { energyOnset } from '../../dsp/take';
 import { analyzeTiming } from '../../dsp/timing';
@@ -69,8 +75,33 @@ function returnBuffer(buffer: Float32Array): void {
   capturePort?.postMessage({ type: 'returnBuffer', buffer }, [buffer.buffer as ArrayBuffer]);
 }
 
+/** Where the segment being judged sits in the capture (song backing masking needs absolute samples). */
+let segmentOrigin: { segmentStart: number; coarse: number } | null = null;
+
+/** Beta readings of one strum (SPEC v1.1 §10.11): "참고(베타)" only, never a verdict. */
+function betaReadings(
+  segment: Float32Array,
+  onsetIndex: number,
+  beta: NonNullable<Extract<Job, { kind: 'onsets' }>['beta']>,
+) {
+  const base = { samples: segment, sampleRate, onsetSample: onsetIndex };
+  return {
+    ...(beta.direction
+      ? {
+          direction: strumDirection({
+            ...base,
+            ...(beta.voicing ? { voicing: beta.voicing, tuning: STANDARD_TUNING } : {}),
+          }).value,
+        }
+      : {}),
+    ...(beta.palmMute ? { palmMute: palmMuteProbability(base).value } : {}),
+    ...(beta.level ? { levelDb: eventLevelsDb(segment, sampleRate, [onsetIndex])[0] } : {}),
+  };
+}
+
 function judge(segment: Float32Array, onsetIndex: number): unknown {
-  if (!job || job.kind === 'onsets') return null;
+  if (!job) return null;
+  if (job.kind === 'onsets') return job.beta ? { beta: betaReadings(segment, onsetIndex, job.beta) } : null;
   const base = { samples: segment, sampleRate, onsetSample: onsetIndex };
   switch (job.kind) {
     case 'template':
@@ -82,7 +113,9 @@ function judge(segment: Float32Array, onsetIndex: number): unknown {
         templateDecayRatio: job.templateDecayRatio,
         strictness: job.strictness,
       };
-      return job.silent ? verifySilentString(input) : verifyPluck(input);
+      if (job.silent) return verifySilentString(input);
+      const pluck = verifyPluck(input);
+      return job.buzz ? { ...pluck, buzz: buzzScore({ ...base, f0: job.expectedF0 }) } : pluck;
     }
     case 'strum':
       return verifyStrum({
@@ -94,6 +127,47 @@ function judge(segment: Float32Array, onsetIndex: number): unknown {
       });
     case 'pair':
       return classifyPair({ ...base, tuning: STANDARD_TUNING, deltaCents: job.deltaCents }, job.voicings);
+    case 'pfc': {
+      const pair = classifyPair(
+        { ...base, tuning: STANDARD_TUNING, deltaCents: job.deltaCents },
+        job.voicings,
+      );
+      const strum =
+        pair.winner === null
+          ? null
+          : verifyStrum({
+              ...base,
+              voicing: job.voicings[pair.winner],
+              tuning: STANDARD_TUNING,
+              deltaCents: job.deltaCents,
+            });
+      return { pair, strum };
+    }
+    case 'songStrum': {
+      const set = classifySet(
+        { ...base, tuning: STANDARD_TUNING, deltaCents: job.deltaCents },
+        job.voicings,
+        (v) => classOfVoicing(v.id),
+      );
+      if (!job.backing || !segmentOrigin) return { keep: true, set };
+      // Arrivals relative to this segment; the mask re-refines an early-timed weak onset like the benchmark.
+      const origin = segmentOrigin;
+      const frameLength = Math.round((DEFAULT_ONSET_PARAMS.frameMs / 1000) * sampleRate);
+      const keep = backingKeepFlags(
+        segment,
+        sampleRate,
+        [onsetIndex],
+        {
+          arrivals: job.backing.arrivals.map((a) => a - origin.segmentStart),
+          templateRises: job.backing.templateRises,
+          introCount: 0,
+          gain: job.backing.gain,
+        },
+        (_i, from) =>
+          refineOnset(segment, origin.coarse, frameLength, sampleRate, DEFAULT_ONSET_PARAMS, from),
+      )[0]!;
+      return { keep, set };
+    }
     case 'set':
       return classifySet(
         { ...base, tuning: STANDARD_TUNING, deltaCents: job.deltaCents },
@@ -109,7 +183,9 @@ function onSegment(msg: SegmentMessage): void {
   const frameLength = Math.round((DEFAULT_ONSET_PARAMS.frameMs / 1000) * sampleRate);
   const coarse = msg.onsetSample - msg.segmentStart;
   const refined = refineOnset(msg.samples, coarse, frameLength, sampleRate, DEFAULT_ONSET_PARAMS);
+  segmentOrigin = { segmentStart: msg.segmentStart, coarse };
   const result = judge(msg.samples, refined);
+  segmentOrigin = null;
   post({
     type: 'onset',
     sample: msg.segmentStart + refined,
@@ -228,6 +304,48 @@ function processRange(id: number): void {
         strictness: request.strictness,
       };
       result = { onsetOffset: onset, pluck: request.silent ? verifySilentString(input) : verifyPluck(input) };
+      break;
+    }
+    case 'sequence': {
+      const fs = sampleRate;
+      // zod's optional fields carry `| undefined`; the DSP types use exact optional properties.
+      const slots = request.slots.map((slot) => ({
+        time: slot.time,
+        midi: slot.midi,
+        ...(slot.stringIdx === undefined ? {} : { stringIdx: slot.stringIdx }),
+        ...(slot.legatoAllowed === undefined ? {} : { legatoAllowed: slot.legatoAllowed }),
+        ...(slot.cycle === undefined ? {} : { cycle: slot.cycle }),
+      }));
+      result = verifySequence({
+        samples: range.samples,
+        sampleRate: fs,
+        slots,
+        bpm: request.bpm,
+        ...(request.deltaCents ? { deltaCents: request.deltaCents } : {}),
+        priorNotes: request.priorNotes.map((n) => ({
+          f0: n.f0,
+          stringIdx: n.stringIdx,
+          startSample: Math.round(n.time * fs),
+        })),
+        ...(request.extraSpanS ? { extraSpanS: request.extraSpanS } : {}),
+      });
+      break;
+    }
+    case 'bleedGain': {
+      const fs = sampleRate;
+      const schedule = {
+        arrivals: request.arrivals.map((a) => a - range.fromSample),
+        templateRises: request.templateRises,
+        introCount: request.arrivals.length,
+      };
+      result = {
+        gain: bleedGain(
+          lowBand(range.samples, fs, DEFAULT_BACKING_MASK_PARAMS),
+          fs,
+          schedule,
+          DEFAULT_BACKING_MASK_PARAMS,
+        ),
+      };
       break;
     }
     case 'raw':

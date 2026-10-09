@@ -6,7 +6,7 @@ import type { ExerciseContext, ExerciseRunner } from '../types';
 import { ArmedStart } from '../ui/ArmedStart';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
-import { type E5Params, nextBpmFor, type E5View as View } from './runner';
+import { type E5Beta, type E5Params, nextBpmFor, type E5View as View } from './runner';
 
 /** A slot's identity is its position in the bar (patterns repeat 'D'/'U' symbols). */
 const toSlotCell = (slot: StrumSlot, position: number) => ({ slot, position });
@@ -129,6 +129,18 @@ export function E5ViewComponent({
   );
 }
 
+/** Beta readings, labelled "참고(베타)" (SPEC v1.1 §10.11): never a score. */
+function BetaLines({ beta }: { beta: E5Beta }) {
+  const t = ko.exercises.e5.beta;
+  return (
+    <div className="mt-2 text-sm text-muted" data-testid="e5-beta" data-beta="true">
+      <p>{t.direction(beta.direction.down, beta.direction.up, beta.direction.unknown)}</p>
+      {beta.palmMuteShare !== undefined && <p>{t.palmMute(beta.palmMuteShare)}</p>}
+      {beta.dynamics && <p>{t.dynamics(beta.dynamics.map((d) => t.bar[d]).join(' '))}</p>}
+    </div>
+  );
+}
+
 export function E5Summary({ result }: { result: StrumResult; params: E5Params }) {
   const next = nextBpmFor(result.bpm, result.ladder);
   return (
@@ -151,6 +163,7 @@ export function E5Summary({ result }: { result: StrumResult; params: E5Params })
           {ko.exercises.e5.sd(result.sdOffsetMs)}
         </p>
       )}
+      {result.beta !== undefined && <BetaLines beta={result.beta as unknown as E5Beta} />}
       <p
         className="mt-2 text-lg font-semibold"
         data-testid="e5-ladder"

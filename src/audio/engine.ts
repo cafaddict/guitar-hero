@@ -544,7 +544,7 @@ export class AudioEngine {
   }
 
   /** Plays raw samples (RTT probe, click) at a context time; returns the source for cancellation. */
-  scheduleSamples(buffer: AudioBuffer | Float32Array, time: number): AudioBufferSourceNode {
+  scheduleSamples(buffer: AudioBuffer | Float32Array, time: number, offsetS = 0): AudioBufferSourceNode {
     const ctx = this.ctx;
     if (!ctx) throw new Error('no AudioContext');
     let audio: AudioBuffer;
@@ -555,8 +555,18 @@ export class AudioEngine {
     const node = ctx.createBufferSource();
     node.buffer = audio;
     node.connect(ctx.destination);
-    node.start(time);
+    if (offsetS > 0) node.start(time + offsetS, offsetS);
+    else node.start(time);
     return node;
+  }
+
+  /**
+   * Play-along backing (SPEC v1.1 §8.6): a start time already in the past skips the missed part, so the backing
+   * stays on the grid (and on the event times the masking expects) instead of starting late from its beginning.
+   */
+  scheduleBacking(samples: Float32Array, time: number): AudioBufferSourceNode {
+    const now = this.ctx?.currentTime ?? time;
+    return this.scheduleSamples(samples, time, Math.max(0, now - time));
   }
 
   /** Synth playback ("들어 보기", ear training). Refused while the microphone is judging (SPEC §8.6). */

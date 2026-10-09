@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
+import { PRACTICE_SONGS } from '../../src/content/songs';
 import { installFakeMic } from './support/fakeMic';
 import { putRows, readStore, type StoredAttempt } from './support/idb';
 
@@ -40,6 +41,18 @@ test('E2E-22: practice options by key inside the session runner reach the run an
       prescriptions: [],
     },
   ]);
+  // Two full learn runs of every song open the perform stage, where B switches the backing (§8.6).
+  const learned = { count: 2, last: 1, best: 1, lastAt: 1, firstAt: 1, recent: [1, 1], dayBest: {} };
+  await putRows(
+    page,
+    'skills',
+    PRACTICE_SONGS.map((s) => ({
+      subjectKey: `song:${s.id}`,
+      lastPracticedAt: 1,
+      due: null,
+      metrics: { learnFull: learned },
+    })),
+  );
   await page.goto('/#/session?timeScale=0.25');
   await expect(page.getByTestId('session-header')).toBeVisible();
 
@@ -70,21 +83,32 @@ test('E2E-22: practice options by key inside the session runner reach the run an
   await expect(page.getByTestId('next-item')).toBeVisible({ timeout: 90_000 });
   expect((await lastAttempt(page, 'E5')).params).toMatchObject({ cuesHidden: true });
 
-  // S: ↑ ↑ raise the tempo by 10, H hides the chart.
+  // S (perform): ↑ ↑ raise the tempo by 10, H hides the chart, B turns the backing on.
   await skipTo(page, 'S');
   await page.getByTestId('exercise-start').click();
   const song = page.getByTestId('song-view');
+  await expect(song).toHaveAttribute('data-stage', 'perform');
   const bpm = Number(await song.getAttribute('data-bpm'));
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
   await expect(song).toHaveAttribute('data-bpm', String(bpm + 10));
+  await expect(page.getByTestId('song-backing-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('b');
+  await expect(page.getByTestId('song-backing-toggle')).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.press('h');
   await expect(song.getByText('악보 숨김 — 외워서 쳐 봐요')).toBeVisible();
   await page.keyboard.press('Space');
   await expect(song).toHaveAttribute('data-phase', /countIn|running/);
   await page.keyboard.press('Space');
   await expect(song).toHaveAttribute('data-phase', 'review');
-  await page.keyboard.press('Enter');
-  await expect(page.getByTestId('exercise-summary')).toBeVisible();
-  expect((await lastAttempt(page, 'S')).params).toMatchObject({ bpm: bpm + 10, chartHidden: true });
+  // A perform take is confirmed once its beat-1 analysis is not running (Enter is ignored meanwhile).
+  await expect(async () => {
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('exercise-summary')).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  expect((await lastAttempt(page, 'S')).params).toMatchObject({
+    bpm: bpm + 10,
+    chartHidden: true,
+    backingOn: true,
+  });
 });

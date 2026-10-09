@@ -41,6 +41,7 @@ function Comparison({ positions }: { positions: E16View['positions'] }) {
           <th scope="col">{ko.exercises.e16.position}</th>
           <th scope="col">{ko.exercises.e16.result}</th>
           <th scope="col">{ko.exercises.e16.clarity}</th>
+          <th scope="col">{ko.exercises.e16.buzzBeta}</th>
         </tr>
       </thead>
       <tbody>
@@ -49,6 +50,9 @@ function Comparison({ positions }: { positions: E16View['positions'] }) {
             <th scope="row">{ko.exercises.e16.positions[p.pos]}</th>
             <td>{p.statuses.map(statusText).join(' · ') || '—'}</td>
             <td className="tabular-nums">{p.clarity === null ? '—' : p.clarity.toFixed(2)}</td>
+            <td className="tabular-nums" data-beta="true">
+              {p.buzzSuspect === undefined ? '—' : p.buzzSuspect}
+            </td>
           </tr>
         ))}
       </tbody>

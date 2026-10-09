@@ -4,14 +4,22 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { patternById } from '../../src/content/patterns';
+import { positionMidi, scaleById, scaleStepSequence } from '../../src/content/scales';
+import { songById } from '../../src/content/songs';
 import { voicingById } from '../../src/content/voicings';
 import { deriveSeed } from '../../src/domain/prng';
 import { stringNumber } from '../../src/domain/strings';
 import { midiToHz, STANDARD_TUNING } from '../../src/domain/theory';
 import { expectedNotes } from '../../src/domain/voicing';
+import { rms } from '../../src/dsp/spectrum';
+import { renderBacking } from '../../src/dsp/synth/backing';
 import { applyMuteEnvelope, type NoteSpec, randomTimbre, renderNote } from '../../src/dsp/synth/note';
+import { renderSequence, type SequenceNote } from '../../src/dsp/synth/sequence';
 import { normalizeNote, renderStrum } from '../../src/dsp/synth/strum';
 import { encodeWav } from '../../src/dsp/wav';
+import { openNoteQuestions } from '../../src/exercises/quiz/questions';
+import { expandChart } from '../../src/exercises/song/runner';
 
 const OUT_DIR = join(import.meta.dirname, '..', '..', 'tests', 'fixtures', 'generated');
 const FS = 48000;
@@ -205,6 +213,107 @@ function plucks(idx: number, timesS: readonly number[], totalS: number, noteS: n
   return out;
 }
 
+/** E2E-16: Em pentatonic step 1 at 80 BPM, five cycles; cycle 5 plays its 6th note a fret too high. */
+export const E10_FIXTURE = {
+  scaleId: 'em-pent-open',
+  step: 1,
+  bpm: 80,
+  cycles: 5,
+  wrongCycle: 4,
+  wrongIndex: 5,
+  leadS: 0.3,
+} as const;
+
+function scaleFixture(): Float32Array {
+  const scale = scaleById(E10_FIXTURE.scaleId);
+  const order = scaleStepSequence(scale, E10_FIXTURE.step);
+  const ioi = 60 / E10_FIXTURE.bpm;
+  const notes: SequenceNote[] = [];
+  for (let c = 0; c < E10_FIXTURE.cycles; c++) {
+    order.forEach((i, k) => {
+      const n = scale.notes[i]!;
+      const wrong = c === E10_FIXTURE.wrongCycle && k === E10_FIXTURE.wrongIndex;
+      const fret = n.fret + (wrong ? 1 : 0);
+      const index = c * order.length + k;
+      notes.push({
+        time: E10_FIXTURE.leadS + index * ioi,
+        string: n.string,
+        note: noteSpec(
+          midiToHz(positionMidi({ string: n.string, fret })),
+          deriveSeed(3000, `e10-${index}`),
+          2,
+        ),
+        gainDb: 0,
+      });
+    });
+  }
+  const totalS = notes.at(-1)!.time + 1.5;
+  return peakNormalize(renderSequence(notes, FS, Math.round(totalS * FS)).signal);
+}
+
+/**
+ * E2E-17: song s01 (D D A A ×4) at 100 BPM, one strum on every beat 1 from leadS — except bar `silentBar` (not a
+ * chord change), so a backing hit counted as the user's strum would show up as a beat-1 hit there. Under
+ * speakers the backing bleeds in at `bleedRelDb` on the §14.8 backingBleed scale (−25…−10 dB).
+ */
+export const SONG_FIXTURE = { songId: 's01', bpm: 100, leadS: 0.3, silentBar: 5, bleedRelDb: -12 } as const;
+
+/**
+ * Loopback gain that puts the app's s01 backing `SONG_FIXTURE.bleedRelDb` below the fixture's strums, measured as
+ * §14.8 does: the backing's first-event 500 ms RMS against the user's first strum's. The backing is rendered
+ * with the song plugin's settings (intro bar + chart, Karplus-Strong, seed 7).
+ */
+export function songBleedLoopbackGain(): number {
+  const song = songById(SONG_FIXTURE.songId);
+  const bars = expandChart(song).map((b) => b.chord);
+  const backing = renderBacking({
+    chords: [bars[0]!, ...bars].map((c) => voicingById(c)),
+    pattern: patternById(song.patternId),
+    bpm: SONG_FIXTURE.bpm,
+    bars: bars.length + 1,
+    sampleRate: FS,
+    model: 'karplus-strong',
+    seed: 7,
+  });
+  const user = songFixture();
+  const lead = Math.round(SONG_FIXTURE.leadS * FS);
+  const userRms = rms(user, lead, lead + Math.round(0.5 * FS));
+  const backingRms = rms(backing.signal, 0, Math.round(0.5 * FS));
+  return (userRms * 10 ** (SONG_FIXTURE.bleedRelDb / 20)) / backingRms;
+}
+
+function songFixture(): Float32Array {
+  const bars = expandChart(songById(SONG_FIXTURE.songId)).map((b) => b.chord);
+  const barS = (4 * 60) / SONG_FIXTURE.bpm;
+  const played = bars.flatMap((chord, b) =>
+    b === SONG_FIXTURE.silentBar ? [] : [{ chord, time: SONG_FIXTURE.leadS + b * barS }],
+  );
+  const lastBarEnd = SONG_FIXTURE.leadS + bars.length * barS;
+  return strumSequence(
+    played.map((p) => p.chord),
+    played.map((p) => p.time),
+    lastBarEnd + 1,
+  );
+}
+
+/** E2E-21: the first question of a Q3 strings-6/5 "pluck" run with this seed, played as one sustained note. */
+export const Q3_FIXTURE = { seed: 777, scope: 'strings65' } as const;
+
+export function q3FixturePosition(): { idx: number; fret: number } {
+  const q = openNoteQuestions(Q3_FIXTURE.seed, 'pluck', 1, [], Q3_FIXTURE.scope)[0]!;
+  return { idx: q.prompt.idx, fret: q.prompt.fret };
+}
+
+function q3Fixture(): Float32Array {
+  const { idx, fret } = q3FixturePosition();
+  const f0 = midiToHz(STANDARD_TUNING.openMidi[idx]! + fret);
+  const note = renderNote(noteSpec(f0, 4242, 3));
+  normalizeNote(note, FS);
+  const out = new Float32Array(Math.round(3.5 * FS));
+  out.set(note, Math.round(0.2 * FS));
+  return peakNormalize(out);
+}
+
 function main(): void {
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(join(OUT_DIR, 'spike-sine-440.wav'), encodeWav(sine(440, 2, FS, 0.25), FS));
@@ -225,6 +334,9 @@ function main(): void {
     encodeWav(strumSequence(E2_FIXTURE.chords, E2_FIXTURE.times, 16), FS),
   );
   writeFileSync(join(OUT_DIR, 'e5-p3-80.wav'), encodeWav(patternFixture(), FS));
+  writeFileSync(join(OUT_DIR, 'e10-em-pent-s1-80.wav'), encodeWav(scaleFixture(), FS));
+  writeFileSync(join(OUT_DIR, 'song-s01-100-beat1.wav'), encodeWav(songFixture(), FS));
+  writeFileSync(join(OUT_DIR, 'q3-strings65.wav'), encodeWav(q3Fixture(), FS));
   console.log(`fixtures written to ${OUT_DIR}`);
 }
 

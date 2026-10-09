@@ -7,6 +7,7 @@ import {
   evaluateStage,
   graduatedItems,
   isPairPlateaued,
+  pfcGraduated,
   promote,
   type RuleContext,
   suggestedGVoicing,
@@ -287,5 +288,25 @@ describe('AC-R2 progression engine', () => {
       { subjectKey: 'song:s01', kind: 'song' },
       { subjectKey: 'strum:P3', kind: 'pattern' },
     ]);
+  });
+
+  it('SPEC v1.1 §7.5: graduated scale steps (4 flawless at ≥ 80) and riffs (goal tempo) join the review queue', () => {
+    const samples = [
+      s('scale:em-pent-open:s1', 'streakBpm', 80, NOW),
+      s('scale:em-pent-open:s2', 'streakBpm', 75, NOW),
+      s('riff:R1', 'passBpm', 80, NOW), // R1 60 BPM + 20
+      s('riff:R2', 'passBpm', 70, NOW),
+    ];
+    expect(graduatedItems(buildSkills(samples))).toEqual([
+      { subjectKey: 'riff:R1', kind: 'riff' },
+      { subjectKey: 'scale:em-pent-open:s1', kind: 'scale' },
+    ]);
+  });
+
+  it('SPEC v1.1 §11.11: an E3 pair graduates after passes on two different days', () => {
+    const once = buildSkills([s('pfc:A|D', 'pass', 1, NOW), s('pfc:A|D', 'pass', 1, NOW + 1000)]);
+    expect(pfcGraduated(once, 'A|D')).toBe(false);
+    const twice = buildSkills([s('pfc:A|D', 'pass', 1, NOW - DAY_MS), s('pfc:A|D', 'pass', 1, NOW)]);
+    expect(pfcGraduated(twice, 'A|D')).toBe(true);
   });
 });

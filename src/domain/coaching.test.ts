@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { voicingById } from '../content/voicings';
 import { ko } from '../i18n/ko';
-import { coachingHints, hintForString } from './coaching';
+import { coachingHints, hintForString, sequenceHints } from './coaching';
 
 const C = voicingById('C');
 const D = voicingById('D');
@@ -70,5 +70,46 @@ describe('AC-D5 coaching hints (SPEC §6.7)', () => {
     expect(coachingHints(C, judgements, 15, 4).at(-1)).toEqual({ code: 'generalTip', tipIndex: 0 });
     const rendered = ko.coaching.render({ code: 'generalTip', tipIndex: 0 });
     expect(rendered.length).toBeGreaterThan(5);
+  });
+});
+
+describe('SPEC v1.1 §6.7 added coaching rules', () => {
+  it('a muted string under the barre gets the roll-the-index-finger hint; other fretted strings keep theirs', () => {
+    const f = voicingById('F');
+    expect(hintForString(f, { idx: 4, status: 'MUTED' })).toEqual({ code: 'mutedBarre', stringNo: 2 });
+    expect(hintForString(f, { idx: 0, status: 'MUTED' })).toEqual({ code: 'mutedBarre', stringNo: 6 });
+    expect(hintForString(f, { idx: 2, status: 'MUTED' })).toMatchObject({
+      code: 'mutedFretted',
+      stringNo: 4,
+    });
+    expect(hintForString(voicingById('F-small'), { idx: 5, status: 'MUTED' })).toEqual({
+      code: 'mutedBarre',
+      stringNo: 1,
+    });
+    expect(ko.coaching.render({ code: 'mutedBarre', stringNo: 2 })).toContain('뼈 쪽');
+  });
+
+  it('sequence: the first wrong note with its position and TAB place, and a stop after two MISSED in a row', () => {
+    const hints = sequenceHints([
+      { string: 6, fret: 0, status: 'OK' },
+      { string: 6, fret: 3, status: 'WRONG_NOTE', semitones: 1 },
+      { string: 5, fret: 0, status: 'MISSED' },
+      { string: 5, fret: 2, status: 'MISSED' },
+      { string: 4, fret: 0, status: 'WRONG_NOTE', semitones: -1 },
+    ]);
+    expect(hints).toEqual([
+      { code: 'sequenceWrongNote', position: 2, semitones: 1, stringNo: 6, fret: 3 },
+      { code: 'sequenceStopped' },
+    ]);
+    expect(ko.coaching.render(hints[0]!)).toBe(
+      '2번째 음이 반음 1개 높아요 — 6번 줄 3프렛인지 TAB을 다시 보세요.',
+    );
+    expect(
+      sequenceHints([
+        { string: 6, fret: 0, status: 'MISSED' },
+        { string: 6, fret: 3, status: 'OK' },
+      ]),
+    ).toEqual([]);
+    expect(ko.coaching.render({ code: 'buzzSuspect' })).toContain('참고');
   });
 });

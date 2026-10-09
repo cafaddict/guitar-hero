@@ -114,10 +114,22 @@ export function Q3View({
   return (
     <div className="flex flex-col gap-3" data-testid="q3-view">
       <p className="text-sm text-muted">{ko.exercises.quiz.progress(view.index + 1, view.total)}</p>
-      <p className="text-3xl font-bold">
-        {q.prompt.kind === 'name'
+      <p
+        className="text-3xl font-bold"
+        data-testid="q3-prompt"
+        data-idx={q.prompt.idx}
+        data-fret={q.prompt.fret}
+      >
+        {q.prompt.fret === 0 && q.prompt.kind === 'name'
           ? ko.exercises.q3.namePrompt(stringNumber(q.prompt.idx))
-          : ko.exercises.q3.pluckPrompt(openName(q.prompt.idx))}
+          : q.prompt.kind === 'name'
+            ? ko.exercises.q3.positionNamePrompt(stringNumber(q.prompt.idx), q.prompt.fret)
+            : q.prompt.fret === 0
+              ? ko.exercises.q3.pluckPrompt(openName(q.prompt.idx))
+              : ko.exercises.q3.positionPluckPrompt(
+                  stringNumber(q.prompt.idx),
+                  midiName(STANDARD_TUNING.openMidi[q.prompt.idx]! + q.prompt.fret).replace(/\d+$/, ''),
+                )}
       </p>
       <Choices runner={runner} view={view} />
       <Feedback runner={runner} view={view} />
@@ -137,7 +149,9 @@ export function Q4View({
   return (
     <div className="flex flex-col gap-3" data-testid="q4-view">
       <p className="text-sm text-muted">{ko.exercises.quiz.progress(view.index + 1, view.total)}</p>
-      <p className="text-2xl font-semibold">{ko.exercises.q4.prompt}</p>
+      <p className="text-2xl font-semibold" data-testid="q4-prompt" data-kind={view.question.prompt.kind}>
+        {ko.exercises.q4.prompts[view.question.prompt.kind]}
+      </p>
       <Button large variant="secondary" onClick={() => runner.command('mark')}>
         {ko.exercises.q4.replay}
       </Button>

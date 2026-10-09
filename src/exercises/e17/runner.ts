@@ -1,15 +1,15 @@
 /**
  * E17 single-note riff (SPEC v1.1 §11.19): the riff's TAB with the metronome; one pass through the riff is a
  * cycle. Ladder: 4 flawless cycles in a row → +5 BPM (goal = the riff's tempo + 20); a run with mistakes in half
- * or more of its cycles, twice in a row → −5 BPM (minimum 50). Microphone judging (§10.10) joins in M12; until
- * then — and without a microphone — each cycle is self-reported: 1 = flawless, 2 = a mistake.
+ * or more of its cycles, twice in a row → −5 BPM (minimum 50). With a microphone each pass is judged by §10.10
+ * (SequenceRunner); without one it is self-reported: 1 = flawless, 2 = a mistake.
  */
 import { z } from 'zod';
-import { DEFAULT_METRONOME_CONFIG } from '../../audio/metronome';
 import { type Riff, riffById, riffNotes } from '../../content/riffs';
+import { positionMidi } from '../../content/scales';
 import type { RiffResult, SequenceCycle } from '../../domain/exerciseResults';
-import { BaseRunner } from '../baseRunner';
-import type { ExerciseContext, RunnerCommand } from '../types';
+import { type PlannedNote, SequenceRunner, type SequenceView } from '../sequence/runner';
+import type { ExerciseContext } from '../types';
 
 export const e17ParamsSchema = z.object({
   riffId: z.string().min(1),
@@ -29,12 +29,8 @@ export const FLAWLESS_STREAK_UP = 4;
 export const LOW_MISTAKE_RATIO = 0.5;
 export const SEQUENCE_MIN_BPM = 50;
 
-export interface E17View {
+export interface E17View extends SequenceView {
   riff: Riff;
-  bpm: number;
-  tabHidden: boolean;
-  cycles: readonly SequenceCycle[];
-  streak: number;
 }
 
 /** Ladder decision of a run of cycles (shared by sequence exercises: E9, E10, E17). */
@@ -60,78 +56,24 @@ export function mistakeRatio(cycles: readonly Pick<SequenceCycle, 'flawless' | '
   return judged.length === 0 ? 0 : judged.filter((c) => !c.flawless).length / judged.length;
 }
 
-export class RiffRunner extends BaseRunner<RiffResult, E17View> {
+export class RiffRunner extends SequenceRunner<RiffResult, E17View> {
   private readonly riff: Riff;
-  private readonly cycles: SequenceCycle[] = [];
-  private tabHidden: boolean;
 
   constructor(
     ctx: ExerciseContext,
     private readonly params: E17Params,
   ) {
-    super(ctx);
-    this.riff = riffById(params.riffId);
-    this.tabHidden = params.tabHidden;
+    const riff = riffById(params.riffId);
+    super(ctx, params.bpm, params.tabHidden, riff.value === 'e' ? 2 : 1);
+    this.riff = riff;
   }
 
-  private streak(): number {
-    let n = 0;
-    for (let i = this.cycles.length - 1; i >= 0; i--) {
-      const c = this.cycles[i]!;
-      if (c.flawless) n += 1;
-      else if (!c.uncertain) break;
-    }
-    return n;
+  protected planCycle(): PlannedNote[] {
+    return riffNotes(this.riff).map((n) => ({ ...n, midi: positionMidi(n) }));
   }
 
   protected view(): E17View {
-    return {
-      riff: this.riff,
-      bpm: this.params.bpm,
-      tabHidden: this.tabHidden,
-      cycles: [...this.cycles],
-      streak: this.streak(),
-    };
-  }
-
-  start(): void {
-    this.setPhase('ready');
-  }
-
-  command(cmd: RunnerCommand): void {
-    if (this.phase === 'done') return;
-    if (cmd === 'abort') {
-      this.stop();
-      return;
-    }
-    if (cmd === 'hide') {
-      this.tabHidden = !this.tabHidden;
-      this.publish();
-      return;
-    }
-    if (this.phase === 'ready' && (cmd === 'toggle' || cmd === 'next')) {
-      void this.ctx.output.metronome.start({
-        ...DEFAULT_METRONOME_CONFIG,
-        bpm: this.params.bpm,
-        visualOnly: this.ctx.settings.visualOnlyMetronome,
-      });
-      this.setPhase('running');
-      return;
-    }
-    if (this.phase !== 'running') return;
-    if (cmd === 'manual1' || cmd === 'manual2') {
-      this.cycles.push({ flawless: cmd === 'manual1', uncertain: false, stops: 0, okRatio: null });
-      this.publish();
-    } else if (cmd === 'toggle' || (cmd === 'next' && this.cycles.length > 0)) this.stop();
-  }
-
-  private stop(): void {
-    this.ctx.output.metronome.stop();
-    this.setPhase('done');
-  }
-
-  hasResult(): boolean {
-    return this.cycles.length > 0;
+    return { ...this.baseView(), riff: this.riff };
   }
 
   /** TAB shown or hidden as it is now (H key, SPEC v1.1 §12.3). */
@@ -148,15 +90,10 @@ export class RiffRunner extends BaseRunner<RiffResult, E17View> {
       riffId: this.riff.id,
       bpm: this.params.bpm,
       tabHidden: this.tabHidden,
-      cycles: [...this.cycles],
-      ladder: sequenceLadder(this.cycles, this.params.previousLow),
-      source: 'self',
+      cycles: [...this.cycleRecords],
+      ladder: sequenceLadder(this.cycleRecords, this.params.previousLow),
+      source: this.source,
       ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
     };
-  }
-
-  override dispose(): void {
-    this.ctx.output.metronome.stop();
-    super.dispose();
   }
 }
