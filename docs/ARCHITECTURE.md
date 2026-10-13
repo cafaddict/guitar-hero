@@ -46,7 +46,7 @@ AudioEngine (main, 싱글턴)        src/audio/engine.ts  (+ metronomeRuntime, t
 코어(호스트·세션 러너·기록·차트)는 연습 종류를 모른다. `registry.tsx`의 `definePlugin`이 제네릭을 지우고 경계에서 검증한다.
 
 - `ExerciseRunner`: `start / command(키) / tick(rAF) / finish / hasResult / dspStats`. 마이크가 없으면 모든 러너가 수동·자가 판정으로 끝까지 간다(테스트로 보장).
-- `ExerciseHost`: 마이크 시작(탭 안), 키·페달, Wake Lock, 끝나면 Attempt 저장. 아무것도 하지 않았거나 채점하지 못한 실행은 저장하지 않는다. `content`를 넘기면 그 단계 콘텐츠로 실행한다(커리큘럼 직접 연습, D-072).
+- `ExerciseHost`: 마이크 시작(탭 안), 키·페달, Wake Lock, 끝나면 Attempt 저장. 아무것도 하지 않았거나 채점하지 못한 실행은 저장하지 않는다. `content`를 넘기면 그 단계 콘텐츠로 실행한다(커리큘럼 직접 연습, D-072). 시작 전 화면에 플러그인의 필수 `howTo(params)`("하는 법": 단계 + 공용 용어)를 펼쳐 보이고, 실행 중에는 접어 둔다(D-079).
 - 단일 테이크 선택(`take.ts`)은 벤치마크와 같은 규칙: 무장 후 첫 onset, 400 ms 안의 두 번째 onset은 MULTIPLE, 오래 조용하면 energy fallback. 자동으로 다음 줄로 넘어갈 때는 직전 take 구간 끝부터 무장한다(D-076). E1은 이번 시도에서 소리 난 줄을 pluck job의 `ringing`으로 넘겨 Mode A가 그 울림을 상쇄한다(D-074).
 - 즉시 피드백(`liveTiming.ts`, D-077): E5·E6·E8 러너가 tick마다 판정이 다 도착한 마디를 최종 분석과 같은 `analyzeTiming`으로 그 마디만 판정해 view에 싣는다(보기 전용, `ui/LiveBars.tsx`).
 - 커리큘럼 직접 연습(`features/curriculum/stagePracticeModel.ts`): 고른 연습을 그 단계의 일회용 사용자 템플릿으로 `generateRoutine`에 넣어 루틴과 같은 파라미터로 만든다. 바로 하기는 단독 실행, 여러 개는 세션 화면의 custom 분기(`routineId: 'custom'`, 세션 단계 = 그 단계, 현재 단계가 아니면 최소 체류에 세지 않음).

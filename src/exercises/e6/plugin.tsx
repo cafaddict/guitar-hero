@@ -1,12 +1,13 @@
+import { patternById } from '../../content/patterns';
 import { extractMetrics, type OneBeatResult, oneBeatResultSchema } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
-import { nextBpmFor, tempoRetry } from '../e5/runner';
+import { LADDER_STEP_BPM, nextBpmFor, tempoRetry } from '../e5/runner';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { ArmedStart } from '../ui/ArmedStart';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
 import { SelfRating } from '../ui/SelfRating';
-import { type E6Params, type E6View, e6ParamsSchema, OneBeatRunner } from './runner';
+import { type E6Params, type E6View, e6ParamsSchema, ONE_BEAT_PASS_RATIO, OneBeatRunner } from './runner';
 
 function E6ViewComponent({
   runner,
@@ -84,6 +85,19 @@ export const e6Plugin: ExercisePlugin<E6Params, OneBeatResult, E6View> = {
   createRunner: (ctx, params) => new OneBeatRunner(ctx, params),
   View: E6ViewComponent,
   Summary: E6Summary,
+  howTo: (params) => {
+    const g = ko.exercises.guide.E6;
+    return {
+      steps: [
+        g.chords(params.progression.join(' → ')),
+        g.pattern(patternById(params.patternId).label),
+        g.change,
+        g.pass(Math.ceil(params.bars * ONE_BEAT_PASS_RATIO), params.bars, LADDER_STEP_BPM),
+        g.live,
+      ],
+      terms: ['strumLetters'],
+    };
+  },
   toMetrics: (result) => extractMetrics('E6', result),
   // Passing suggests the next tempo up (the summary says so); otherwise the same tempo again.
   suggestedTempoRetry: (params, result) =>

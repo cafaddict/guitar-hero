@@ -104,7 +104,14 @@ export function createExerciseOutput(engine: AudioEngine, metronome: MetronomeRu
       gridStartTime: () => metronome.gridStartTime,
     },
     playSamples: (samples) => {
-      engine.playSynth(samples);
+      const node = engine.playSynth(samples);
+      return () => {
+        try {
+          node.stop();
+        } catch {
+          // Already ended.
+        }
+      };
     },
     cue: () => {
       const now = engine.context?.currentTime ?? 0;

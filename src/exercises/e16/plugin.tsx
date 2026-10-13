@@ -133,6 +133,10 @@ export const e16Plugin: ExercisePlugin<E16Params, FretPositionResult, E16View> =
   createRunner: (ctx, params) => new FretPositionRunner(ctx, params),
   View: E16ViewComponent,
   Summary: E16Summary,
+  howTo: () => {
+    const g = ko.exercises.guide.E16;
+    return { steps: [g.place, g.compare, g.noScore], terms: ['stringNumbers', 'fingerNumbers', 'mutedBuzz'] };
+  },
   toMetrics: (result) => extractMetrics('E16', result),
   usesMicrophone: true,
 };

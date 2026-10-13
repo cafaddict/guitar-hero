@@ -71,6 +71,15 @@ export const e12Plugin: ExercisePlugin<E12Params, PinkyResult, E12View> = {
   createRunner: (ctx, params) => new PinkyRunner(ctx, params),
   View: E12ViewComponent,
   Summary: E12Summary,
+  howTo: () => ({
+    steps: [
+      ko.exercises.e12.how,
+      ko.exercises.e12.notSpeed,
+      ko.exercises.guide.E12.report,
+      ko.exercises.e12.safety,
+    ],
+    terms: ['fingerNumbers', 'stringNumbers'],
+  }),
   toMetrics: (result) => extractMetrics('E12', result),
   usesMicrophone: false,
 };

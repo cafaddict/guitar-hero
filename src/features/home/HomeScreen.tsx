@@ -7,6 +7,7 @@ import { loadStoredState } from '../../app/storedState';
 import { stageDef } from '../../content/curriculum';
 import type { GVoicing } from '../../content/voicings';
 import { FINAL_STAGE, promote } from '../../domain/progression';
+import { startOfDay } from '../../domain/records';
 import { generateRoutine, type RoutinePlan } from '../../domain/routine';
 import { prepareSession } from '../../domain/sessionPrep';
 import { ko } from '../../i18n/ko';
@@ -17,11 +18,13 @@ import type { SplitResume } from '../session/sessionModel';
 import { pendingSplit } from '../session/splitResume';
 import {
   backupReminderDue,
+  type DoneToday,
   practicedToday,
   routineInputFrom,
   type StoredState,
   stageChecklist,
   streakWeeks,
+  todayPractice,
   weakPairs,
   weekPracticeMinutes,
 } from './homeModel';
@@ -37,10 +40,13 @@ const linkClass = 'inline-flex min-h-12 items-center rounded-lg px-4 font-semibo
 function RoutineCard({
   plan,
   state,
+  doneItems,
   onLonger,
 }: {
   plan: RoutinePlan;
   state: StoredState;
+  /** What was practised today (attempts), shown above the next session once today's session is done. */
+  doneItems: readonly DoneToday[];
   onLonger: () => void;
 }) {
   const now = Date.now();
@@ -58,8 +64,42 @@ function RoutineCard({
     <section className="rounded-lg bg-surface p-4" data-testid="routine-card" data-kind="practice">
       <div className="flex items-baseline justify-between">
         <h2 className="text-xl font-bold">{ko.home.todayRoutine}</h2>
-        <span className="text-muted">{ko.home.totalTime(minutes)}</span>
+        {!done && <span className="text-muted">{ko.home.totalTime(minutes)}</span>}
       </div>
+      {done && (
+        <>
+          {doneItems.length > 0 && (
+            <>
+              <h3 className="mt-2 font-semibold">{ko.home.doneItems}</h3>
+              <ul className="mt-1 divide-y divide-surface-2" data-testid="done-items">
+                {doneItems.map((line) => (
+                  <li key={line.key} className="flex justify-between gap-2 py-1">
+                    <span>
+                      <span aria-hidden="true" className="text-ok">
+                        ✓{' '}
+                      </span>
+                      {line.title}
+                    </span>
+                    {line.count > 1 && (
+                      <span className="tabular-nums text-muted">{ko.home.doneCount(line.count)}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="mt-3 text-ok" data-testid="done-today">
+            {ko.home.doneToday}
+          </p>
+          <div className="mt-4 flex items-baseline justify-between">
+            <h3 className="font-semibold">{ko.home.nextRoutine}</h3>
+            <span className="text-muted">{ko.home.totalTime(minutes)}</span>
+          </div>
+          <p className="text-sm text-muted" data-testid="rotation-note">
+            {ko.home.rotationNote}
+          </p>
+        </>
+      )}
       <ul className="mt-2 space-y-1 text-sm">
         {plan.notices.map((n) => (
           <li key={n.code} className="text-info">
@@ -90,11 +130,6 @@ function RoutineCard({
           </Button>
         </div>
       )}
-      {done && (
-        <p className="mt-3 text-ok" data-testid="done-today">
-          {ko.home.doneToday}
-        </p>
-      )}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Link
           to="/session"
@@ -122,11 +157,13 @@ export function HomeScreen() {
 
   /** The first half of a split session that can be resumed today (§7.3-11). */
   const [split, setSplit] = useState<SplitResume | null>(null);
+  const [doneItems, setDoneItems] = useState<DoneToday[]>([]);
   const reload = useCallback(() => {
     void (async () => {
       // A half from an earlier day is closed first, so it counts in the stored state.
       setSplit(await pendingSplit(Date.now()));
       setData(await loadStoredState(Date.now()));
+      setDoneItems(todayPractice(await repo.attemptsSince(startOfDay(Date.now())), Date.now()));
     })();
   }, []);
 
@@ -198,6 +235,7 @@ export function HomeScreen() {
         <RoutineCard
           plan={plan}
           state={data}
+          doneItems={doneItems}
           onLonger={() => {
             void updateSettings({ confirmedOverCap: true }).then(reload);
           }}

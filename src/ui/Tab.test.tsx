@@ -36,4 +36,22 @@ describe('Tab', () => {
     expect(hidden.match(/<rect/g)).toHaveLength(16);
     expect(hidden).toContain('aria-label="R1"');
   });
+
+  it('labels the lines with string numbers 1–6, draws bar lines and a finger row (D-080)', () => {
+    const notes = riffNotes(riffById('R1'));
+    const html = renderToStaticMarkup(
+      <Tab notes={notes} label="R1" barSize={4} fingers={notes.map((n) => n.finger)} />,
+    );
+    const strings = [...html.matchAll(/data-role="string-number"[^>]*>(\d)<\/text>/g)].map((m) => m[1]);
+    expect(strings).toEqual(['1', '2', '3', '4', '5', '6']);
+    expect(html.match(/data-role="bar-line"/g)).toHaveLength(3);
+    const fingers = [...html.matchAll(/data-role="finger"[^>]*>(\d)<\/text>/g)].map((m) => Number(m[1]));
+    expect(fingers).toEqual(notes.filter((n) => n.fret > 0).map((n) => n.finger));
+    // Hidden (memorization): the fingers would give the frets away, so they hide with the numbers.
+    const hidden = renderToStaticMarkup(
+      <Tab notes={notes} label="R1" hidden barSize={4} fingers={notes.map((n) => n.finger)} />,
+    );
+    expect(hidden).not.toContain('data-role="finger"');
+    expect(hidden).toContain('data-role="string-number"');
+  });
 });

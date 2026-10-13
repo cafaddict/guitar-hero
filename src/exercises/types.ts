@@ -14,6 +14,7 @@ import type { ChordVoicing } from '../domain/voicing';
 import type { SequenceNoteResult, SequenceSlot } from '../dsp/sequence';
 import type { TimingAnalysis, TimingSlot } from '../dsp/timing';
 import type { Sensitivity, Strictness } from '../dsp/types';
+import type { ko } from '../i18n/ko';
 
 export type RunnerCommand =
   | 'toggle'
@@ -149,8 +150,8 @@ export interface ExerciseOutput {
     onEnd(listener: (time: number) => void): () => void;
     gridStartTime(): number | null;
   };
-  /** Synth playback ("들어 보기", ear training). Throws while the microphone is judging. */
-  playSamples(samples: Float32Array): void;
+  /** Synth playback ("들어 보기", ear training). Throws while the microphone is judging; returns a stop function. */
+  playSamples(samples: Float32Array): () => void;
   /** Short audible cue that is never blocked (e.g. the end of a timed run: two accent clicks). */
   cue(kind: 'end'): void;
   /**
@@ -204,6 +205,15 @@ export interface ExerciseContext {
   personalOffsetMs?: number | null;
 }
 
+/** A shared glossary entry a "하는 법" panel can attach (defined once in `ko.exercises.guide.terms`). */
+export type HowToTerm = keyof (typeof ko)['exercises']['guide']['terms'];
+
+/** What a first-timer needs before a run (D-079): the steps (hands, clicks, judging, tempo) and the terms used. */
+export interface HowTo {
+  steps: readonly string[];
+  terms: readonly HowToTerm[];
+}
+
 export interface ExercisePlugin<P, R, V> {
   type: string;
   version: number;
@@ -214,6 +224,8 @@ export interface ExercisePlugin<P, R, V> {
   createRunner(ctx: ExerciseContext, params: P): ExerciseRunner<R, V>;
   View: ComponentType<{ runner: ExerciseRunner<R, V>; params: P; ctx: ExerciseContext }>;
   Summary: ComponentType<{ result: R; params: P }>;
+  /** "하는 법" for these params, shown before the run starts (required: every exercise explains itself). */
+  howTo(params: P): HowTo;
   toMetrics(result: R, params: P): MetricSampleInput[];
   /** Optional: adjusts params from this exercise's most recent results (newest first), e.g. ladder history. */
   withHistory?(params: P, recent: readonly R[]): P;

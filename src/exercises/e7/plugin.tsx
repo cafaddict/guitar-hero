@@ -47,6 +47,10 @@ export const e7Plugin: ExercisePlugin<E7Params, StretchResult, E7View> = {
   createRunner: (ctx, params) => new StretchRunner(ctx, params),
   View: E7ViewComponent,
   Summary: E7Summary,
+  howTo: (params) => ({
+    steps: [ko.exercises.e7.startFret(params.startFret), ko.exercises.e7.how, ko.exercises.guide.E7.report],
+    terms: ['fingerNumbers'],
+  }),
   toMetrics: (result) => extractMetrics('E7', result),
   usesMicrophone: false,
 };

@@ -9,7 +9,8 @@ import { type Riff, riffById, riffNotes } from '../../content/riffs';
 import { positionMidi } from '../../content/scales';
 import type { RiffResult, SequenceCycle } from '../../domain/exerciseResults';
 import { type PlannedNote, SequenceRunner, type SequenceView } from '../sequence/runner';
-import type { ExerciseContext } from '../types';
+import type { ExerciseContext, RunnerCommand } from '../types';
+import { renderRiffDemo } from './listen';
 
 export const e17ParamsSchema = z.object({
   riffId: z.string().min(1),
@@ -31,6 +32,8 @@ export const SEQUENCE_MIN_BPM = 50;
 
 export interface E17View extends SequenceView {
   riff: Riff;
+  /** The "들어 보기" demo is playing (ready phase only; starting the run stops it). */
+  listening: boolean;
 }
 
 /** Ladder decision of a run of cycles (shared by sequence exercises: E9, E10, E17). */
@@ -58,6 +61,9 @@ export function mistakeRatio(cycles: readonly Pick<SequenceCycle, 'flawless' | '
 
 export class RiffRunner extends SequenceRunner<RiffResult, E17View> {
   private readonly riff: Riff;
+  /** Stops the demo; null when none is playing. */
+  private stopDemo: (() => void) | null = null;
+  private demoEndsAt = 0;
 
   constructor(
     ctx: ExerciseContext,
@@ -73,7 +79,51 @@ export class RiffRunner extends SequenceRunner<RiffResult, E17View> {
   }
 
   protected view(): E17View {
-    return { ...this.baseView(), riff: this.riff };
+    return { ...this.baseView(), riff: this.riff, listening: this.stopDemo !== null };
+  }
+
+  /**
+   * M = "들어 보기" before the run (D-080). Starting the run, finishing or leaving stops the demo first, so the
+   * microphone never judges the synthesizer.
+   */
+  override command(cmd: RunnerCommand): void {
+    if (cmd === 'mark' && this.phase === 'ready') {
+      this.listen();
+      return;
+    }
+    this.endDemo();
+    super.command(cmd);
+  }
+
+  override tick(): void {
+    if (this.stopDemo && this.ctx.output.now() >= this.demoEndsAt) this.endDemo();
+    super.tick();
+  }
+
+  override dispose(): void {
+    this.endDemo();
+    super.dispose();
+  }
+
+  private listen(): void {
+    this.endDemo();
+    const rate = this.ctx.output.sampleRate();
+    const demo = renderRiffDemo(this.riff, this.params.bpm, rate);
+    try {
+      this.stopDemo = this.ctx.output.playSamples(demo);
+    } catch {
+      // Synth playback is refused while the microphone judges; there is nothing to stop then.
+      return;
+    }
+    this.demoEndsAt = this.ctx.output.now() + demo.length / rate;
+    this.publish();
+  }
+
+  private endDemo(): void {
+    if (!this.stopDemo) return;
+    this.stopDemo();
+    this.stopDemo = null;
+    this.publish();
   }
 
   /** TAB shown or hidden as it is now (H key, SPEC v1.1 §12.3). */

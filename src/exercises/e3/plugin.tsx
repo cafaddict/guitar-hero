@@ -1,5 +1,12 @@
 import { voicingById, voicingForClass } from '../../content/voicings';
-import { extractMetrics, type PfcResult, pfcResultSchema, pfcScores } from '../../domain/exerciseResults';
+import {
+  extractMetrics,
+  PFC_CLEAN_PER_MIN,
+  PFC_CLEAN_RATE,
+  type PfcResult,
+  pfcResultSchema,
+  pfcScores,
+} from '../../domain/exerciseResults';
 import { pairsAmong, parsePairId } from '../../domain/pairs';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
@@ -103,6 +110,13 @@ export const e3Plugin: ExercisePlugin<E3Params, PfcResult, E3View> = {
   createRunner: (ctx, params) => new PfcRunner(ctx, params, voicingById),
   View: E3ViewComponent,
   Summary: E3Summary,
+  howTo: () => {
+    const g = ko.exercises.guide.E3;
+    return {
+      steps: [g.start, g.check, g.mark, g.pass(Math.round(PFC_CLEAN_RATE * 100), PFC_CLEAN_PER_MIN)],
+      terms: ['mutedBuzz'],
+    };
+  },
   toMetrics: (result) => extractMetrics('E3', result),
   usesMicrophone: true,
 };

@@ -1,0 +1,33 @@
+/**
+ * "하는 법" panel (D-079): the steps of an exercise and the glossary terms it uses. Open before a run starts, so a
+ * first-timer reads it before pressing start; folded above the running view, one tap away.
+ */
+import { ko } from '../../i18n/ko';
+import type { HowTo } from '../types';
+
+export function HowToPanel({ howTo, open }: { howTo: HowTo; open: boolean }) {
+  const t = ko.exercises.guide;
+  return (
+    <details open={open} className="mb-4 rounded-lg bg-surface p-3" data-testid="how-to">
+      <summary className="cursor-pointer py-2 font-semibold">{t.title}</summary>
+      <ol className="mt-1 list-decimal space-y-1 pl-6" data-testid="how-to-steps">
+        {howTo.steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ol>
+      {howTo.terms.length > 0 && (
+        <>
+          <h3 className="mt-3 text-sm font-semibold">{t.termsTitle}</h3>
+          <ul className="mt-1 space-y-1 text-sm" data-testid="how-to-terms">
+            {howTo.terms.map((term) => (
+              <li key={term} data-term={term}>
+                <span className="font-semibold">{t.terms[term].name}</span>
+                <span className="text-muted"> — {t.terms[term].text}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </details>
+  );
+}

@@ -28,4 +28,24 @@ describe('SPEC v1.1 §6.9 riffs', () => {
     for (const n of r3)
       expect(emPentatonic.has((STANDARD_TUNING.openMidi[6 - n.string]! + n.fret) % 12)).toBe(true);
   });
+
+  it('every fretted note names its finger (1–4), open strings none, and a position keeps one finger per fret (D-080)', () => {
+    for (const r of RIFFS) {
+      const fingerOf = new Map<string, number>();
+      for (const n of riffNotes(r)) {
+        if (n.fret === 0) expect(n.finger, `${r.id} ${n.string}:0`).toBe(0);
+        else expect(n.finger, `${r.id} ${n.string}:${n.fret}`).toBeGreaterThanOrEqual(1);
+        expect(n.finger).toBeLessThanOrEqual(4);
+        const key = `${n.string}:${n.fret}`;
+        expect(fingerOf.get(key) ?? n.finger, `${r.id} ${key}`).toBe(n.finger);
+        fingerOf.set(key, n.finger);
+      }
+    }
+    // First position for R1: the 2nd fret is the 2nd finger, the 3rd fret the 3rd.
+    expect(
+      riffNotes(RIFFS[0]!)
+        .filter((n) => n.fret > 0)
+        .every((n) => n.finger === n.fret),
+    ).toBe(true);
+  });
 });

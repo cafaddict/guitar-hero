@@ -77,6 +77,7 @@ export const e0Plugin: ExercisePlugin<E0Params, TuningResult, E0View> = {
   createRunner: (ctx) => new TuningRunner(ctx),
   View: E0ViewComponent,
   Summary: E0Summary,
+  howTo: () => ({ steps: ko.exercises.guide.E0, terms: ['stringNumbers', 'noteNames'] }),
   toMetrics: (result) => extractMetrics('E0', result),
   usesMicrophone: true,
 };

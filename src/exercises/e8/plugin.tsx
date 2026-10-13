@@ -1,12 +1,20 @@
 import { type AltPickResult, altPickResultSchema, extractMetrics } from '../../domain/exerciseResults';
 import { stringNumber } from '../../domain/strings';
 import { ko } from '../../i18n/ko';
-import { nextBpmFor, tempoRetry } from '../e5/runner';
+import { LADDER_STEP_BPM, nextBpmFor, tempoRetry } from '../e5/runner';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
 import { SelfRating } from '../ui/SelfRating';
-import { AltPickRunner, type E8Params, type E8View, e8ParamsSchema } from './runner';
+import {
+  ALT_PICK_HIT_RATE,
+  ALT_PICK_MAX_IOI_CV,
+  ALT_PICK_MIN_BARS,
+  AltPickRunner,
+  type E8Params,
+  type E8View,
+  e8ParamsSchema,
+} from './runner';
 
 function E8ViewComponent({
   runner,
@@ -68,6 +76,23 @@ export const e8Plugin: ExercisePlugin<E8Params, AltPickResult, E8View> = {
   createRunner: (ctx, params) => new AltPickRunner(ctx, params),
   View: E8ViewComponent,
   Summary: E8Summary,
+  howTo: (params) => {
+    const g = ko.exercises.guide;
+    return {
+      steps: [
+        g.E8.string(stringNumber(params.stringIdx)),
+        g.perClick(2),
+        g.E8.start,
+        g.E8.pass(
+          Math.round(ALT_PICK_HIT_RATE * 100),
+          Math.round(ALT_PICK_MAX_IOI_CV * 100),
+          ALT_PICK_MIN_BARS,
+          LADDER_STEP_BPM,
+        ),
+      ],
+      terms: ['stringNumbers'],
+    };
+  },
   toMetrics: (result) => extractMetrics('E8', result),
   // Passing suggests the next tempo up (the summary says so); otherwise the same tempo again.
   suggestedTempoRetry: (params, result) =>

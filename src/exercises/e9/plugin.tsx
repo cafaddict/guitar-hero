@@ -1,11 +1,13 @@
 import {
+  CHROMATIC_GOAL_BPM,
+  CHROMATIC_STREAK,
   type ChromaticResult,
   chromaticResultSchema,
   extractMetrics,
   ladderNextBpm,
 } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
-import { tempoRetry } from '../e5/runner';
+import { LADDER_STEP_BPM, tempoRetry } from '../e5/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
 import { ChromaticRunner, type E9Params, type E9View, e9ParamsSchema, flawlessShare } from './runner';
@@ -48,6 +50,14 @@ export const e9Plugin: ExercisePlugin<E9Params, ChromaticResult, E9View> = {
   createRunner: (ctx, params) => new ChromaticRunner(ctx, params),
   View: E9ViewComponent,
   Summary: E9Summary,
+  howTo: () => ({
+    steps: [
+      ko.exercises.e9.how,
+      ko.exercises.guide.perClick(2),
+      ko.exercises.guide.E9.ladder(CHROMATIC_STREAK, CHROMATIC_GOAL_BPM, LADDER_STEP_BPM),
+    ],
+    terms: ['tab', 'fingerNumbers', 'stringNumbers'],
+  }),
   toMetrics: (result) => extractMetrics('E9', result),
   // Several subjects (scales/steps, finger pairs, start frets) share the history: look far enough back.
   historyDepth: SEQUENCE_HISTORY_DEPTH,

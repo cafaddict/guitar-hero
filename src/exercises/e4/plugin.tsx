@@ -82,6 +82,10 @@ export const e4Plugin: ExercisePlugin<E4Params, AnchorDrillResult, E4View> = {
   createRunner: (ctx, params) => new AnchorDrillRunner(ctx, params, voicingById),
   View: E4ViewComponent,
   Summary: E4Summary,
+  howTo: () => {
+    const g = ko.exercises.guide.E4;
+    return { steps: [g.anchor, g.air, g.report], terms: ['fingerNumbers'] };
+  },
   toMetrics: (result) => extractMetrics('E4', result),
   usesMicrophone: false,
 };

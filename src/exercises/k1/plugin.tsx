@@ -63,6 +63,7 @@ export const k1Plugin: ExercisePlugin<K1Params, SelfCheckResult, K1View> = {
   createRunner: (ctx, params) => new SelfCheckRunner(ctx, params),
   View: K1ViewComponent,
   Summary: K1Summary,
+  howTo: () => ({ steps: ko.exercises.guide.K1, terms: [] }),
   toMetrics: (result) => extractMetrics('K1', result),
   usesMicrophone: false,
 };

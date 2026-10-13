@@ -17,12 +17,15 @@ export function SequenceStage<R, V extends SequenceView>({
   title,
   tabLabel,
   testId,
+  barSize,
   children,
 }: {
   runner: ExerciseRunner<R, V>;
   title: string;
   tabLabel: string;
   testId: string;
+  /** Notes per bar, for bar lines in the TAB (riffs). */
+  barSize?: number;
   children?: ReactNode;
 }) {
   const { view, phase } = useRunnerSnapshot(runner);
@@ -55,6 +58,10 @@ export function SequenceStage<R, V extends SequenceView>({
         current={view.noteIndex}
         hidden={view.tabHidden}
         label={tabLabel}
+        {...(barSize ? { barSize } : {})}
+        {...(view.cycleNotes.some((n) => n.finger !== undefined)
+          ? { fingers: view.cycleNotes.map((n) => n.finger ?? 0) }
+          : {})}
       />
       <p className="text-sm text-muted">{t.tabTopLine}</p>
       {children}

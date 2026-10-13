@@ -8,6 +8,7 @@ import {
   recallResultSchema,
 } from '../../domain/exerciseResults';
 import { mulberry32 } from '../../domain/prng';
+import { ko } from '../../i18n/ko';
 import type { ExercisePlugin } from '../types';
 import { ChoiceQuizRunner, type QuizView } from './choiceQuiz';
 import { renderEarChord } from './earAudio';
@@ -49,6 +50,7 @@ export const q1Plugin: ExercisePlugin<SeedParams, QuizResult, QuizView<DiagramPr
     ),
   View: Q1View,
   Summary: QuizSummary,
+  howTo: () => ({ steps: ko.exercises.guide.Q1, terms: ['diagram', 'stringNumbers', 'fingerNumbers'] }),
   toMetrics: (result) => extractMetrics('Q1', result),
   usesMicrophone: false,
 };
@@ -63,6 +65,7 @@ export const q2Plugin: ExercisePlugin<Q2Params, RecallResult, Q2View> = {
   createRunner: (ctx, params) => new RecallRunner(ctx, params, voicingById),
   View: Q2ViewComponent,
   Summary: Q2Summary,
+  howTo: () => ({ steps: ko.exercises.guide.Q2, terms: [] }),
   toMetrics: (result) => extractMetrics('Q2', result),
   usesMicrophone: true,
 };
@@ -77,6 +80,7 @@ export const q3Plugin: ExercisePlugin<Q3Params, QuizResult, QuizView<OpenNotePro
   createRunner: (ctx, params) => new OpenNotesRunner(ctx, params),
   View: Q3View,
   Summary: QuizSummary,
+  howTo: (params) => ({ steps: [ko.exercises.guide.Q3[params.mode]], terms: ['noteNames', 'stringNumbers'] }),
   toMetrics: (result) => extractMetrics('Q3', result),
   // Optional microphone: the pluck variant listens with the tuner.
   usesMicrophone: true,
@@ -109,6 +113,10 @@ export const q4Plugin: ExercisePlugin<Q4Params, QuizResult, QuizView<EarPrompt>>
     ),
   View: Q4View,
   Summary: QuizSummary,
+  howTo: (params) => ({
+    steps: [ko.exercises.guide.Q4[params.kind], ko.exercises.guide.Q4.replay],
+    terms: [],
+  }),
   toMetrics: (result) => extractMetrics('Q4', result),
   usesMicrophone: false,
 };
@@ -124,6 +132,7 @@ export const q5Plugin: ExercisePlugin<SeedParams, QuizResult, QuizView<TabPrompt
     new ChoiceQuizRunner(ctx, tabQuestions(seedOf(params.seed, ctx.clock.now()))),
   View: Q5View,
   Summary: QuizSummary,
+  howTo: () => ({ steps: ko.exercises.guide.Q5, terms: ['tab', 'stringNumbers'] }),
   toMetrics: (result) => extractMetrics('Q5', result),
   usesMicrophone: false,
 };

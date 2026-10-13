@@ -20,6 +20,7 @@ import { createExerciseMic, createExerciseOutput } from '../audioAdapter';
 import { contentContextFor } from '../contentContext';
 import type { ExerciseDefinition } from '../registry';
 import type { ContentContext, ExerciseContext, ExerciseRunner } from '../types';
+import { HowToPanel } from './HowToPanel';
 import { useRunnerSnapshot } from './hooks';
 import { MicFeedback } from './MicFeedback';
 
@@ -118,8 +119,10 @@ function RunningExercise({
     return () => window.removeEventListener('keydown', onKey);
   }, [runner, confirmAbort, settings?.customKeys]);
 
+  const howTo = definition.howTo(params);
   return (
     <div>
+      {howTo && <HowToPanel howTo={howTo} open={false} />}
       {definition.renderView({ runner, params, ctx })}
       {definition.usesMicrophone && <MicFeedback ctx={ctx} />}
       {!ctx.audio && definition.usesMicrophone && (
@@ -354,8 +357,10 @@ export function ExerciseHost({
     return (
       <RunningExercise definition={definition} params={running.params} running={running} onDone={onDone} />
     );
+  const howTo = definition.howTo(params);
   return (
     <section>
+      {howTo && <HowToPanel howTo={howTo} open />}
       {micFailed && (
         <MicStatusPanel
           status={status}

@@ -69,8 +69,8 @@ export class HammerRunner extends SequenceRunner<HammerResult, E11View> {
     const picked = { string, fret: HAMMER_BASE_FRET + a - 1 };
     const hammered = { string, fret: HAMMER_BASE_FRET + b - 1 };
     return Array.from({ length: BEATS_PER_STRING }, () => [
-      { ...picked, midi: positionMidi(picked) },
-      { ...hammered, midi: positionMidi(hammered), legato: true },
+      { ...picked, finger: a, midi: positionMidi(picked) },
+      { ...hammered, finger: b, midi: positionMidi(hammered), legato: true },
     ]).flat();
   }
 

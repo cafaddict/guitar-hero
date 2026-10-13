@@ -99,4 +99,36 @@ describe('E17 single-note riff (SPEC v1.1 §11.19)', () => {
         .map((s) => s.midi),
     ).toEqual([40, 43, 45, 47, 50, 52, 47, 45, 40, 43, 45, 47, 52, 50, 43, 40]);
   });
+
+  it('"들어 보기" (M) plays one pass before the run; starting stops it so the microphone never hears it (D-080)', async () => {
+    const { ctx, output, clock } = testContext({ mic: false });
+    const runner = new RiffRunner(ctx, { riffId: 'R1', bpm: 60, tabHidden: false, previousLow: false });
+    runner.start();
+    runner.command('mark');
+    expect(output.played).toHaveLength(1);
+    // R1: 16 quarter notes at 60 BPM + 1 s to ring out.
+    expect(output.played[0]!.length / output.sampleRate()).toBeCloseTo(17, 1);
+    expect(runner.snapshot().view.listening).toBe(true);
+    runner.command('toggle');
+    expect(output.stoppedPlays).toEqual([0]);
+    expect(runner.snapshot().view.listening).toBe(false);
+    expect(output.lastConfig?.bpm).toBe(60);
+    // While running, M does not play the demo.
+    output.run(clock, 2);
+    runner.command('mark');
+    expect(output.played).toHaveLength(1);
+    runner.dispose();
+  });
+
+  it('the demo ends by itself after its length', () => {
+    const { ctx, output, clock } = testContext({ mic: false });
+    const runner = new RiffRunner(ctx, { riffId: 'R1', bpm: 120, tabHidden: false, previousLow: false });
+    runner.start();
+    runner.command('mark');
+    output.run(clock, 8, () => runner.tick());
+    expect(runner.snapshot().view.listening).toBe(true);
+    output.run(clock, 2, () => runner.tick());
+    expect(runner.snapshot().view.listening).toBe(false);
+    runner.dispose();
+  });
 });

@@ -113,7 +113,7 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
     const order = scaleStepSequence(this.scale, this.params.step as ScaleStep, this.params.seed * 1009 + k);
     return order.map((i) => {
       const n = this.scale.notes[i]!;
-      return { string: n.string, fret: n.fret, midi: positionMidi(n) };
+      return { string: n.string, fret: n.fret, finger: n.finger, midi: positionMidi(n) };
     });
   }
 

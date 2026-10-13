@@ -71,6 +71,10 @@ export const ko = {
     start: '연습 시작',
     doneToday: '오늘 연습을 마쳤어요. 잘했어요!',
     again: '한 번 더 하기',
+    doneItems: '오늘 한 연습',
+    doneCount: (n: number) => `×${n}`,
+    nextRoutine: '한 번 더 하면',
+    rotationNote: '리듬·기술 칸은 세션마다 돌아가며 바뀌어요. 그래서 방금 한 것과 다를 수 있어요.',
     stage: (stage: number, name: string) => `Stage ${stage} · ${name}`,
     checklist: '진급 체크리스트',
     weakPairs: '약한 체인지 Top 3',
@@ -630,6 +634,203 @@ export const ko = {
       K1: '자가 체크',
       Q5: 'TAB 읽기 퀴즈',
     },
+    /**
+     * "하는 법" panel (D-079): shown open before every run and folded while it runs. Steps say what each hand does,
+     * what the clicks mean, how the run is judged and what moves the tempo; terms are the shared glossary.
+     */
+    guide: {
+      title: '하는 법',
+      termsTitle: '알아 둘 말',
+      terms: {
+        stringNumbers: {
+          name: '줄 번호',
+          text: '1번 줄이 가장 가는 줄(바닥 쪽), 6번 줄이 가장 굵은 줄(얼굴 쪽)이에요.',
+        },
+        fingerNumbers: {
+          name: '손가락 번호',
+          text: '왼손 1 검지 · 2 중지 · 3 약지 · 4 새끼. 0(또는 o)은 아무 손가락도 누르지 않는 개방현이에요.',
+        },
+        tab: {
+          name: 'TAB 읽기',
+          text: '가로선 6개가 기타 줄이에요. 맨 위 선이 1번 줄(가는 줄), 맨 아래 선이 6번 줄(굵은 줄). 선 위 숫자는 누를 프렛 번호이고 0은 개방현이에요. 왼쪽부터 차례로 쳐요.',
+        },
+        diagram: {
+          name: '코드 다이어그램',
+          text: '세로선이 줄(왼쪽이 6번 줄), 가로선이 프렛이에요. 동그라미 안 숫자는 누를 손가락 번호, 위의 x는 치지 않는 줄, o는 누르지 않고 치는 줄이에요. 네모·마름모 점은 그 코드의 바탕음(루트)이에요.',
+        },
+        muteStrum: {
+          name: '뮤트 스트럼',
+          text: '왼손을 줄 위에 가볍게 얹기만 해서(누르지 않고) 소리가 "칙" 하고 막히게 쳐요. 음 대신 오른손 리듬만 연습하는 방법이에요.',
+        },
+        strumLetters: {
+          name: '패턴 글자',
+          text: 'D(↓)는 다운 — 위에서 아래로, U(↑)는 업 — 아래에서 위로 쳐요. 빈칸에서도 손은 계속 위아래로 움직이고 줄만 치지 않아요.',
+        },
+        mutedBuzz: {
+          name: '막힘 · 버징',
+          text: '막힘: 소리가 "툭" 하고 바로 끊겨요(옆 손가락이 줄에 닿음). 버징: "지잉" 떨리는 소리(너무 약하게 눌렀거나 프렛에서 멀리 누름).',
+        },
+        noteNames: {
+          name: '음 이름',
+          text: 'C D E F G A B = 도 레 미 파 솔 라 시. #은 반음 높게, ♭은 반음 낮게. E2·B3처럼 붙은 숫자는 높이(옥타브)예요 — 숫자가 클수록 높은 소리.',
+        },
+      },
+      perClick: (notes: number) =>
+        notes === 1
+          ? '메트로놈 클릭 한 번에 한 음씩 쳐요.'
+          : '클릭 한 번에 두 음: 클릭에 다운(↓), 클릭 사이에 업(↑).',
+      ladderUp: (rule: string, step: number) => `${rule}이면 다음엔 ${step} BPM 올려요.`,
+      E0: [
+        '6번 줄(가장 굵은 줄)부터 1번 줄까지 차례로 맞춰요.',
+        '줄을 한 번 튕기고, 화면 바늘이 가운데(맞음)에 오도록 그 줄의 줄감개를 천천히 돌려요. 화면이 조일지 풀지 알려 줘요.',
+        '맞으면 다음 줄로 저절로 넘어가요. 건너뛰려면 다음(→)을 눌러요.',
+        '마이크 없이 할 때는 다른 튜너로 맞추고 줄마다 Enter로 확인해요.',
+      ],
+      K1: [
+        '카드의 설명과 그림을 보고 그대로 직접 해 봐요.',
+        '할 수 있으면 1(됐어요), 아직 어려우면 2(아직)를 눌러요.',
+        '점수는 없어요. 마이크가 들을 수 없는 기본기를 스스로 확인하는 연습이에요.',
+      ],
+      E1: {
+        place:
+          '다이어그램대로 손가락을 놓아요. 동그라미 안 숫자가 그 자리를 누를 손가락이에요. 손끝을 세워 프렛 바로 뒤를 눌러요.',
+        pluck:
+          '화면이 밝게 표시하는 줄을 낮은 줄(6번 쪽)부터 하나씩 튕겨요. 마이크가 줄마다 깨끗한지, 막혔는지, 버징인지 들어요.',
+        strum: '모든 줄을 한 번 천천히 스트럼해요. 마이크가 코드 소리를 확인해요(참고·베타).',
+        manual: '줄을 하나씩 튕겨 보고 스스로 1 깨끗 · 2 막힘 · 3 버징을 눌러요.',
+        skipX: 'x 표시 줄은 치지 않아요.',
+        repeat:
+          '다 확인하면 손을 떼었다가 다시 잡아요. 막힌 줄이 있으면 화면의 팁대로 고쳐서 다시 잡아요 — 다시 잡는 것 자체가 연습이에요.',
+      },
+      E2: {
+        start: (from: string) => `${from} 코드를 잡고 기다려요. 첫 스트럼(또는 Space)으로 1분이 시작돼요.`,
+        go: (from: string, to: string) =>
+          `${from} ↔ ${to}를 계속 오가며, 코드에 도착할 때마다 한 번 스트럼해요. 도착할 때마다 1회예요.`,
+        sound: '소리가 깨끗하지 않아도 괜찮아요. 손 모양을 빨리 만드는 연습이라 소리는 채점하지 않아요.',
+        count: {
+          auto: '마이크가 바꾼 횟수를 세요. 틀리게 세면 ↑/↓로 고쳐요.',
+          tap: '바꿀 때마다 Enter(또는 페달)를 눌러 1회씩 세요.',
+          manual: '끝난 뒤 바꾼 횟수를 직접 입력해요.',
+        },
+        goal: (n: number, days: number) => `진급 목표: 쌍마다 1분에 ${n}회 이상(서로 다른 날 ${days}번).`,
+      },
+      E3: {
+        start: '1분 체인지처럼 첫 스트럼으로 시작해요.',
+        check: '코드에 도착할 때마다 천천히 스트럼(또는 한 줄씩)해서 모든 줄을 확인해요.',
+        mark: '깨끗하면 Enter, 막히거나 버징이면 ↓. 표시하지 않은 도착은 깨끗하지 않은 것으로 세요.',
+        pass: (rate: number, perMin: number) => `통과: 깨끗한 도착 ${rate}% 이상, 1분에 ${perMin}회 이상.`,
+      },
+      E4: {
+        anchor:
+          "화면에 '앵커 체인지'가 나오면: 표시된 앵커 손가락은 줄에서 떼지 말고, 나머지 손가락만 천천히 옮겨요. 스트럼은 하지 않아요.",
+        air: "'공중 체인지'가 나오면: 줄 위 공중에서 다음 코드 손 모양을 먼저 만들고, 모든 손가락을 한꺼번에 내려놓아요.",
+        report:
+          '타이머가 끝나면 10번 중 몇 번 손가락이 동시에 깔끔하게 내려앉았는지 입력해요. 점수는 없어요 — 천천히, 정확하게.',
+      },
+      E5: {
+        bar: (clicks: number) =>
+          `메트로놈 클릭 ${clicks}번이 한 마디예요. 한 마디를 세고(카운트인) 시작해요.`,
+        cells: (perClick: number) =>
+          perClick === 2
+            ? '패턴 칸은 클릭 하나에 두 칸씩이에요. 1·3·5·7번째 칸이 클릭과 같은 순간, 그 사이 칸은 클릭과 클릭 사이예요.'
+            : `패턴 칸은 클릭 하나에 ${perClick}칸씩이에요. 클릭마다 첫 칸이 클릭과 같은 순간이에요.`,
+        mode: {
+          mute: '뮤트 스트럼으로 리듬만 연습해요.',
+          single: '코드 하나를 잡고 패턴대로 쳐요.',
+          progression: '마디마다 화면에 나오는 코드로 바꾸며 쳐요.',
+        },
+        keepGoing: '놓쳐도 멈추지 말고 계속 쳐요.',
+        ladder: (up: number, down: number, bars: number, step: number) =>
+          `${bars}마디 이상 쳐서 놓친 칸 없이 ${up}% 이상 맞추면 다음엔 ${step} BPM 올리고, 두 번 연속 ${down}% 아래면 ${step} BPM 내려요.`,
+      },
+      E6: {
+        chords: (progression: string) =>
+          `마디마다 코드 하나: ${progression}를 반복해요. 클릭 4번이 한 마디예요.`,
+        pattern: (label: string) => `한 마디 안에서는 패턴 ${label}로 쳐요.`,
+        change:
+          '다음 마디 첫 박에 새 코드가 울리도록 앞 마디 마지막 박에 미리 손을 옮겨요. 멈추지 말고 계속 쳐요.',
+        live: '마이크를 켜면 마디가 끝날 때마다 제때 바꿨는지 바로 보여 줘요.',
+        pass: (ok: number, bars: number, step: number) =>
+          `${bars}마디 중 ${ok}마디 이상 첫 박을 제때 치고 멈춘 마디가 없으면 다음엔 ${step} BPM 올려요.`,
+      },
+      E7: {
+        report:
+          '타이머가 끝나면 통증을 0–10으로 입력해요. 세 번 연속 2 이하면 시작 프렛을 한 칸 내려 더 벌려요.',
+      },
+      E8: {
+        string: (stringNo: number) => `${stringNo}번 줄 하나만 쳐요. 왼손은 누르지 않아요(개방현).`,
+        start: '한 마디를 세고 바로 시작해요. 손목을 작게 움직이고 피크 끝만 줄에 닿게 해요.',
+        pass: (hit: number, cv: number, bars: number, step: number) =>
+          `${bars}마디 동안 ${hit}% 이상 맞추고 간격 흔들림이 ${cv}% 이하면 다음엔 ${step} BPM 올려요.`,
+      },
+      E9: {
+        ladder: (streak: number, goal: number, step: number) =>
+          `${streak}묶음 연속 실수 없으면 ${step} BPM 올려요. 목표는 ${goal} BPM이에요.`,
+      },
+      E10: {
+        fingers: 'TAB 아래 숫자가 누를 손가락이에요. 한 프렛에 한 손가락을 써요.',
+        ladder: (streak: number, graduate: number, step: number) =>
+          `TAB 끝까지가 한 바퀴예요. ${streak}바퀴 연속 실수 없으면 ${step} BPM 올리고, ${graduate} BPM 이상에서 ${streak}바퀴 연속이면 이 단계를 졸업해요.`,
+      },
+      E11: {
+        ladder: (hit: number, max: number, step: number) =>
+          `피킹한 음을 ${hit}% 이상 맞추고 "고르게"(3)를 고르면 다음엔 ${step} BPM 올려요(최대 ${max} BPM).`,
+      },
+      E12: {
+        report: '끝나면 새끼손가락 음이 또렷했는지(1–3)와 통증(0–10)을 입력해요.',
+      },
+      E16: {
+        place: '2번 줄(두 번째로 가는 줄) 1프렛을 1번 손가락(검지)으로 짚어요.',
+        compare:
+          '같은 힘으로 세 위치 — 프렛 바로 뒤 · 칸 가운데 · 프렛 위 — 에서 두 번씩 튕겨 소리를 비교해요.',
+        noScore: '점수는 없어요. 어디서 누를 때 가장 깨끗한지 직접 들어 보는 연습이에요.',
+      },
+      E17: {
+        left: 'TAB 아래 숫자가 누를 손가락이에요. 프렛 바로 뒤를 손끝으로 눌러요. 0은 손가락을 떼고 개방현으로 쳐요.',
+        right: (eighths: boolean) =>
+          eighths
+            ? '오른손은 피크로 한 음씩, 다운(↓)·업(↑)을 번갈아 쳐요. 치지 않는 줄은 건드리지 않게 해요.'
+            : '오른손은 피크로 한 음씩 다운(↓)으로 쳐요. 치지 않는 줄은 건드리지 않게 해요.',
+        cycle:
+          'TAB 끝까지가 한 바퀴예요. 끝나면 멈추지 말고 바로 처음으로 돌아가 반복해요. 색칠된 칸이 지금 칠 음이에요.',
+        listen: '시작하기 전에 "들어 보기"(M)로 어떻게 들리는지 먼저 들어 봐요.',
+        judge: (streak: number, step: number) =>
+          `바퀴마다 마이크가 음과 박을 확인해요(마이크 없이는 1 실수 없음 · 2 실수 있음). ${streak}바퀴 연속 실수 없으면 다음엔 ${step} BPM 올려요.`,
+      },
+      Q1: [
+        '다이어그램을 보고 맞는 답을 1/2/3(또는 버튼)으로 골라요.',
+        '정확하게 고르는 것이 먼저예요. 익숙해지면 빨리 답해요.',
+      ],
+      Q2: [
+        '시작하면 바로 코드 이름이 나오고 3초를 세요.',
+        '3초 안에 그 코드를 잡고 한 번 스트럼해요. 마이크가 어떤 코드인지 들어요(마이크 없이는 1 잡았어요 · 2 못 잡았어요).',
+        '3초 안에 맞게 잡는 날이 서로 다른 날 2번이면 진급 조건 "코드 기억"을 채워요.',
+      ],
+      Q3: {
+        name: '줄과 프렛 위치를 보고 그 음 이름을 1/2/3(또는 버튼)으로 골라요.',
+        pluck: '음 이름을 보고 그 음을 직접 쳐요. 같은 음이면 어느 줄에서 쳐도 맞아요.',
+      },
+      Q4: {
+        majmin: '코드 소리를 듣고 밝게 들리면 메이저, 어둡게 들리면 마이너를 골라요.',
+        interval:
+          '두 음을 차례로 듣고 얼마나 떨어져 있는지 골라요. 보기의 짧은 설명(예: 힘찬 도약)을 기억 단서로 써요.',
+        progression:
+          '첫 코드(I)를 듣고, 다음 코드가 떠나는 느낌(IV)인지, 돌아오고 싶은 긴장(V)인지, 그대로 머무는지(I) 골라요.',
+        replay: 'M(다시 듣기)으로 몇 번이든 다시 들을 수 있어요.',
+      },
+      Q5: ['TAB의 숫자가 어느 줄 몇 프렛인지 골라요.'],
+      S: {
+        grid: (beats: number) =>
+          `악보 한 칸이 한 마디(클릭 ${beats}번)예요. 칸에 적힌 코드를 그 마디 동안 쳐요.`,
+        pattern: (label: string) => `이 곡은 패턴 ${label}로 쳐요.`,
+        listen: 'M으로 먼저 들어 볼 수 있어요. ↑↓로 템포를 바꿔요.',
+        mode: {
+          learn: '배우기: 틀리면 멈추고 다시 해도 돼요. L로 한 구간만 반복할 수 있어요.',
+          perform: '연주: 틀려도 멈추지 말고 끝까지 가요. 두 마디 넘게 첫 박을 치지 않으면 멈춤으로 세요.',
+        },
+        goal: '진급 조건: 이 단계 곡 하나를 연주 모드로 끝까지 치기(완주).',
+      },
+    },
     common: {
       start: '시작',
       startWithMic: '마이크 켜고 시작',
@@ -821,7 +1022,8 @@ export const ko = {
     },
     sequence: {
       bpm: (bpm: number) => `${bpm} BPM`,
-      tabTopLine: 'TAB의 맨 위 선이 1번 줄이에요.',
+      tabTopLine: 'TAB의 맨 위 선이 1번 줄, 왼쪽 숫자가 줄 번호예요.',
+      fingerRow: '손',
       countIn: '한 마디 세고 시작해요…',
       readyMic: 'Space로 메트로놈을 켜고 클릭에 맞춰 쳐요. 한 바퀴가 끝날 때마다 마이크가 음을 확인해요.',
       readySelf:
@@ -908,19 +1110,19 @@ export const ko = {
       stop: '그만하기',
     },
     e17: {
-      bpm: (bpm: number) => `${bpm} BPM`,
       tabLabel: (id: string) => `리프 ${id} TAB`,
-      tabTopLine: 'TAB의 맨 위 선이 1번 줄이에요.',
       palmMute: '팜뮤트: 오른손 날을 브리지 바로 앞 줄 위에 살짝 대고 쳐요.',
-      ready:
-        'Space로 메트로놈을 켜고 리프를 반복해요. 한 바퀴가 끝날 때마다 1(실수 없음) 또는 2(실수 있음)를 눌러요.',
-      cycles: (n: number, flawless: number, streak: number) =>
-        `${n}바퀴 · 실수 없음 ${flawless} · 연속 ${streak}`,
-      flawless: '1 실수 없음',
-      mistake: '2 실수 있음',
-      showTab: 'TAB 보이기 (H)',
-      hideTab: 'TAB 숨기기 (H)',
-      finish: '마치기',
+      spelledTitle: '말로 읽은 리프',
+      spell: {
+        open: (stringNo: number) => `${stringNo}번 줄 개방`,
+        fretted: (stringNo: number, fret: number, finger: number) =>
+          `${stringNo}번 줄 ${fret}프렛(${finger}번 손가락)`,
+        times: (n: number) => ` ×${n}`,
+        bar: (n: number, notes: string) => `${n}마디: ${notes}`,
+        joiner: ' → ',
+      },
+      listen: '들어 보기 (M)',
+      listening: '들려주는 중이에요. 시작하면 멈춰요.',
       summary: (n: number, flawless: number) => `${n}바퀴 중 실수 없이 ${flawless}바퀴`,
       ladder: {
         up: (bpm: number) => `4바퀴 연속 실수 없음! 다음엔 ${bpm} BPM으로 올려요.`,

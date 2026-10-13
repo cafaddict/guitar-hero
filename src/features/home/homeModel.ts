@@ -9,6 +9,7 @@ import { pairKey, parsePairId } from '../../domain/pairs';
 import { deriveSeed } from '../../domain/prng';
 import { evaluateStage, type StageEvaluation, unlockedPairIds } from '../../domain/progression';
 import {
+  type Attempt,
   DAY_MS,
   dayKey,
   type MetricSample,
@@ -17,10 +18,12 @@ import {
   type Session,
   type SkillState,
   sessionPracticeMs,
+  startOfDay,
 } from '../../domain/records';
 import type { RoutineInput } from '../../domain/routine';
 import { recentMedian } from '../../domain/skills';
 import { dueReviews, weekIndex, weeklyStreak } from '../../domain/srs';
+import { attemptTitle } from '../session/itemTitle';
 
 export const BACKUP_REMINDER_DAYS = 7;
 export const EXAM_ITEMS = ['1', '2', '3', '4', '5'] as const;
@@ -109,6 +112,38 @@ export function streakWeeks(sessions: readonly Session[], now: number): number {
 
 export function practicedToday(sessions: readonly Session[], now: number): boolean {
   return finished(sessions).some((s) => dayKey(s.startedAt) === dayKey(now));
+}
+
+/** One line of the home "오늘 한 연습" list. */
+export interface DoneToday {
+  key: string;
+  title: string;
+  /** Runs of it today ("이어서 한 번 더" repeats included). */
+  count: number;
+}
+
+/**
+ * What was actually practised today, in the order it was first started (sessions, single runs and curriculum
+ * picks alike). The routine shown below it is the next session's, whose rotation blocks have moved on (§7.3).
+ * Runs of one routine item group by its key, so a ladder repeat at a new tempo stays one line with its latest title.
+ */
+export function todayPractice(
+  attempts: readonly Pick<Attempt, 'exerciseType' | 'params' | 'startedAt' | 'routineKey'>[],
+  now: number,
+): DoneToday[] {
+  const from = startOfDay(now);
+  const lines = new Map<string, DoneToday>();
+  for (const attempt of [...attempts].sort((a, b) => a.startedAt - b.startedAt)) {
+    if (attempt.startedAt < from || attempt.startedAt > now) continue;
+    const title = attemptTitle(attempt);
+    const key = attempt.routineKey ?? `${attempt.exerciseType}|${title}`;
+    const line = lines.get(key);
+    if (line) {
+      line.count += 1;
+      line.title = title;
+    } else lines.set(key, { key, title, count: 1 });
+  }
+  return [...lines.values()];
 }
 
 export interface WeakPair {

@@ -12,7 +12,14 @@ const BEGINNER2_MIN_DAYS = 14;
 
 const sessions = (count: number): UnlockRule => ({ kind: 'sessionsInStageAtLeast', count });
 const days = (n: number): UnlockRule => ({ kind: 'daysInStageAtLeast', days: n });
-const pairs30: UnlockRule = { kind: 'unlockedPairsAtLeast', value: 30, days: 2 };
+/** One-minute changes per pair (on this many different days) that unlock the next stage (E2's goal). */
+export const PAIR_UNLOCK_CHANGES = 30;
+export const PAIR_UNLOCK_DAYS = 2;
+const pairs30: UnlockRule = {
+  kind: 'unlockedPairsAtLeast',
+  value: PAIR_UNLOCK_CHANGES,
+  days: PAIR_UNLOCK_DAYS,
+};
 const recall = (...voicingIds: string[]): UnlockRule => ({ kind: 'recallPassed', voicingIds });
 const passBpm = (subject: string, value: number): UnlockRule => ({
   kind: 'metricAtLeast',

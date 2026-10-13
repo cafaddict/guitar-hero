@@ -2,12 +2,14 @@ import {
   extractMetrics,
   HAMMER_MAX_BPM,
   HAMMER_PAIRS,
+  HAMMER_PICKED_HIT_RATE,
   type HammerResult,
   hammerResultSchema,
   ladderNextBpm,
 } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { LADDER_STEP_BPM } from '../e5/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
@@ -95,6 +97,21 @@ export const e11Plugin: ExercisePlugin<E11Params, HammerResult, E11View> = {
   createRunner: (ctx, params) => new HammerRunner(ctx, params),
   View: E11ViewComponent,
   Summary: E11Summary,
+  howTo: (params) => {
+    const [a, b] = params.pair.split('-').map(Number) as [number, number];
+    return {
+      steps: [
+        ko.exercises.e11.how(String(a), String(b)),
+        ko.exercises.guide.E11.ladder(
+          Math.round(HAMMER_PICKED_HIT_RATE * 100),
+          HAMMER_MAX_BPM,
+          LADDER_STEP_BPM,
+        ),
+        ko.exercises.e11.daily,
+      ],
+      terms: ['fingerNumbers', 'stringNumbers'],
+    };
+  },
   toMetrics: (result) => extractMetrics('E11', result),
   // Several subjects (scales/steps, finger pairs, start frets) share the history: look far enough back.
   historyDepth: SEQUENCE_HISTORY_DEPTH,

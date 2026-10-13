@@ -2,15 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { CURRICULUM } from '../../content/curriculum';
 import { PRACTICE_SONGS } from '../../content/songs';
 import { DEFAULT_SETTINGS } from '../../data/settings';
-import { EMPTY_HISTORY } from '../../domain/history';
+import { EMPTY_HISTORY, practiceHistory } from '../../domain/history';
 import { DAY_MS, initialProgression, type Session, type SkillState } from '../../domain/records';
 import { generateRoutine } from '../../domain/routine';
+import { itemTitle } from '../session/itemTitle';
 import {
   backupReminderDue,
   practicedToday,
   routineInputFrom,
   type StoredState,
   stageChecklist,
+  todayPractice,
   weakPairs,
   weekPracticeMinutes,
 } from './homeModel';
@@ -114,5 +116,67 @@ describe('home model', () => {
     expect(evaluation.stage).toBe(0);
     expect(evaluation.rules.length).toBeGreaterThan(0);
     expect(evaluation.allMet).toBe(false);
+  });
+
+  it("today's practice: first-start order, one line per routine item with its latest title, single runs too", () => {
+    const at = (minutes: number) => NOW - 60 * 60_000 + minutes * 60_000;
+    const lines = todayPractice(
+      [
+        {
+          exerciseType: 'E5',
+          params: { patternId: 'P0', bpm: 55 },
+          startedAt: at(6),
+          routineKey: 'E5|strum:P0',
+        },
+        { exerciseType: 'E2', params: { from: 'E', to: 'A' }, startedAt: at(2), routineKey: 'E2|pair:A>E' },
+        {
+          exerciseType: 'E5',
+          params: { patternId: 'P0', bpm: 50 },
+          startedAt: at(4),
+          routineKey: 'E5|strum:P0',
+        },
+        { exerciseType: 'E4', params: { from: 'A', to: 'E' }, startedAt: at(8), routineKey: null },
+        { exerciseType: 'E17', params: { riffId: 'R1' }, startedAt: at(10) },
+        // yesterday's run is not today's practice
+        { exerciseType: 'E1', params: { voicingId: 'E' }, startedAt: NOW - DAY_MS, routineKey: 'E1|chord:E' },
+      ],
+      NOW,
+    );
+    expect(lines.map((l) => [l.title, l.count])).toEqual([
+      ['1분 코드 체인지 · E → A', 1],
+      ['스트러밍 패턴 사다리 · D D D D · 55 BPM', 2],
+      ['앵커·공중 체인지 드릴 · A ↔ E', 1],
+      ['단음 리프 · R1', 1],
+    ]);
+  });
+
+  it("after a session the next routine's rotation moves on — the done list shows what was played (D-078)", () => {
+    const base = state({
+      progression: { ...initialProgression(NOW - 30 * DAY_MS), stage: 2, sessionsInStage: 1 },
+    });
+    const first = generateRoutine(routineInputFrom(base, NOW));
+    if (first.kind !== 'practice') throw new Error('expected a practice day');
+    const technique = first.items.find((i) => i.block === 'technique');
+    expect(technique?.exerciseType).toBe('E17');
+    const played = session(NOW - 30 * 60_000, 20, { id: 'today', stage: 2 });
+    const attempts = first.items
+      .filter((i) => i.exerciseType !== 'REST')
+      .map((i, n) => ({
+        sessionId: played.id,
+        exerciseType: i.exerciseType,
+        params: i.params,
+        result: {},
+        routineKey: i.key ?? null,
+        startedAt: played.startedAt + n * 60_000,
+      }));
+    const after = state({
+      progression: base.progression,
+      sessions: [played],
+      history: practiceHistory([played], attempts, NOW),
+    });
+    const next = generateRoutine(routineInputFrom(after, NOW));
+    if (next.kind !== 'practice') throw new Error('expected a practice day');
+    expect(next.items.find((i) => i.block === 'technique')?.exerciseType).toBe('E4');
+    expect(todayPractice(attempts, NOW).map((l) => l.title)).toContain(itemTitle(technique!));
   });
 });

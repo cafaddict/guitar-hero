@@ -49,8 +49,12 @@ test("E2E-07: today's routine end to end with the keyboard only (manual items, t
   expect(session.completedItems).toBe(exerciseItems);
   expect(session.plannedItems).toBe(exerciseItems);
 
-  // Home reflects today's session.
+  // Home reflects today's session: what was played, then the next session under its own heading (D-078).
   await expect(page.getByTestId('done-today')).toBeVisible();
+  const doneLines = await page.getByTestId('done-items').locator('li').count();
+  expect(doneLines).toBeGreaterThan(0);
+  expect(doneLines).toBeLessThanOrEqual(exerciseItems);
+  await expect(page.getByTestId('rotation-note')).toBeVisible();
   await expect(page.getByTestId('week-minutes')).toBeVisible();
   test.info().annotations.push({ type: 'items', description: played.join(' → ') });
 });

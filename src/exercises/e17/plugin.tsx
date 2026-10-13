@@ -1,3 +1,4 @@
+import { riffById } from '../../content/riffs';
 import {
   extractMetrics,
   ladderNextBpm,
@@ -5,28 +6,64 @@ import {
   riffResultSchema,
 } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
-import { tempoRetry } from '../e5/runner';
+import { Button } from '../../ui/Button';
+import { LADDER_STEP_BPM, tempoRetry } from '../e5/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
+import { useRunnerSnapshot } from '../ui/hooks';
 import {
   type E17Params,
   type E17View,
   e17ParamsSchema,
+  FLAWLESS_STREAK_UP,
   LOW_MISTAKE_RATIO,
   mistakeRatio,
   RiffRunner,
 } from './runner';
+import { riffSpelled } from './spell';
 
 function E17ViewComponent({ runner }: { runner: ExerciseRunner<RiffResult, E17View>; params: E17Params }) {
-  const view = runner.snapshot().view;
+  const { view, phase } = useRunnerSnapshot(runner);
+  const t = ko.exercises.e17;
+  const spelled = riffSpelled(view.riff);
   return (
     <SequenceStage
       runner={runner}
       title={view.riff.id}
-      tabLabel={ko.exercises.e17.tabLabel(view.riff.id)}
+      // The words double as the TAB picture's text alternative (D-080).
+      tabLabel={`${t.tabLabel(view.riff.id)}. ${spelled.join('. ')}`}
       testId="e17-view"
+      barSize={view.riff.value === 'e' ? 8 : 4}
     >
-      {view.riff.palmMute && <p>{ko.exercises.e17.palmMute}</p>}
+      {view.riff.palmMute && <p>{t.palmMute}</p>}
+      {phase === 'ready' && (
+        <>
+          <section className="rounded-lg bg-surface p-3" data-testid="e17-spelled">
+            <h3 className="text-sm font-semibold">{t.spelledTitle}</h3>
+            <ol className="mt-1 space-y-1 text-sm">
+              {spelled.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ol>
+          </section>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              large
+              variant="secondary"
+              onClick={() => runner.command('mark')}
+              data-testid="e17-listen"
+              data-listening={view.listening}
+            >
+              {t.listen}
+            </Button>
+            {view.listening && (
+              <p aria-live="polite" className="text-sm text-muted">
+                {t.listening}
+              </p>
+            )}
+          </div>
+        </>
+      )}
     </SequenceStage>
   );
 }
@@ -51,6 +88,23 @@ export const e17Plugin: ExercisePlugin<E17Params, RiffResult, E17View> = {
   createRunner: (ctx, params) => new RiffRunner(ctx, params),
   View: E17ViewComponent,
   Summary: E17Summary,
+  howTo: (params) => {
+    const g = ko.exercises.guide;
+    const riff = riffById(params.riffId);
+    const eighths = riff.value === 'e';
+    return {
+      steps: [
+        g.E17.left,
+        g.E17.right(eighths),
+        ...(riff.palmMute ? [ko.exercises.e17.palmMute] : []),
+        g.perClick(eighths ? 2 : 1),
+        g.E17.cycle,
+        g.E17.listen,
+        g.E17.judge(FLAWLESS_STREAK_UP, LADDER_STEP_BPM),
+      ],
+      terms: ['tab', 'fingerNumbers', 'stringNumbers'],
+    };
+  },
   toMetrics: (result) => extractMetrics('E17', result),
   withHistory: (params, recent) => {
     const last = recent.find((r) => r.riffId === params.riffId);

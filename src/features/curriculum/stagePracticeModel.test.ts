@@ -33,7 +33,7 @@ function state(partial: Partial<StoredState> = {}): StoredState {
 }
 
 describe('curriculum stage practice (D-072)', () => {
-  it('every exercise of every stage 0–11 runs with valid parameters (or is honestly unavailable)', () => {
+  it('every exercise of every stage 0–11 runs with valid parameters and a "하는 법" (or is honestly unavailable)', () => {
     const s = state();
     for (let stage = 0; stage <= PLAYABLE_STAGE_MAX; stage++) {
       const options = practiceOptions(stage);
@@ -49,6 +49,8 @@ describe('curriculum stage practice (D-072)', () => {
           expect(definition, `${stage} ${item.exerciseType}`).toBeDefined();
           const params = pluginParamsFor(item, definition!, stageContent(s, stage));
           expect(() => definition!.parseParams(params), `${stage} ${item.exerciseType}`).not.toThrow();
+          // …and explains itself for exactly those params (D-079).
+          expect(definition!.howTo(params)?.steps.length, `${stage} ${item.exerciseType}`).toBeGreaterThan(0);
         }
       }
       // Most of a stage is playable straight away (K1 cards or change pairs may have nothing to do).

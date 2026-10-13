@@ -17,6 +17,8 @@ export interface PlannedNote {
   midi: number;
   /** Hammer-on slot (E11): judged by the legato beta only. */
   legato?: boolean;
+  /** Fretting finger 1–4 (0 = open string), shown under the TAB (D-080). */
+  finger?: number;
 }
 
 export interface SequenceView {

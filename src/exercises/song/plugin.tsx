@@ -226,6 +226,21 @@ export const songPlugin: ExercisePlugin<SongParams, SongResult, SongView> = {
   },
   View: SongViewComponent,
   Summary: SongSummary,
+  howTo: (params) => {
+    const g = ko.exercises.guide.S;
+    const song = songById(params.songId);
+    const pattern = patternById(song.patternId);
+    return {
+      steps: [
+        g.grid(pattern.timeSignature === '6/8' ? 2 : 4),
+        g.pattern(pattern.label),
+        g.mode[params.mode],
+        g.listen,
+        g.goal,
+      ],
+      terms: ['strumLetters'],
+    };
+  },
   toMetrics: (result) => extractMetrics('S', result),
   usesMicrophone: true,
 };

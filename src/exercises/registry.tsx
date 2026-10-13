@@ -12,6 +12,7 @@ import type {
   ExercisePlugin,
   ExerciseRunner,
   ExerciseTitleKey,
+  HowTo,
 } from './types';
 
 /** Recent results an exercise's withHistory sees unless its plugin asks for more. */
@@ -35,6 +36,8 @@ export interface ExerciseDefinition {
     ctx: ExerciseContext;
   }): ReactNode;
   renderSummary(props: { result: unknown; params: unknown }): ReactNode;
+  /** "하는 법" for raw params; null when they do not validate (the run itself would refuse them). */
+  howTo(params: unknown): HowTo | null;
   toMetrics(result: unknown, params: unknown): MetricSampleInput[];
   /** Params adjusted by the latest stored results of this exercise (results that fail validation are skipped). */
   withHistory(params: unknown, recentResults: readonly unknown[]): unknown;
@@ -70,6 +73,10 @@ export function definePlugin<P, R, V>(plugin: ExercisePlugin<P, R, V>): Exercise
     renderSummary: ({ result, params }) => (
       <Summary result={plugin.resultSchema.parse(result)} params={parse(params)} />
     ),
+    howTo(raw) {
+      const parsed = plugin.paramsSchema.safeParse(raw);
+      return parsed.success ? plugin.howTo(parsed.data) : null;
+    },
     toMetrics: (result, params) => plugin.toMetrics(plugin.resultSchema.parse(result), parse(params)),
     withHistory(params, recentResults) {
       const typedParams = parse(params);

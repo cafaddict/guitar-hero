@@ -155,8 +155,13 @@ export class FakeOutput implements ExerciseOutput {
     onEnd: (listener: (time: number) => void) => this.endEmitter.on(listener),
     gridStartTime: () => this.scheduler?.gridStartTime ?? null,
   };
-  playSamples(samples: Float32Array): void {
-    this.played.push(samples);
+  /** Indices into `played` whose playback was stopped. */
+  readonly stoppedPlays: number[] = [];
+  playSamples(samples: Float32Array): () => void {
+    const index = this.played.push(samples) - 1;
+    return () => {
+      if (!this.stoppedPlays.includes(index)) this.stoppedPlays.push(index);
+    };
   }
   cue(kind: 'end'): void {
     this.cues.push(kind);

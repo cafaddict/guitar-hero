@@ -6,12 +6,13 @@ import {
   SCALE_GRADUATION_BPM,
   SCALE_START_BPM,
   type ScaleResult,
+  SEQUENCE_STREAK,
   scaleResultSchema,
 } from '../../domain/exerciseResults';
 import { renderBacking } from '../../dsp/synth/backing';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
-import { tempoRetry } from '../e5/runner';
+import { LADDER_STEP_BPM, tempoRetry } from '../e5/runner';
 import { LOW_MISTAKE_RATIO, mistakeRatio } from '../e17/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
@@ -107,6 +108,19 @@ export const e10Plugin: ExercisePlugin<E10Params, ScaleResult, E10View> = {
     ),
   View: E10ViewComponent,
   Summary: E10Summary,
+  howTo: (params) => {
+    const g = ko.exercises.guide;
+    const step = ko.exercises.e10.steps[params.step];
+    return {
+      steps: [
+        ...(step ? [step] : []),
+        g.E10.fingers,
+        g.perClick(1),
+        g.E10.ladder(SEQUENCE_STREAK, SCALE_GRADUATION_BPM, LADDER_STEP_BPM),
+      ],
+      terms: ['tab', 'fingerNumbers', 'stringNumbers'],
+    };
+  },
   toMetrics: (result) => extractMetrics('E10', result),
   // Several subjects (scales/steps, finger pairs, start frets) share the history: look far enough back.
   historyDepth: SEQUENCE_HISTORY_DEPTH,

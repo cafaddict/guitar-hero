@@ -58,7 +58,12 @@ export class ChromaticRunner extends SequenceRunner<ChromaticResult, E9View> {
   }
 
   protected planCycle(k: number): PlannedNote[] {
-    return this.groups[k % this.groups.length]!.map((p) => ({ ...p, midi: positionMidi(p) }));
+    // One finger per fret from the start fret: 1-2-3-4 up, 4-3-2-1 back.
+    return this.groups[k % this.groups.length]!.map((p) => ({
+      ...p,
+      finger: p.fret - this.params.startFret + 1,
+      midi: positionMidi(p),
+    }));
   }
 
   protected view(): E9View {

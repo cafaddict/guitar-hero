@@ -1,5 +1,6 @@
 import { voicingById, voicingForClass } from '../../content/voicings';
 import { type ChordCheckResult, chordCheckResultSchema, extractMetrics } from '../../domain/exerciseResults';
+import { ko } from '../../i18n/ko';
 import type { ExercisePlugin } from '../types';
 import { makeE1Summary, makeE1View } from './E1View';
 import { ChordCheckRunner, type E1Params, type E1View, e1ParamsSchema } from './runner';
@@ -19,6 +20,13 @@ export const e1Plugin: ExercisePlugin<E1Params, ChordCheckResult, E1View> = {
   createRunner: (ctx, params) => new ChordCheckRunner(ctx, params, voicingById(params.voicingId)),
   View: makeE1View(voicingById),
   Summary: makeE1Summary(voicingById),
+  howTo: (params) => {
+    const g = ko.exercises.guide.E1;
+    return {
+      steps: [g.place, g[params.mode], g.skipX, g.repeat],
+      terms: ['diagram', 'fingerNumbers', 'stringNumbers', 'mutedBuzz'],
+    };
+  },
   toMetrics: (result) => extractMetrics('E1', result),
   usesMicrophone: true,
 };

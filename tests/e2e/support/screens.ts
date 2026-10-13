@@ -102,6 +102,9 @@ export const SCREENS: ScreenCase[] = [
   practiceAfter('E11', '/#/practice/E11', 'noMic', 'e11-view', true),
   practiceAfter('E12', '/#/practice/E12', 'start', 'e12-view'),
   practiceAfter('E17', '/#/practice/E17?riffId=R3&bpm=70', 'noMic', 'e17-view', true),
+  // D-079/D-080: the start screen with its open "하는 법", and the riff before its run (words, 들어 보기).
+  { name: 'practice-E17-how-to', path: '/#/practice/E17?riffId=R1&bpm=60', practice: true },
+  practiceAfter('E17-ready', '/#/practice/E17?riffId=R1&bpm=60', 'noMic', 'e17-spelled'),
   practiceAfter('Q3', '/#/practice/Q3?scope=strings65', 'noMic', 'q3-view'),
   practiceAfter('Q4', '/#/practice/Q4?kind=interval', 'start', 'q4-view'),
   practiceAfter('Q5', '/#/practice/Q5', 'start', 'q5-view'),
