@@ -52,4 +52,20 @@ describe('TakeTracker', () => {
     now = 18.6;
     expect(take.shouldFallback(4)).toBe(true);
   });
+
+  it('arms from an earlier point (the previous take span end) and keeps the onsets heard since (D-076)', () => {
+    let now = 10;
+    const take = new TakeTracker(() => now);
+    take.arm();
+    take.noteCoarse(10.2); // the previous string
+    take.noteCoarse(10.62); // the next string, plucked before the previous verdict arrived
+    take.noteCoarse(10.75); // and once more
+    now = 10.7;
+    expect(take.decide(judged(10.2))).toBe('take');
+    take.arm(TakeTracker.nextArmAt(10.2)); // 10.6
+    expect(take.armedTime).toBeCloseTo(10.6, 9);
+    expect(take.decide(judged(10.58))).toBe('multiple');
+    take.arm(99);
+    expect(take.armedTime).toBe(10.7); // never later than now
+  });
 });

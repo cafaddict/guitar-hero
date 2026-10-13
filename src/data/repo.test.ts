@@ -288,11 +288,40 @@ describe('AC-T1 Dexie schema, append-only attempts, rebuildDerived', () => {
     expect((await repo.progression(T0)).sessionsInStage).toBe(0);
   });
 
+  it('a curriculum session for another stage does not count toward the current stage stay (D-072)', async () => {
+    const repo = freshRepo();
+    for (const [id, stage] of [
+      ['other', 2],
+      ['current', 0],
+    ] as const) {
+      await repo.startSession({
+        id,
+        startedAt: T0,
+        endedAt: null,
+        routineId: 'custom',
+        plannedItems: 2,
+        completedItems: 0,
+        selfReport: null,
+        stage,
+      });
+      await repo.finishSession(id, T0 + 600_000, 2, null, 600_000);
+    }
+    // Stage 0 is current: only the stage-0 session counts.
+    expect((await repo.progression(T0)).sessionsInStage).toBe(1);
+  });
+
   it('settings default and persist', async () => {
     const repo = freshRepo();
     expect(await repo.settings()).toEqual(DEFAULT_SETTINGS);
     await repo.saveSettings({ ...DEFAULT_SETTINGS, theme: 'light', leftHanded: true });
     expect(await repo.settings()).toMatchObject({ theme: 'light', leftHanded: true });
+  });
+
+  it('settings stored before "판정 감도" existed read back with the default sensitivity (D-075)', async () => {
+    const repo = freshRepo();
+    const { sensitivity: _dropped, ...older } = DEFAULT_SETTINGS;
+    await repo.setMeta('settings', { ...older, strictness: 'strict' });
+    expect(await repo.settings()).toMatchObject({ strictness: 'strict', sensitivity: 'normal' });
   });
 });
 

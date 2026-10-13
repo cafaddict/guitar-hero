@@ -36,7 +36,9 @@ export function createExerciseMic(engine: AudioEngine): ExerciseMic {
           ? {}
           : { templateDecayRatio: request.templateDecayRatio }),
         strictness: request.strictness,
-        silent: false,
+        sensitivity: request.sensitivity ?? 'normal',
+        ringing: (request.ringing ?? []).map((r) => ({ f0: r.f0, sample: engine.timeToSample(r.time) })),
+        silent: request.silent ?? false,
       });
       const result = outcome.result as PluckFallbackResult | null;
       if (!result) return null;

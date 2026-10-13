@@ -14,6 +14,7 @@ import type { StrumResult } from '../../domain/exerciseResults';
 import { barDynamics } from '../../dsp/beta/dynamics';
 import type { TimingAnalysis, TimingSlot } from '../../dsp/timing';
 import { BaseRunner } from '../baseRunner';
+import { type BarSlots, barsOf, type LiveBar, settleBars } from '../liveTiming';
 import type { ExerciseContext, JudgedEvent, RunnerCommand } from '../types';
 
 export const e5ParamsSchema = z.object({
@@ -78,6 +79,8 @@ export interface E5View {
   /** Dynamics mode: the current bar is played softly (true) or loudly (false); null outside the bars. */
   soft: boolean | null;
   awaitingDynamics: boolean;
+  /** Bars judged so far while playing (microphone only, view-only feedback, D-077). */
+  liveBars: readonly LiveBar[];
 }
 
 export function ladderDecision(
@@ -158,6 +161,8 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
   /** The cues were visible at some point while the bars ran (the run then does not count as "hidden"). */
   private cuesShownWhilePlaying = false;
   private dynamicsRating: 1 | 2 | 3 | null = null;
+  private liveBars: LiveBar[] = [];
+  private barSlots: BarSlots[] | null = null;
 
   constructor(
     ctx: ExerciseContext,
@@ -239,6 +244,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
         this.params.dynamics === true && this.position ? Math.floor(this.position.bar / 4) % 2 === 0 : null,
       awaitingDynamics:
         this.phase === 'review' && this.needsDynamics && (this.analysis !== null || this.selfRate !== null),
+      liveBars: this.liveBars,
     };
   }
 
@@ -371,6 +377,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
         this.publish();
       }
     }
+    this.settleLiveBars(now);
     if (
       this.phase === 'review' &&
       this.source === 'mic' &&
@@ -381,6 +388,21 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     ) {
       this.score();
     }
+  }
+
+  /** Live feedback (D-077): bars whose strums have all been judged, same verdicts as the final analysis. */
+  private settleLiveBars(now: number): void {
+    if (this.source !== 'mic' || this.gridStart === null || this.analysis !== null) return;
+    if (this.phase !== 'countIn' && this.phase !== 'running' && this.phase !== 'review') return;
+    this.barSlots ??= barsOf(
+      slotGrid(this.pattern, this.params.bpm, this.params.bars, this.gridStart),
+      this.pattern.slots.length,
+    );
+    const rttS = (this.ctx.calibration?.rttMs ?? 0) / 1000;
+    const settled = settleBars(this.barSlots, this.strums, rttS, this.params.bpm, now, this.liveBars);
+    if (settled.length === this.liveBars.length) return;
+    this.liveBars = settled;
+    this.publish();
   }
 
   private score(): void {

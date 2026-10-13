@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { createHashRouter, NavLink, Outlet, RouterProvider } from 'react-router';
 import { CurriculumScreen, StageScreen } from '../features/curriculum/CurriculumScreen';
 import { ExamScreen } from '../features/curriculum/ExamScreen';
+import { StagePracticeScreen } from '../features/curriculum/StagePractice';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { ChordDetailScreen, LibraryScreen } from '../features/library/LibraryScreen';
 import { MetronomeScreen } from '../features/metronome/MetronomeScreen';
@@ -90,6 +91,7 @@ const router = createHashRouter([
       { path: '/routine/edit', element: <RoutineEditorScreen /> },
       { path: '/curriculum', element: <CurriculumScreen /> },
       { path: '/curriculum/:stage', element: <StageScreen /> },
+      { path: '/curriculum/:stage/practice/:option', element: <StagePracticeScreen /> },
       { path: '/exam', element: <ExamScreen /> },
       { path: '/progress', element: <ProgressScreen /> },
       { path: '/library', element: <LibraryScreen /> },

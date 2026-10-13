@@ -13,7 +13,7 @@ import type { Calibration, MetricSampleInput } from '../domain/records';
 import type { ChordVoicing } from '../domain/voicing';
 import type { SequenceNoteResult, SequenceSlot } from '../dsp/sequence';
 import type { TimingAnalysis, TimingSlot } from '../dsp/timing';
-import type { Strictness } from '../dsp/types';
+import type { Sensitivity, Strictness } from '../dsp/types';
 
 export type RunnerCommand =
   | 'toggle'
@@ -100,13 +100,7 @@ export interface ExerciseMic {
   setTuner(enabled: boolean, expectedF0: number | null): void;
   onTuner(listener: (reading: { f0: number | null; stableF0: number | null }) => void): () => void;
   /** Mode A fallback over [from, to] (audio s) when the onset detector found nothing. */
-  pluckFallback(request: {
-    from: number;
-    to: number;
-    expectedF0: number;
-    templateDecayRatio?: number | undefined;
-    strictness: Strictness;
-  }): Promise<JudgedEvent | null>;
+  pluckFallback(request: PluckFallbackRequest): Promise<JudgedEvent | null>;
   analyzeTiming(
     request: TimingRequest,
   ): Promise<{ result: TimingAnalysis; detectorVersion: string; processingMs: number }>;
@@ -176,8 +170,23 @@ export interface ContentContext {
   stage: number;
 }
 
+export interface PluckFallbackRequest {
+  from: number;
+  to: number;
+  expectedF0: number;
+  templateDecayRatio?: number | undefined;
+  strictness: Strictness;
+  sensitivity?: Sensitivity;
+  /** x-string check: silence (or a dead thud) is the expected result. */
+  silent?: boolean;
+  /** Strings plucked just before that may still ring (audio-clock onset times, D-074). */
+  ringing?: readonly { f0: number; time: number }[];
+}
+
 export interface ExerciseSettings {
   strictness: Strictness;
+  /** Pluck judgement sensitivity (settings "판정 감도", D-075). */
+  sensitivity: Sensitivity;
   xStringCheck: boolean;
   leftHanded: boolean;
   visualOnlyMetronome: boolean;

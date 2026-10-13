@@ -3,6 +3,7 @@ import { voicingById } from '../../content/voicings';
 import { chordCheckResultSchema } from '../../domain/exerciseResults';
 import type { PluckResult } from '../../dsp/modeA';
 import type { StrumResult } from '../../dsp/modeB';
+import type { Sensitivity } from '../../dsp/types';
 import { DETECTOR_VERSION } from '../../dsp/version';
 import { testContext } from '../testing/fakes';
 import { ChordCheckRunner, type E1Params } from './runner';
@@ -27,9 +28,13 @@ function pluck(partial: Partial<PluckResult>): PluckResult {
   };
 }
 
-function setup(params: Partial<E1Params> = {}, options: { mic?: boolean; xStringCheck?: boolean } = {}) {
+function setup(
+  params: Partial<E1Params> = {},
+  options: { mic?: boolean; xStringCheck?: boolean; sensitivity?: Sensitivity } = {},
+) {
   const t = testContext({ mic: options.mic ?? true });
   if (options.xStringCheck) t.ctx.settings = { ...t.ctx.settings, xStringCheck: true };
+  if (options.sensitivity) t.ctx.settings = { ...t.ctx.settings, sensitivity: options.sensitivity };
   const runner = new ChordCheckRunner(
     t.ctx,
     { voicingId: 'C', blockMs: 120_000, mode: 'pluck', earFirst: false, ...params },
@@ -313,5 +318,113 @@ describe('E1 — ear first, manual, strum beta, timer', () => {
     runner.command('next');
     runner.command('abort');
     expect(runner.hasResult()).toBe(false);
+  });
+});
+
+describe('E1 string by string: knocks, ringing strings and quick plucks (D-073, D-074, D-076)', () => {
+  const knock = (fastDecay = true) =>
+    pluck({ status: 'WEAK', verdict: 'RETRY', reasons: ['NOT_STRING'], ...(fastDecay ? { fastDecay } : {}) });
+
+  it('a non-string sound keeps the string armed; heard again on the same string it counts as MUTED', () => {
+    const { runner, strike, view } = setup();
+    runner.command('next');
+    strike(knock());
+    expect(view().activeIdx).toBe(1);
+    expect(view().retry).toBe('NOT_STRING');
+    expect(view().strings[1]!.status).toBeNull();
+    strike(knock());
+    expect(view().strings[1]!.status).toBe('MUTED');
+    expect(view().activeIdx).toBe(2);
+  });
+
+  it('"둔감" tolerates two non-string sounds before MUTED; a loud non-string retry never becomes MUTED', () => {
+    const low = setup({}, { sensitivity: 'low' });
+    low.runner.command('next');
+    low.strike(knock());
+    low.strike(knock());
+    expect(low.view().strings[1]!.status).toBeNull();
+    low.strike(knock());
+    expect(low.view().strings[1]!.status).toBe('MUTED');
+    const normal = setup();
+    normal.runner.command('next');
+    for (let k = 0; k < 4; k++) normal.strike(knock(false));
+    expect(normal.view().strings[1]!.status).toBeNull();
+    expect(normal.view().retry).toBe('NOT_STRING');
+  });
+
+  it('"둔감": a quiet sound keeps listening without a message', () => {
+    const { runner, strike, view } = setup({}, { sensitivity: 'low' });
+    runner.command('next');
+    strike(pluck({ status: 'WEAK', verdict: 'RETRY', reasons: ['LOW_LEVEL'] }));
+    expect(view().activeIdx).toBe(1);
+    expect(view().retry).toBeNull();
+  });
+
+  it('the job carries the sensitivity and the strings still ringing (not muted ones, not the active one)', () => {
+    const { runner, mic, strike, clock } = setup({}, { sensitivity: 'high' });
+    runner.command('next');
+    expect(mic.job).toMatchObject({ kind: 'pluck', sensitivity: 'high', ringing: [] });
+    const first = clock.t + 0.2;
+    strike(pluck({ f0: 131 }));
+    expect(mic.job).toMatchObject({ ringing: [{ f0: 131, sample: Math.round(first * 48000) }] });
+    strike(pluck({ status: 'MUTED', verdict: 'FAIL', f0: 164 }));
+    expect((mic.job as { ringing: { f0: number }[] }).ringing.map((r) => r.f0)).toEqual([131]);
+    strike(pluck({ f0: 196 }));
+    strike(pluck({ f0: 262 }));
+    expect((mic.job as { ringing: { f0: number }[] }).ringing.map((r) => r.f0)).toEqual([131, 196, 262]);
+  });
+
+  it('a pluck right after the previous verdict window is taken for the next string', () => {
+    const { runner, mic, view, clock } = setup();
+    runner.command('next');
+    const judged = (time: number, result: PluckResult) =>
+      mic.judged.emit({ time, result, jobKind: 'pluck', detectorVersion: DETECTOR_VERSION, processingMs: 2 });
+    clock.advance(1);
+    const first = clock.t;
+    clock.advance(0.55); // the verdict arrives ~0.5 s after the pluck
+    judged(first, pluck({ f0: 131 }));
+    expect(view().activeIdx).toBe(2);
+    // The next string was plucked 0.42 s after the first, before its own job was even set.
+    clock.advance(0.5);
+    judged(first + 0.42, pluck({ f0: 165, expectedF0: (mic.job as { expectedF0: number }).expectedF0 }));
+    expect(view().strings[2]!.status).toBe('OK');
+    expect(view().activeIdx).toBe(3);
+  });
+
+  it('a take judged against the previous string is judged again for this one', () => {
+    const { runner, mic, view, clock } = setup();
+    runner.command('next');
+    const fifth = (mic.job as { expectedF0: number }).expectedF0;
+    clock.advance(1);
+    const first = clock.t;
+    clock.advance(0.55);
+    mic.judged.emit({
+      time: first,
+      result: pluck({ f0: 131 }),
+      jobKind: 'pluck',
+      detectorVersion: DETECTOR_VERSION,
+      processingMs: 2,
+    });
+    clock.advance(0.5);
+    mic.judged.emit({
+      time: first + 0.42,
+      result: pluck({ status: 'WRONG_NOTE', verdict: 'FAIL', expectedF0: fifth }),
+      jobKind: 'pluck',
+      detectorVersion: DETECTOR_VERSION,
+      processingMs: 2,
+    });
+    expect(view().strings[2]!.status).toBeNull();
+    expect(mic.fallbackRequests).toHaveLength(1);
+    expect(mic.fallbackRequests[0]!.from).toBeCloseTo(first + 0.42 - 0.15, 9);
+    expect(mic.fallbackRequests[0]!.expectedF0).not.toBeCloseTo(fifth, 3);
+  });
+
+  it('the x-string fallback is judged as an x string (silent check)', async () => {
+    const { runner, mic, clock } = setup({}, { xStringCheck: true });
+    runner.command('next');
+    clock.advance(3.6);
+    runner.tick();
+    await Promise.resolve();
+    expect(mic.fallbackRequests[0]).toMatchObject({ silent: true, sensitivity: 'normal' });
   });
 });

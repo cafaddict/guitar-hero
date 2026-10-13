@@ -12,6 +12,10 @@ async function run(
   onsetsFor: (barStart: number, bar: number) => number[],
   params: Partial<E6Params> = {},
   rttMs = 30,
+  watch: {
+    resultFor?: (time: number) => unknown;
+    onStep?: (runner: OneBeatRunner, now: number) => void;
+  } = {},
 ) {
   const t = testContext();
   t.ctx.calibration = { rttMs } as NonNullable<typeof t.ctx.calibration>;
@@ -29,9 +33,10 @@ async function run(
     .sort((a, b) => a - b);
   t.output.run(t.clock, full.bars * barS + 6, () => {
     while (pending.length > 0 && pending[0]! <= t.clock.t - 0.45) {
+      const time = pending.shift()!;
       t.mic.judged.emit({
-        time: pending.shift()!,
-        result: null,
+        time,
+        result: watch.resultFor?.(time) ?? null,
         // The strums arrive as whatever job the runner set (Mode C set classification with a microphone).
         jobKind: t.mic.job?.kind ?? 'onsets',
         detectorVersion: DETECTOR_VERSION,
@@ -39,6 +44,7 @@ async function run(
       });
     }
     runner.tick();
+    watch.onStep?.(runner, t.clock.t);
   });
   await flush();
   return { runner, t };
@@ -108,5 +114,65 @@ describe('E6 change on beat 1', () => {
     await flush();
     t.output.run(t.clock, 3 + 3.2, () => runner.tick());
     expect(runner.snapshot().view).toMatchObject({ bar: 1, chord: 'G', nextChord: 'Am' });
+  });
+});
+
+describe('E6 live feedback while playing (D-077)', () => {
+  it('each bar shows beat 1 on time, late (with the offset) or a stop, about a second after the downbeat', async () => {
+    let seenMidRun = -1;
+    let gridStart = 0;
+    const { runner } = await run(
+      (start, bar) => {
+        if (bar === 0) gridStart = start;
+        if (bar === 5) return []; // stopped for a whole bar
+        return [0, 0.75, 1.5, 2.25].map((o) => start + o + (o === 0 && bar === 3 ? 0.12 : 0));
+      },
+      {},
+      30,
+      {
+        onStep: (r, now) => {
+          // 1.2 s into bar 4: bars 0–3 are already shown, bar 4's beat 1 too.
+          if (seenMidRun < 0 && now >= gridStart + 4 * 3 + 1.2)
+            seenMidRun = r.snapshot().view.liveBars.length;
+        },
+      },
+    );
+    expect(seenMidRun).toBe(5);
+    const live = runner.snapshot().view.liveBars;
+    expect(live).toHaveLength(16);
+    expect(live[0]).toMatchObject({ status: 'good' });
+    expect(live[3]).toMatchObject({ status: 'off' });
+    expect(live[3]!.offsetMs).toBeCloseTo(120, 0);
+    expect(live[5]).toMatchObject({ status: 'stop' });
+    // The same bars as the recorded result.
+    const result = runner.finish();
+    expect(live.filter((b) => b.status === 'good')).toHaveLength(result.barsInWindow);
+    expect(live.filter((b) => b.status === 'stop')).toHaveLength(result.stops);
+  });
+
+  it('a changing bar shows whether the chord was the new one', async () => {
+    // C → G progression: bar 2 (C) and bar 3 (G) change; the strum on bar 3 still sounds like C.
+    let gridStart = 0;
+    const { runner } = await run(
+      (start, bar) => {
+        if (bar === 0) gridStart = start;
+        return [0, 0.75, 1.5, 2.25].map((o) => start + o);
+      },
+      {},
+      30,
+      {
+        resultFor: (time) => {
+          const bar = Math.round((time - 0.03 - gridStart) / 3);
+          const isG = bar % 2 === 1 && bar !== 3;
+          return { scores: isG ? [0.2, 0.8] : [0.8, 0.2] };
+        },
+      },
+    );
+    const live = runner.snapshot().view.liveBars;
+    expect(live[0]!.chord).toBeNull(); // the first bar changes nothing
+    expect(live[1]!.chord).toBe('right');
+    expect(live[2]!.chord).toBe('right');
+    expect(live[3]!.chord).toBe('wrong');
+    expect(runner.finish().chordCorrectRatio).toBeCloseTo(14 / 15, 6);
   });
 });

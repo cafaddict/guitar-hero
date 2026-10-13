@@ -28,6 +28,8 @@ export const settingsSchema = z.object({
   theme: z.enum(['dark', 'light', 'contrast']),
   leftHanded: z.boolean(),
   strictness: z.enum(['lenient', 'normal', 'strict']),
+  /** Pluck judgement sensitivity (D-075): 'low' ignores quiet and non-string sounds more readily. */
+  sensitivity: z.enum(['low', 'normal', 'high']),
   visualOnlyMetronome: z.boolean(),
   sessionMinutes: z.number().int().min(5).max(90),
   /** 'template' = the stage template's length (20 min, Stage 8+ 30 min); 'custom' = `sessionMinutes` (§7.3-1). */
@@ -51,6 +53,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
   leftHanded: false,
   strictness: 'lenient',
+  sensitivity: 'normal',
   visualOnlyMetronome: false,
   sessionMinutes: 20,
   sessionLengthMode: 'template',

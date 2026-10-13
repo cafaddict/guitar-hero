@@ -87,6 +87,46 @@ describe('dsp worker', () => {
     expect(returned.at(-1)).toBe(samples);
   });
 
+  it('pluck job: ringing strings are passed in capture samples and cancelled under the take (D-074)', () => {
+    // G3 rings (started 0.5 s before the take, 6 dB louder) while B3 is plucked.
+    const ring = renderNote({
+      model: 'karplus-strong',
+      f0: midiToHz(55),
+      sampleRate: FS,
+      durationS: 0.9,
+      inharmonicityB: 1e-4,
+      muted: false,
+      mutedDecayDb: 0,
+      mutedDecayMs: 120,
+      fundamentalDb: 0,
+      ...randomTimbre(11),
+      seed: 11,
+    });
+    const take = pluckSegment(midiToHz(59), 12);
+    const samples = new Float32Array(take.length);
+    for (let i = 0; i < samples.length; i++) samples[i] = take[i]! + 0.6 * (ring[i] ?? 0);
+    const start = 200_000;
+    const judgeWith = (ringing: { f0: number; sample: number }[]) => {
+      send({ type: 'job', job: { kind: 'pluck', expectedF0: midiToHz(59), ringing } });
+      fromCapture({
+        type: 'segment',
+        onsetSample: start + 24_000,
+        segmentStart: start,
+        strength: 5,
+        broadband: true,
+        samples: samples.slice(),
+      });
+      return lastOf('onset')!.result as { status: string; expectedF0: number };
+    };
+    const judged = judgeWith([{ f0: midiToHz(55), sample: start }]);
+    expect(judged).toMatchObject({ status: 'OK', expectedF0: midiToHz(59) });
+    // Without it (or given as 6 s old, too old to cancel) the louder G3 blurs the pitch: a retry.
+    expect(judgeWith([])).toMatchObject({ status: 'WEAK', expectedF0: midiToHz(59) });
+    expect(judgeWith([{ f0: midiToHz(55), sample: start + 24_000 - 6 * FS }])).toMatchObject({
+      status: 'WEAK',
+    });
+  });
+
   it('flags a wrong note and verifies strums and pairs with the voicing payload', () => {
     send({ type: 'job', job: { kind: 'pluck', expectedF0: midiToHz(57) } });
     fromCapture({

@@ -17,8 +17,12 @@ export type RetryReason =
   | 'AMBIGUOUS'
   | 'NO_ONSET'
   | 'MULTIPLE_ONSETS'
-  | 'DETUNED';
+  | 'DETUNED'
+  /** The take is not a string sound (e.g. a knock on the guitar body, D-073). */
+  | 'NOT_STRING';
 export type Strictness = 'lenient' | 'normal' | 'strict';
+/** How readily a quiet or non-string sound is taken as a pluck (settings "판정 감도", D-075). */
+export type Sensitivity = 'low' | 'normal' | 'high';
 
 export interface DspResultBase {
   detectorVersion: string;

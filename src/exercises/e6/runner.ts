@@ -14,7 +14,35 @@ import type { SetClassification } from '../../dsp/modeC';
 import { timingWindowMs } from '../../dsp/timing';
 import { BaseRunner } from '../baseRunner';
 import { GridRecorder } from '../gridRecorder';
+import { judgeBeatOne, type LiveBar } from '../liveTiming';
 import type { ExerciseContext, JudgedEvent, RunnerCommand } from '../types';
+
+/**
+ * Bar `b` changes chord: did its beat-1 strum sound more like this bar's chord ('right') than the previous one
+ * ('wrong')? null when the bar keeps its chord or no classified strum landed on beat 1 (research 01:315).
+ */
+export function barChordVerdict(
+  progression: readonly string[],
+  chords: readonly string[],
+  events: readonly JudgedEvent[],
+  gridStart: number,
+  barS: number,
+  b: number,
+  rttS: number,
+  windowS: number,
+): 'right' | 'wrong' | null {
+  if (b < 1) return null;
+  const chord = progression[b % progression.length]!;
+  const previous = progression[(b - 1) % progression.length]!;
+  if (chord === previous) return null;
+  const at = gridStart + b * barS + rttS;
+  const event = events
+    .filter((e) => Math.abs(e.time - at) <= windowS)
+    .sort((x, y) => Math.abs(x.time - at) - Math.abs(y.time - at))[0];
+  const scores = (event?.result as SetClassification | null | undefined)?.scores;
+  if (!scores) return null;
+  return scores[chords.indexOf(chord)]! > scores[chords.indexOf(previous)]! ? 'right' : 'wrong';
+}
 
 /**
  * Share of chord-changing bars whose beat-1 strum sounded more like this bar's chord than the previous one
@@ -30,23 +58,10 @@ export function chordCorrectRatio(
   rttS: number,
   windowS: number,
 ): number | null {
-  let judged = 0;
-  let correct = 0;
-  for (let b = 1; b < bars; b++) {
-    const chord = progression[b % progression.length]!;
-    const previous = progression[(b - 1) % progression.length]!;
-    if (chord === previous) continue;
-    const at = gridStart + b * barS + rttS;
-    const event = events
-      .filter((e) => Math.abs(e.time - at) <= windowS)
-      .sort((x, y) => Math.abs(x.time - at) - Math.abs(y.time - at))[0];
-    if (!event) continue;
-    const scores = (event.result as SetClassification | null)?.scores;
-    if (!scores) continue;
-    judged += 1;
-    if (scores[chords.indexOf(chord)]! > scores[chords.indexOf(previous)]!) correct += 1;
-  }
-  return judged === 0 ? null : correct / judged;
+  const verdicts = Array.from({ length: bars }, (_, b) =>
+    barChordVerdict(progression, chords, events, gridStart, barS, b, rttS, windowS),
+  ).filter((v) => v !== null);
+  return verdicts.length === 0 ? null : verdicts.filter((v) => v === 'right').length / verdicts.length;
 }
 
 export const e6ParamsSchema = z.object({
@@ -74,6 +89,8 @@ export interface E6View {
   nextChord: string | null;
   analyzing: boolean;
   awaitingSelf: boolean;
+  /** Bars judged so far while playing: beat 1 on time, late/early or a stop, and the chord (D-077). */
+  liveBars: readonly LiveBar[];
 }
 
 /** Bars (0-based) with no onset anywhere in [bar start − window, next bar start − window). */
@@ -101,6 +118,7 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
   private outcome: Omit<OneBeatResult, 'progression' | 'patternId' | 'bpm' | 'bars' | 'source'> | null = null;
   /** Distinct chord classes of the progression (Mode C candidates). */
   private readonly chords: string[];
+  private liveBars: LiveBar[] = [];
 
   constructor(
     ctx: ExerciseContext,
@@ -148,7 +166,44 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
       nextChord,
       analyzing: this.analyzing,
       awaitingSelf: !this.ctx.audio && this.phase === 'review',
+      liveBars: this.liveBars,
     };
+  }
+
+  /** Live feedback (D-077): each bar's beat 1 as soon as it can be judged, the same rules as the summary. */
+  private settleLiveBars(now: number, grid: number): void {
+    if (!this.ctx.audio || this.outcome !== null) return;
+    const rttS = this.recorder.rttS;
+    const windowS = timingWindowMs(this.params.bpm) / 1000;
+    let changed = false;
+    for (let b = this.liveBars.length; b < this.params.bars; b++) {
+      const judged = judgeBeatOne({
+        bar: b,
+        gridStart: grid,
+        barS: this.barS,
+        strums: this.recorder.strums,
+        rttS,
+        bpm: this.params.bpm,
+        now,
+      });
+      if (!judged) break;
+      const chord =
+        this.chords.length >= 2
+          ? barChordVerdict(
+              this.params.progression,
+              this.chords,
+              this.recorder.events,
+              grid,
+              this.barS,
+              b,
+              rttS,
+              windowS,
+            )
+          : null;
+      this.liveBars = [...this.liveBars, { ...judged, chord }];
+      changed = true;
+    }
+    if (changed) this.publish();
   }
 
   /** With a microphone the run waits "armed": the first strum (or Space) starts the count-in (SPEC §12.3). */
@@ -216,6 +271,7 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
         this.publish();
       }
     }
+    if (grid !== null && this.phase !== 'done') this.settleLiveBars(now, grid);
     const mic = this.ctx.audio;
     if (
       mic &&

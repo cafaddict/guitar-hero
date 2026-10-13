@@ -15,6 +15,7 @@ const RETRY: RetryReasonCode[] = [
   'NO_ONSET',
   'MULTIPLE_ONSETS',
   'DETUNED',
+  'NOT_STRING',
 ];
 const HINTS: CoachingHint[] = [
   { code: 'mutedOpenAdjacentFinger', stringNo: 3, finger: 2 },

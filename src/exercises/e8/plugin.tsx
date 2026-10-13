@@ -2,13 +2,22 @@ import { type AltPickResult, altPickResultSchema, extractMetrics } from '../../d
 import { stringNumber } from '../../domain/strings';
 import { ko } from '../../i18n/ko';
 import { nextBpmFor, tempoRetry } from '../e5/runner';
-import type { ExercisePlugin, ExerciseRunner } from '../types';
+import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { LiveBars } from '../ui/LiveBars';
 import { SelfRating } from '../ui/SelfRating';
 import { AltPickRunner, type E8Params, type E8View, e8ParamsSchema } from './runner';
 
-function E8ViewComponent({ runner }: { runner: ExerciseRunner<AltPickResult, E8View>; params: E8Params }) {
+function E8ViewComponent({
+  runner,
+  ctx,
+}: {
+  runner: ExerciseRunner<AltPickResult, E8View>;
+  params: E8Params;
+  ctx: ExerciseContext;
+}) {
   const { view, phase } = useRunnerSnapshot(runner);
+  const live = ctx.audio !== null && phase !== 'done';
   return (
     <div className="flex flex-col gap-4" data-testid="e8-view" data-phase={phase}>
       <div className="flex items-baseline justify-between">
@@ -22,6 +31,7 @@ function E8ViewComponent({ runner }: { runner: ExerciseRunner<AltPickResult, E8V
         </p>
       </div>
       <p className="text-2xl font-semibold">{ko.exercises.e8.how(stringNumber(view.stringIdx))}</p>
+      {live && <LiveBars bars={view.bars} live={view.liveBars} current={view.bar} kind="counts" />}
       <div aria-live="polite">
         {view.analyzing && <p>{ko.exercises.e5.analyzing}</p>}
         {view.awaitingSelf && (

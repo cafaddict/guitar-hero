@@ -44,6 +44,12 @@ test('E2E-06: E5 P3 at 80 BPM, grid-aligned strums with a seeded RTT → hit rat
     );
   await playFixture(page, 'e5-p3-80.wav', gridStart + SIMULATED_RTT_MS / 1000 - E5_FIXTURE.leadS);
 
+  // Live feedback (D-077): the first bar is judged while the run is still playing.
+  const firstBar = page.getByTestId('live-bar').first();
+  await expect(firstBar).toHaveAttribute('data-status', /^(good|off)$/, { timeout: 20_000 });
+  await expect(page.getByTestId('e5-view')).toHaveAttribute('data-phase', 'running');
+  await expect(page.getByTestId('live-last')).toContainText(/\d마디: \d\/\d 맞음/);
+
   const summary = page.getByTestId('e5-summary');
   await expect(summary).toBeVisible({ timeout: 60_000 });
   const hitRate = Number(await page.getByTestId('e5-hit-rate').getAttribute('data-value'));

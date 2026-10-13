@@ -25,6 +25,7 @@ import {
   weakPairs,
   weekPracticeMinutes,
 } from './homeModel';
+import { routineNoticeText } from './noticeText';
 import { RuleChecklist } from './RuleChecklist';
 import { subjectLabel } from './subjectLabel';
 
@@ -62,17 +63,7 @@ function RoutineCard({
       <ul className="mt-2 space-y-1 text-sm">
         {plan.notices.map((n) => (
           <li key={n.code} className="text-info">
-            {n.code === 'gapReview'
-              ? ko.home.notices.gapReview(n.days)
-              : n.code === 'capApplied'
-                ? ko.home.notices.capApplied(n.minutes)
-                : n.code === 'painReduced'
-                  ? ko.safety.painReduced
-                  : n.code === 'changesCapReached'
-                    ? ko.home.notices.changesCapReached
-                    : n.code === 'userTemplate'
-                      ? ko.home.notices.userTemplate
-                      : ''}
+            {routineNoticeText(n)}
           </li>
         ))}
       </ul>

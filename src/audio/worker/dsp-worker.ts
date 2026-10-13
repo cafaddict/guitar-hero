@@ -107,11 +107,14 @@ function judge(segment: Float32Array, onsetIndex: number): unknown {
     case 'template':
       return analyzeTemplate(segment, onsetIndex, job.expectedF0);
     case 'pluck': {
+      const onsetSample = (segmentOrigin?.segmentStart ?? 0) + onsetIndex;
       const input = {
         ...base,
         expectedF0: job.expectedF0,
         templateDecayRatio: job.templateDecayRatio,
         strictness: job.strictness,
+        sensitivity: job.sensitivity,
+        ringing: job.ringing.map((r) => ({ f0: r.f0, ageS: (onsetSample - r.sample) / sampleRate })),
       };
       if (job.silent) return verifySilentString(input);
       const pluck = verifyPluck(input);
@@ -302,6 +305,8 @@ function processRange(id: number): void {
         expectedF0: request.expectedF0,
         templateDecayRatio: request.templateDecayRatio,
         strictness: request.strictness,
+        sensitivity: request.sensitivity,
+        ringing: request.ringing.map((r) => ({ f0: r.f0, ageS: (range.fromSample + onset - r.sample) / fs })),
       };
       result = { onsetOffset: onset, pluck: request.silent ? verifySilentString(input) : verifyPluck(input) };
       break;

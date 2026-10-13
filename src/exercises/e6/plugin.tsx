@@ -1,14 +1,23 @@
 import { extractMetrics, type OneBeatResult, oneBeatResultSchema } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
 import { nextBpmFor, tempoRetry } from '../e5/runner';
-import type { ExercisePlugin, ExerciseRunner } from '../types';
+import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { ArmedStart } from '../ui/ArmedStart';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { LiveBars } from '../ui/LiveBars';
 import { SelfRating } from '../ui/SelfRating';
 import { type E6Params, type E6View, e6ParamsSchema, OneBeatRunner } from './runner';
 
-function E6ViewComponent({ runner }: { runner: ExerciseRunner<OneBeatResult, E6View>; params: E6Params }) {
+function E6ViewComponent({
+  runner,
+  ctx,
+}: {
+  runner: ExerciseRunner<OneBeatResult, E6View>;
+  params: E6Params;
+  ctx: ExerciseContext;
+}) {
   const { view, phase } = useRunnerSnapshot(runner);
+  const live = ctx.audio !== null && phase !== 'armed' && phase !== 'ready' && phase !== 'done';
   return (
     <div className="flex flex-col gap-4" data-testid="e6-view" data-phase={phase}>
       <div className="flex items-baseline justify-between">
@@ -29,6 +38,7 @@ function E6ViewComponent({ runner }: { runner: ExerciseRunner<OneBeatResult, E6V
           {view.nextChord ? ko.exercises.e6.next(view.nextChord) : ''}
         </p>
       </div>
+      {live && <LiveBars bars={view.bars} live={view.liveBars} current={view.bar} kind="beatOne" />}
       <p className="text-sm text-muted">{ko.exercises.e6.how}</p>
       <ArmedStart phase={phase} onStart={() => runner.command('toggle')} />
       <div aria-live="polite">

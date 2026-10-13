@@ -313,3 +313,52 @@ describe('E5 strumming ladder', () => {
     expect(e5Plugin.withHistory!(params, []).previousLow).toBe(false);
   });
 });
+
+describe('E5 live feedback while playing (D-077)', () => {
+  it('bars are judged while the run plays, slot by slot, and agree with the final analysis', async () => {
+    const t = await setup({ patternId: 'P3', bpm: 80, bars: 4 }, { rttMs: 20 });
+    const grid = t.output.metronome.gridStartTime()!;
+    const slots = slotGrid(patternById('P3'), 80, 4, 0);
+    // Bar 1 played right; bar 2 misses its first slot; bar 3 adds a strum in a rest slot; bar 4 not played.
+    const offsets = slots.flatMap((slot, i) => {
+      const bar = Math.floor(i / 8);
+      if (bar === 3 || (bar === 1 && i === 8)) return [];
+      if (slot.expected) return [slot.time];
+      return bar === 2 && i === 17 ? [slot.time] : [];
+    });
+    const pending = offsets.map((o) => grid + o + 0.02).sort((a, b) => a - b);
+    let midRun: string[] | null = null;
+    t.output.run(t.clock, grid - t.clock.t + 4 * 3 + 4, () => {
+      while (pending.length > 0 && pending[0]! <= t.clock.t - 0.45) {
+        t.mic.judged.emit({
+          time: pending.shift()!,
+          result: null,
+          jobKind: 'onsets',
+          detectorVersion: DETECTOR_VERSION,
+          processingMs: 1.5,
+        });
+      }
+      t.runner.tick();
+      // 1.3 s into bar 3: bars 1 and 2 are already on screen.
+      if (midRun === null && t.clock.t >= grid + 2 * 3 + 1.3) {
+        expect(t.runner.snapshot().phase).toBe('running');
+        midRun = t.view().liveBars.map((b) => b.status);
+        expect(t.view().liveBars[1]!.judgements[0]).toBe('miss');
+      }
+    });
+    await flush();
+    expect(midRun).toEqual(['good', 'off']);
+    const live = t.view().liveBars;
+    expect(live.map((b) => b.status)).toEqual(['good', 'off', 'off', 'stop']);
+    expect(live[2]!.extras).toBe(1);
+    const analysis = t.view().analysis!;
+    expect(live.reduce((sum, b) => sum + b.hits, 0)).toBe(analysis.hits);
+    expect(live.reduce((sum, b) => sum + b.extras, 0)).toBe(analysis.extras);
+  });
+
+  it('no live bars without a microphone', async () => {
+    const t = await setup({}, { mic: false });
+    t.output.run(t.clock, 30, () => t.runner.tick());
+    expect(t.view().liveBars).toEqual([]);
+  });
+});

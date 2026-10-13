@@ -9,6 +9,12 @@ import type { PluckResult } from '../../dsp/modeA';
 import type { TimingAnalysis } from '../../dsp/timing';
 
 const strictness = z.enum(['lenient', 'normal', 'strict']);
+const sensitivity = z.enum(['low', 'normal', 'high']);
+/** Strings plucked just before a Mode A take that may still ring (D-074): their f0 and onset capture sample. */
+const ringing = z
+  .array(z.object({ f0: z.number().positive(), sample: z.number() }))
+  .max(6)
+  .default([]);
 /** zod emits `field?: T | undefined`; the domain type uses exact optional properties, so drop undefined keys. */
 const workerVoicing = voicingSchema.transform(
   ({ nameKo, barres, ...rest }): ChordVoicing => ({
@@ -34,12 +40,17 @@ export const jobSchema = z.discriminatedUnion('kind', [
       })
       .optional(),
   }),
-  /** Mode A: one expected string. `silent` = x-string check; `buzz` adds the beta buzz score (§10.11). */
+  /**
+   * Mode A: one expected string. `silent` = x-string check; `buzz` adds the beta buzz score (§10.11);
+   * `sensitivity` (D-075) and the still-ringing strings (D-074) default to the benchmark's plain judgement.
+   */
   z.object({
     kind: z.literal('pluck'),
     expectedF0: z.number().positive(),
     templateDecayRatio: z.number().optional(),
     strictness: strictness.default('lenient'),
+    sensitivity: sensitivity.default('normal'),
+    ringing,
     silent: z.boolean().default(false),
     buzz: z.boolean().optional(),
   }),
@@ -132,6 +143,8 @@ export const rangeRequestSchema = z.discriminatedUnion('kind', [
     expectedF0: z.number().positive(),
     templateDecayRatio: z.number().optional(),
     strictness: strictness.default('lenient'),
+    sensitivity: sensitivity.default('normal'),
+    ringing,
     silent: z.boolean().default(false),
   }),
 ]);

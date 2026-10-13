@@ -106,6 +106,9 @@ export class FretPositionRunner extends BaseRunner<FretPositionResult, E16View> 
         expectedF0: this.expectedF0,
         ...(template === undefined ? {} : { templateDecayRatio: template }),
         strictness: this.ctx.settings.strictness,
+        sensitivity: this.ctx.settings.sensitivity,
+        // One string plucked again and again: nothing else rings under the take.
+        ringing: [],
         silent: false,
         buzz: true,
       });

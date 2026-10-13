@@ -19,7 +19,7 @@ import { Button } from '../../ui/Button';
 import { createExerciseMic, createExerciseOutput } from '../audioAdapter';
 import { contentContextFor } from '../contentContext';
 import type { ExerciseDefinition } from '../registry';
-import type { ExerciseContext, ExerciseRunner } from '../types';
+import type { ContentContext, ExerciseContext, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from './hooks';
 import { MicFeedback } from './MicFeedback';
 
@@ -38,6 +38,8 @@ export interface ExerciseHostProps {
   autoFocusStart?: boolean;
   /** True from the start tap until the run ended (the session runner locks its navigation meanwhile). */
   onActiveChange?: (active: boolean) => void;
+  /** Content to run with (a curriculum stage other than the current one, D-072); default the current stage's. */
+  content?: ContentContext;
 }
 
 interface Running {
@@ -159,6 +161,7 @@ export function ExerciseHost({
   renderAfter,
   autoFocusStart = false,
   onActiveChange,
+  content,
 }: ExerciseHostProps) {
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.update);
@@ -230,10 +233,11 @@ export function ExerciseHost({
       audio: micOk ? createExerciseMic(audioEngine) : null,
       output: createExerciseOutput(audioEngine, metronome),
       clock: { now: () => performance.now() * rate },
-      content: contentContextFor(progression),
+      content: content ?? contentContextFor(progression),
       calibration,
       settings: {
         strictness: current.strictness,
+        sensitivity: current.sensitivity,
         xStringCheck: current.xStringCheck,
         leftHanded: current.leftHanded,
         visualOnlyMetronome: current.visualOnlyMetronome,

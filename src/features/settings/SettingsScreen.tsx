@@ -427,6 +427,22 @@ export function SettingsScreen() {
               ))}
             </select>
           </label>
+          <label className="flex flex-col gap-1">
+            <span className="font-semibold">{ko.settingsScreen.sensitivity}</span>
+            <select
+              className="min-h-12 rounded-lg bg-surface-2 px-3 text-fg"
+              value={settings.sensitivity}
+              onChange={(e) => set({ sensitivity: e.target.value as Settings['sensitivity'] })}
+              data-testid="setting-sensitivity"
+            >
+              {(['low', 'normal', 'high'] as const).map((s) => (
+                <option key={s} value={s}>
+                  {ko.settingsScreen.sensitivityNames[s]}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-muted">{ko.settingsScreen.sensitivityHelp}</span>
+          </label>
           <Toggle
             label={ko.settingsScreen.visualOnly}
             checked={settings.visualOnlyMetronome}

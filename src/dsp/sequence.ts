@@ -188,7 +188,7 @@ function delayed(x: ArrayLike<number>, n: number, d: number): number {
   );
 }
 
-interface CombStage {
+export interface CombStage {
   /** Period (samples) of the ringing note. */
   period: number;
   /** 1 = cancel the note; m ≥ 2 = keep only its harmonics that are multiples of m. */
@@ -196,7 +196,7 @@ interface CombStage {
 }
 
 /** Applies the comb cascade to x[start, end) (reading earlier samples as needed). */
-function combFiltered(x: ArrayLike<number>, start: number, end: number, stages: readonly CombStage[]) {
+export function combFiltered(x: ArrayLike<number>, start: number, end: number, stages: readonly CombStage[]) {
   const reach = Math.ceil(stages.reduce((s, c) => s + c.period, 0)) + 4;
   const from = Math.max(0, start - reach);
   let buf = new Float64Array(end - from);
@@ -226,9 +226,9 @@ export interface RingingNote {
 /** Comb stages for the notes still ringing when a note with `expectedF0` starts. */
 export function cancellationStages(
   expectedF0: number,
-  ringing: readonly RingingNote[],
+  ringing: readonly Pick<RingingNote, 'f0'>[],
   sampleRate: number,
-  params: SequenceParams,
+  params: Pick<SequenceParams, 'maxCancelled' | 'harmonicMatchCents'>,
 ): CombStage[] {
   const stages: CombStage[] = [];
   for (const r of params.maxCancelled > 0 ? ringing.slice(-params.maxCancelled) : []) {

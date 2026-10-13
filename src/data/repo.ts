@@ -122,7 +122,8 @@ export class Repository {
 
   /**
    * Ends a session (self report, practice time without pauses). Only a session in which something was practised
-   * counts toward the stage's minimum stay.
+   * at the current stage counts toward the stage's minimum stay (a curriculum session for another stage does
+   * not, D-072).
    */
   async finishSession(
     id: string,
@@ -144,6 +145,7 @@ export class Repository {
       });
       if (completedItems === 0) return;
       const progression = (await this.db.progression.get('current')) ?? initialProgression(endedAt);
+      if (session.stage !== progression.stage) return;
       await this.db.progression.put({ ...progression, sessionsInStage: progression.sessionsInStage + 1 });
     });
   }

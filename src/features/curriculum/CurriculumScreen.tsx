@@ -9,6 +9,7 @@ import { Screen } from '../../ui/Screen';
 import { type StoredState, stageChecklist } from '../home/homeModel';
 import { RuleChecklist } from '../home/RuleChecklist';
 import { practiceRefLabel } from './practiceRefLabel';
+import { StagePracticeList } from './StagePractice';
 
 const linkClass = 'inline-flex min-h-12 items-center rounded-lg bg-surface-2 px-4 font-semibold';
 
@@ -115,6 +116,7 @@ export function StageScreen() {
           {ko.curriculum.exam}
         </Link>
       )}
+      {state && <StagePracticeList stage={def.stage} state={state} />}
     </Screen>
   );
 }

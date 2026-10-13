@@ -14,7 +14,7 @@ import { STANDARD_TUNING } from '../../domain/theory';
 import { type ChordVoicing, expectedNotes } from '../../domain/voicing';
 import type { PluckResult } from '../../dsp/modeA';
 import type { StrumResult } from '../../dsp/modeB';
-import type { RetryReason } from '../../dsp/types';
+import type { RetryReason, Sensitivity } from '../../dsp/types';
 import { DETECTOR_VERSION } from '../../dsp/version';
 import { BaseRunner } from '../baseRunner';
 import { TakeTracker } from '../take';
@@ -69,6 +69,16 @@ export interface E1View {
 const FALLBACK_AFTER_S = 3.5;
 /** The same strum RETRY twice in a row → suggest string-by-string checking (SPEC §10.6-6). */
 const STRUM_RETRY_SUGGEST = 2;
+/** Strings passed to Mode A as still ringing (D-074): the latest per string, at most this many and this old. */
+const RINGING_MAX = 3;
+const RINGING_MAX_AGE_S = 4;
+/**
+ * Non-string retries that decayed like a muted string tolerated on one string before the string counts as
+ * MUTED (D-073): a real dead thud can look like a knock, so it cannot be retried forever.
+ */
+const NOT_STRING_TOLERANCE: Record<Sensitivity, number> = { low: 2, normal: 1, high: 1 };
+/** A pluck judged against another string's note (cents) was made before the job switched: judge it again. */
+const JOB_MISMATCH_CENTS = 1;
 const SELF_KEYS: Partial<Record<RunnerCommand, SelfStatus>> = {
   manual1: 'clean',
   manual2: 'muted',
@@ -124,6 +134,10 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
   /** Per-string Mode A confidence / semitone offset of the current attempt. */
   private readonly confidence = new Map<number, number>();
   private readonly semitones = new Map<number, number | null>();
+  /** Strings that sounded in this attempt (measured f0, audio-clock onset), oldest first (D-074). */
+  private sounding: { idx: number; f0: number; time: number }[] = [];
+  /** Muted-like NOT_STRING retries per string of this attempt (D-073). */
+  private readonly notStringRetries = new Map<number, number>();
 
   constructor(
     ctx: ExerciseContext,
@@ -254,6 +268,9 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
 
   private beginAttempt(): void {
     this.strings = freshStrings(this.voicing, this.ctx.settings.xStringCheck, this.mode);
+    // Releasing the chord damps the strings: nothing from the previous attempt keeps ringing.
+    this.sounding = [];
+    this.notStringRetries.clear();
     this.step = 'place';
     this.activeIdx = null;
     this.retry = null;
@@ -272,26 +289,46 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
     return null;
   }
 
-  private activate(idx: number | null): void {
+  /** `armAt`: arm the take from this audio time (the previous take's span end) instead of now (D-076). */
+  private activate(idx: number | null, armAt?: number): void {
     this.activeIdx = idx;
     if (idx === null) {
       this.completeAttempt();
       return;
     }
-    if (this.mode !== 'manual') {
-      const silent = this.voicing.frets[idx] === 'x';
+    const mic = this.ctx.audio;
+    if (this.mode !== 'manual' && mic) {
       const template = this.ctx.calibration?.stringTemplates[idx]?.decayRatio;
-      const expectedF0 = this.expectedF0.get(idx) ?? this.openF0(idx);
-      this.ctx.audio?.setJob({
+      mic.setJob({
         kind: 'pluck',
-        expectedF0,
+        expectedF0: this.expectedFor(idx),
         ...(template === undefined ? {} : { templateDecayRatio: template }),
         strictness: this.ctx.settings.strictness,
-        silent,
+        sensitivity: this.ctx.settings.sensitivity,
+        ringing: this.ringingFor(idx).map((r) => ({ f0: r.f0, sample: mic.captureSampleOf(r.time) })),
+        silent: this.voicing.frets[idx] === 'x',
       });
-      this.take.arm();
+      this.take.arm(armAt);
     }
     this.publish();
+  }
+
+  private expectedFor(idx: number): number {
+    return this.expectedF0.get(idx) ?? this.openF0(idx);
+  }
+
+  /** The other strings sounded recently in this attempt, oldest first (Mode A cancels their ringing). */
+  private ringingFor(idx: number): { f0: number; time: number }[] {
+    const now = this.ctx.output.now();
+    return this.sounding
+      .filter((s) => s.idx !== idx && now - s.time <= RINGING_MAX_AGE_S)
+      .slice(-RINGING_MAX)
+      .map(({ f0, time }) => ({ f0, time }));
+  }
+
+  private noteSounding(idx: number, f0: number, time: number): void {
+    // A new pluck on a string restarts (or stops) whatever it was sounding.
+    this.sounding = [...this.sounding.filter((s) => s.idx !== idx), { idx, f0, time }];
   }
 
   /** x strings are checked against their open note (a sounding string is UNEXPECTED). */
@@ -314,22 +351,53 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
     if (s.status !== null) return; // already judged (ear-first waiting for the self judgement)
     const decision = this.take.decide(event);
     if (decision === 'ignore') return;
+    const result = event.result as PluckResult;
+    const judgedFor = result.expectedF0;
+    if (
+      judgedFor !== undefined &&
+      Math.abs(1200 * Math.log2(judgedFor / this.expectedFor(idx))) > JOB_MISMATCH_CENTS
+    ) {
+      // Plucked right before the job switched to this string: the worker judged it as the previous one.
+      this.runFallback(idx, event.time - 0.15);
+      return;
+    }
     this.recordDsp(event);
     if (decision === 'multiple') {
       this.retryTake('MULTIPLE_ONSETS');
       return;
     }
-    this.applyPluck(idx, event.result as PluckResult);
+    this.applyPluck(idx, result, event.time);
   }
 
-  private applyPluck(idx: number, result: PluckResult): void {
+  /** `time`: the take's audio-clock onset (absent for the silent x-string result). */
+  private applyPluck(idx: number, judged: PluckResult, time?: number): void {
+    let result = judged;
+    const armAt = time === undefined ? undefined : TakeTracker.nextArmAt(time);
     if (result.verdict === 'RETRY') {
-      this.retryTake(result.reasons[0] ?? 'AMBIGUOUS');
-      return;
+      const reason = result.reasons[0] ?? 'AMBIGUOUS';
+      const sensitivity = this.ctx.settings.sensitivity;
+      if (reason === 'NOT_STRING' && result.fastDecay) {
+        const count = (this.notStringRetries.get(idx) ?? 0) + 1;
+        this.notStringRetries.set(idx, count);
+        // Heard again and again on this string: it is the string itself, sounding dead (D-073).
+        if (count > NOT_STRING_TOLERANCE[sensitivity])
+          result = { ...result, status: 'MUTED', verdict: 'FAIL', reasons: [] };
+      }
+      if (result.verdict === 'RETRY') {
+        // "둔감": a quiet sound is not worth a message, keep listening (D-075).
+        this.retryTake(reason, armAt, reason === 'LOW_LEVEL' && sensitivity === 'low');
+        return;
+      }
     }
     const s = this.strings[idx]!;
     this.take.disarm();
     this.retry = null;
+    this.notStringRetries.delete(idx);
+    if (
+      time !== undefined &&
+      (result.status === 'OK' || result.status === 'WRONG_NOTE' || result.status === 'UNEXPECTED')
+    )
+      this.noteSounding(idx, result.f0 ?? this.expectedFor(idx), time);
     s.status = result.status;
     s.cents = result.cents;
     s.hint = hintForString(this.voicing, { idx, status: result.status, semitones: result.semitones });
@@ -340,18 +408,19 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
       return;
     }
     s.revealed = true;
-    this.activate(this.nextPending(idx));
+    this.activate(this.nextPending(idx), armAt);
   }
 
-  private retryTake(reason: RetryReason): void {
-    this.retry = reason;
+  /** `armAt`: re-arm from the retried take's span end; `quiet`: keep listening without a message. */
+  private retryTake(reason: RetryReason, armAt?: number, quiet = false): void {
+    this.retry = quiet ? null : reason;
     if (this.step === 'strum') {
       this.strumRetry =
         this.strumRetry?.reason === reason
           ? { reason, count: this.strumRetry.count + 1 }
           : { reason, count: 1 };
     }
-    this.take.arm();
+    this.take.arm(reason === 'MULTIPLE_ONSETS' ? undefined : armAt);
     this.publish();
   }
 
@@ -458,31 +527,38 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
     super.tick();
     if (this.phase !== 'running' || this.fallbackBusy || this.step !== 'strings' || this.activeIdx === null)
       return;
+    if (!this.ctx.audio || this.mode !== 'pluck' || !this.take.shouldFallback(FALLBACK_AFTER_S)) return;
+    this.runFallback(this.activeIdx, (this.take.armedTime ?? this.ctx.output.now()) - 0.15);
+  }
+
+  /** Energy-onset fallback over [from, now] judged for string `idx` (no take found, or a superseded job). */
+  private runFallback(idx: number, from: number): void {
     const mic = this.ctx.audio;
-    if (!mic || this.mode !== 'pluck' || !this.take.shouldFallback(FALLBACK_AFTER_S)) return;
-    const idx = this.activeIdx;
-    const armedAt = this.take.armedTime ?? this.ctx.output.now();
-    const template = this.ctx.calibration?.stringTemplates[idx]?.decayRatio;
+    if (!mic || this.fallbackBusy) return;
+    const silent = this.voicing.frets[idx] === 'x';
     this.fallbackBusy = true;
     void mic
       .pluckFallback({
-        from: armedAt - 0.15,
+        from,
         to: this.ctx.output.now(),
-        expectedF0: this.expectedF0.get(idx) ?? this.openF0(idx),
-        templateDecayRatio: template,
+        expectedF0: this.expectedFor(idx),
+        templateDecayRatio: this.ctx.calibration?.stringTemplates[idx]?.decayRatio,
         strictness: this.ctx.settings.strictness,
+        sensitivity: this.ctx.settings.sensitivity,
+        silent,
+        ringing: this.ringingFor(idx),
       })
       .then((event) => {
         this.fallbackBusy = false;
         if (this.phase !== 'running' || this.activeIdx !== idx || this.strings[idx]!.status !== null) return;
         if (!event) {
           // An x string that stays silent produces no onset at all: that is exactly the expected result.
-          if (this.voicing.frets[idx] === 'x') this.applyPluck(idx, silentStringOk());
+          if (silent) this.applyPluck(idx, silentStringOk());
           else this.retryTake('NO_ONSET');
           return;
         }
         this.recordDsp(event);
-        this.applyPluck(idx, event.result as PluckResult);
+        this.applyPluck(idx, event.result as PluckResult, event.time);
       })
       .catch(() => {
         this.fallbackBusy = false;

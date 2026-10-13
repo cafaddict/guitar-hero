@@ -2,7 +2,7 @@
 
 > `npm run bench:dsp`(test split)가 생성한다. 손으로 고치지 않는다. GuitarSet 결과는 `npm run bench:guitarset`가 아래 별도 절에 쓴다.
 
-- 실행: 2026-10-09T01:07:49.773Z · split **test** · detectorVersion **1.4.0** · 14406 cases · 227 s
+- 실행: 2026-10-12T14:39:02.005Z · split **test** · detectorVersion **1.5.0** · 14406 cases · 228 s
 - 결과: **ALL THRESHOLDS MET** (임계값: `docs/goal/v1.1/thresholds.json` — v1 계약을 그대로 포함, 무결성 11)
 
 ## 지표 요약
@@ -14,7 +14,7 @@
 | modeA | wrongNoteFalseAcceptMax | 0.0000 | 0.0200 | PASS | 1716 |
 | modeA | mutedFalseAcceptMax | 0.0023 | 0.0500 | PASS | 429 |
 | modeA | weakFundamentalOkMin | 1.000 | 0.9500 | PASS | 429 |
-| modeA | mutedDetectRateMin | 0.9953 | 0.8000 | PASS | 429 |
+| modeA | mutedDetectRateMin | 0.9790 | 0.8000 | PASS | 429 |
 | modeA | wrongNoteDetectRateMin | 0.9936 | 0.9000 | PASS | 1716 |
 | modeB | cleanFailMax | 0.0100 | 0.0300 | PASS | 600 |
 | modeB | cleanRetryMax | 0.0625 | 0.1500 | PASS | 400 |
@@ -54,9 +54,9 @@
 | swing | slotAssignmentAccuracyMin | 0.9714 | 0.9500 | PASS | 3008 |
 | backingBleed | strumOnsetF1At25msMin | 0.9863 | 0.9000 | PASS | 2672 |
 | backingBleed | backingHitFalseStrumRateMax | 0.0049 | 0.0500 | PASS | 2022 |
-| perf | verifyStrumMedianMsMax | 9.380 | 20.000 | PASS | 1 |
-| perf | verifyPluckMedianMsMax | 2.274 | 10.000 | PASS | 1 |
-| perf | workletBlockAvgMsMax | 0.0364 | 0.3000 | PASS | 1 |
+| perf | verifyStrumMedianMsMax | 9.267 | 20.000 | PASS | 1 |
+| perf | verifyPluckMedianMsMax | 2.253 | 10.000 | PASS | 1 |
+| perf | workletBlockAvgMsMax | 0.0365 | 0.3000 | PASS | 1 |
 | coverage | modeBVerifiableRatioAtLeastDefaultRule | 0.4565 | 0.4565 | PASS | 9 |
 
 ## 베타 — 게이트 아님
@@ -517,9 +517,9 @@
 
 | snrDb | 값 | n |
 |---|---|---|
-| 15 | 0.9873 | 157 |
-| 25 | 1.000 | 143 |
-| 40 | 1.000 | 129 |
+| 15 | 0.9745 | 157 |
+| 25 | 0.9930 | 143 |
+| 40 | 0.9690 | 129 |
 
 </details>
 
@@ -527,9 +527,9 @@
 
 | micHighpassHz | 값 | n |
 |---|---|---|
-| 0 | 1.000 | 151 |
-| 100 | 0.9922 | 129 |
-| 150 | 0.9933 | 149 |
+| 0 | 0.9801 | 151 |
+| 100 | 0.9690 | 129 |
+| 150 | 0.9866 | 149 |
 
 </details>
 
@@ -537,7 +537,7 @@
 
 | model | 값 | n |
 |---|---|---|
-| additive | 1.000 | 224 |
+| additive | 0.9688 | 224 |
 | karplus-strong | 0.9902 | 205 |
 
 </details>
@@ -546,8 +546,8 @@
 
 | sampleRate | 값 | n |
 |---|---|---|
-| 44100 | 0.9956 | 229 |
-| 48000 | 0.9950 | 200 |
+| 44100 | 0.9738 | 229 |
+| 48000 | 0.9850 | 200 |
 
 </details>
 
@@ -555,8 +555,8 @@
 
 | reverb | 값 | n |
 |---|---|---|
-| none | 0.9953 | 213 |
-| small-room | 0.9954 | 216 |
+| none | 0.9906 | 213 |
+| small-room | 0.9676 | 216 |
 
 </details>
 
@@ -575,21 +575,21 @@
 | C7 | 1.000 | 20 |
 | Cadd9 | 1.000 | 16 |
 | D | 1.000 | 14 |
-| D5 | 1.000 | 18 |
-| D7 | 1.000 | 10 |
+| D5 | 0.9444 | 18 |
+| D7 | 0.9000 | 10 |
 | Dm | 1.000 | 15 |
 | Dsus4 | 1.000 | 14 |
 | E | 1.000 | 15 |
-| E5 | 1.000 | 17 |
+| E5 | 0.8824 | 17 |
 | E7 | 1.000 | 10 |
-| Em | 1.000 | 7 |
+| Em | 0.8571 | 7 |
 | Em7 | 1.000 | 18 |
 | F | 1.000 | 14 |
 | F-small | 0.9333 | 15 |
 | F5 | 1.000 | 12 |
-| Fmaj7 | 1.000 | 17 |
+| Fmaj7 | 0.9412 | 17 |
 | G-2f | 1.000 | 16 |
-| G-3f | 1.000 | 21 |
+| G-3f | 0.9524 | 21 |
 | G-4f | 1.000 | 18 |
 | G5 | 1.000 | 9 |
 | G7 | 1.000 | 13 |
@@ -3635,7 +3635,7 @@
 <!-- guitarset:start -->
 ## GuitarSet 실녹음 벤치마크 (`npm run bench:guitarset`, 생성)
 
-- 실행: 2026-10-09T01:08:35.712Z · detector **1.4.0** · 360 clips · 데이터: Zenodo 3371780 (GuitarSet 1.1.0, **CC BY 4.0**, Xi et al. 2018) — `audio_mono-mic` + `annotation`
+- 실행: 2026-10-12T14:39:40.443Z · detector **1.5.0** · 360 clips · 데이터: Zenodo 3371780 (GuitarSet 1.1.0, **CC BY 4.0**, Xi et al. 2018) — `audio_mono-mic` + `annotation`
 - 판정은 **test 플레이어(04, 05)**, 튜닝은 dev 플레이어(00–03)만 썼다.
 - Funk comp 클립은 주석 없는 뮤트 "칙" 소리가 많아 onset F1에서 제외했다(SPEC §14.4).
 - solo 단음 시퀀스(SPEC v1.1 §14.4): 인접 onset 간격·음 지속 ≥ 120 ms, onset + 60 ms에 다른 줄 음이 울리는 중이면 제외, [+30, +130 ms] 윤곽 ±35 cents. 검출 onset(시퀀스 경로)과 ±50 ms 짝지은 음만 하드 지표에 쓰고, test 플레이어의 짝지은 음이 1000개 미만이면 FAIL. onset F1(소프트)은 해머온·슬라이드를 포함한 모든 solo 음 onset(60 ms 묶음)이 정답이다.
@@ -3696,3 +3696,4 @@
 - 2026-10-07T20:08:17.876Z · detector 1.3.1 · split test · PASS (all thresholds met)
 - 2026-10-07T20:13:07.863Z · detector 1.3.1 · split test · PASS (all thresholds met)
 - 2026-10-09T01:07:49.773Z · detector 1.4.0 · split test · PASS (all thresholds met)
+- 2026-10-12T14:39:02.005Z · detector 1.5.0 · split test · PASS (all thresholds met)

@@ -62,3 +62,27 @@ describe('E8 alternate picking', () => {
     expect(runner.finish()).toMatchObject({ source: 'self', hitRate: 0.8, ioiCv: null, passed: false });
   });
 });
+
+describe('E8 live feedback while playing (D-077)', () => {
+  it('each bar shows how many of its eight picks landed', async () => {
+    // Bar 3 (picks 16–23) drops three picks; bar 6 drops all eight.
+    const { runner } = await run(
+      () => 0,
+      (i) => (i >= 16 && i < 19) || (i >= 48 && i < 56),
+    );
+    const live = runner.snapshot().view.liveBars;
+    expect(live).toHaveLength(8);
+    expect(live.map((b) => b.status)).toEqual([
+      'good',
+      'good',
+      'off',
+      'good',
+      'good',
+      'good',
+      'stop',
+      'good',
+    ]);
+    expect(live[2]).toMatchObject({ hits: 5, expected: 8, misses: 3 });
+    expect(runner.finish().hitRate).toBeCloseTo(live.reduce((s, b) => s + b.hits, 0) / 64, 9);
+  });
+});

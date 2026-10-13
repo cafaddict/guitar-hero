@@ -2,7 +2,7 @@
 
 > 대상: `src/dsp/` (순수 TypeScript, Node·브라우저 공용). 근거: SPEC §10, 리서치 02. 파라미터는 **dev split(시드 1000–1999)에서만** 튜닝했다.
 > 벤치마크 결과는 `docs/BENCHMARK.md`(생성 파일), 실녹음(GuitarSet) 분석은 아래 "GuitarSet" 절(M3)에 적는다.
-> detectorVersion: `src/dsp/version.ts` (현재 1.4.0 — v1.1 M11: Mode C 마진 재튜닝, 시퀀스·반주 마스킹·베타 판정기 추가. 1.3.1은 M3 onset 재튜닝·Mode A 강건화). 알고리즘·파라미터가 바뀌면 올린다.
+> detectorVersion: `src/dsp/version.ts` (현재 1.5.0 — Mode A 줄 소리 아님(NOT_STRING)·앞 줄 울림 상쇄·판정 감도(22절). 1.4.0은 v1.1 M11: Mode C 마진 재튜닝, 시퀀스·반주 마스킹·베타 판정기 추가. 1.3.1은 M3 onset 재튜닝·Mode A 강건화). 알고리즘·파라미터가 바뀌면 올린다.
 
 ## 0. 공통
 
@@ -182,7 +182,7 @@ M2 설정의 GuitarSet dev 지표: Mode A OK 0.884(n=43), **onset F1 0.734**(P 0
 | 클릭 마스킹 | 들리는 최근 8개 클릭의 예상 도착(예약 + RTT)을 worklet에 전달 | 3절 클릭 마스킹, D-033 |
 | RTT | 프로브 8개 × 3 ms, 최대 500 ms 탐색, 연속 2회 3 ms 안 합의 → 평균 | 9절, D-034 |
 
-`detectorVersion`(`src/dsp/version.ts`)은 판정 결과를 바꾸는 DSP 변경마다 올리고, 모든 Attempt에 기록된다. 현재 1.4.0.
+`detectorVersion`(`src/dsp/version.ts`)은 판정 결과를 바꾸는 DSP 변경마다 올리고, 모든 Attempt에 기록된다. 현재 1.5.0.
 
 
 ## 15. 단음 시퀀스 검증 (`sequence.ts`, SPEC v1.1 §10.10)
@@ -259,3 +259,22 @@ M2 설정의 GuitarSet dev 지표: Mode A OK 0.884(n=43), **onset F1 0.734**(P 0
 
 - 청크 판정 = 통째 판정(같은 상태 목록)은 `src/exercises/sequence/tracker.test.ts`가, 반주 마스킹이 실제 브라우저 경로에서 동작함은 E2E-17(b)(앱 온보딩으로 잰 루프백 RTT, §14.8 척도 −12 dB 누출, 박 1을 치지 않는 마디가 끝까지 miss)가 확인한다. 마스킹을 끈 변이에서 E2E-17(b)가 실패함을 확인했다(D-068).
 - 반주 도착 예측은 **실측 RTT**에 기대므로 RTT 보정이 오래됐거나 출력 장치가 바뀌면(블루투스) 마스킹 창을 벗어날 수 있다 — 스피커 반주의 코드 판정은 "참고"이고 이어폰을 권장하는 이유다(§8.6).
+
+## 22. Mode A 실사용 보강: 몸통 노크·앞 줄 울림·판정 감도 (1.5.0, D-073–D-076)
+
+코드 정밀 체크(E1 한 줄씩)를 실제로 쓰며 나온 두 문제 — 기타 몸통을 친 소리가 MUTED로 찍힘, 앞 줄이 울리는 채로 다음 줄을 치면 가끔 틀림 — 를 고쳤다. 합성 벤치에는 두 상황이 없었다(모든 Mode A 케이스가 조용한 곳의 단음 하나).
+
+**줄 소리 증거(`stringEvidence`)**: 새 에너지 스펙트럼 P = max(0, |[+30, +130 ms]|² − |[−120, −20 ms]|²)(Hann, zero-pad ×2, 누적합)에서 기대음 ±700 cent(5 cent 간격)의 후보 f0마다 배음 h = 1..min(10, 5000/f0)의 대역(중심 h·f0·√(1+5e-5·h²), 반폭 max(12 Hz, 25 cent)) 에너지를 더한다. 가장 좋은 후보의 대역 비율 `hf`(대상 범위 [0.5 f0, (h_max+0.5) f0])와 그 배음열에서 최대 배음의 1% 이상인 배음 수 `pc`. 직전 구간을 빼므로 이미 울리던 줄은 증거에 끼지 않는다. MUTED 직전에만 쓰고, 줄 소리가 아니면(`pc ≤ pcMax` 또는 `hf < hfMin`) RETRY `NOT_STRING`(`fastDecay`). 이미 RETRY(AMBIGUOUS·LOW_LEVEL)이면서 60–5000 Hz 새 에너지 상승 ≥ 10 dB이고 증거가 없으면 사유만 NOT_STRING. 합성 노크(`synth/knock.ts`: 몸통 모드 100·205·400 Hz ±10%, τ 15–60 ms, 판 모드 600–1500 Hz 2–4개, 2 ms 접촉 버스트)는 단독일 때 245/246 NOT_STRING.
+
+**울림 상쇄**: `ringing: {f0, ageS}[]`(0.05 < age ≤ 3 s, 최근 3개)로 `cancellationStages`(15절, 같은 배음 관계면 harmonic-pass)를 만들고 [onset − 300 ms, 끝]의 comb 사본도 같은 판정(1–5단계)을 한다. 선택: 사본의 60–5000 Hz 새 에너지가 원본의 −9 dB 미만 → 원본(앞 줄을 다시 친 경우, 원본만 그 음을 "틀린 음"으로 말할 수 있다); 원본 f0가 울리는 줄 ±50 cent → 사본; 원본만 RETRY → 사본; 둘 다 판정하고 상태가 다르면 clarity 높은 쪽; 그 밖에는 원본. 사본의 OK·WRONG_NOTE는 감쇠비 ≥ 뮤트 기준 × 2.5일 때만 믿는다(약한 뮤트 음 + 낮은 SNR에서 comb가 키운 잡음). 줄 소리 증거는 언제나 원본 기준. `ringing`이 없거나 비면 결과가 이전과 같다.
+
+**판정 감도**(설정, 상대값만): 둔감 / 보통(기본·벤치) / 민감 = `minLevelDb` 9 / 7 / 5 dB, `pcMax·hfMin` 3·0.7 / 3·0.6 / 2·0.5.
+
+**측정(합성, dev, 파일에 고정되지 않은 회귀 근거)**:
+- dev split Mode A(벤치 그대로): 원래 커밋 대비 바뀐 지표는 `mutedDetectRate` 0.9977 → 0.9930뿐(임계 0.80). `verifyPluckMedianMs` 2.27 ms(울림 없는 경로).
+- test split(1.5.0 최종 실행): 하드 지표 전부 통과, Mode A에서 바뀐 값은 `mutedDetectRate` 0.9953 → 0.9790(429개 중 7개가 MUTED 대신 NOT_STRING 재시도). 7개 모두 additive 모델(1.000 → 0.969)이고 Karplus–Strong은 그대로 — 빨리 죽는 additive 뮤트 음은 30–130 ms 창에서 배음이 적게 남아 `pc ≤ 3`에 걸린다. 앱에서는 같은 줄의 두 번째 NOT_STRING이 MUTED로 확정되므로(보통) 한 번 더 치게 될 뿐이다. 문턱 조정은 dev에서만, 실녹음 뮤트로(BACKLOG). GuitarSet 하드 지표는 1.4.0과 같다.
+- `tools/bench/debug/modeA-takes.ts`(벤치 채널: 방·마이크 HPF·dev SNR, 120 케이스, 울림 −6/0/+6 dB × 감도 3): 울림을 넘기면 깨끗한 음 OK 20/20(모든 조건), 틀린 음 → OK 0, 뮤트 → OK 0, 노크 → FAIL은 둔감·보통에서 0(민감은 4/20 MUTED — 민감의 뜻대로). 울림을 넘기지 않은 원래 판정은 울림 +6 dB에서 깨끗한 음 OK 3/20.
+- 회귀 테스트 `src/dsp/modeA.takes.test.ts`(11개, 원래 코드에서 5개 실패 확인).
+
+**한계**: 정답 있는 실녹음(노크·뮤트·빠른 줄 넘김) 없음 — 녹음 키트로 쌓아 재조정(BACKLOG). 옥타브 관계 울림 아래 뮤트 음은 LOW_LEVEL 재시도가 남는다(직전 구간 감쇠 외삽 후보). 울림이 있으면 Mode A를 두 번 + comb로 돌린다(수 ms 추가, 판정 지연 예산 안).
+

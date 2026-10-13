@@ -6,6 +6,7 @@ import type { ExerciseContext, ExerciseRunner } from '../types';
 import { ArmedStart } from '../ui/ArmedStart';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { LiveBars } from '../ui/LiveBars';
 import { type E5Beta, type E5Params, nextBpmFor, type E5View as View } from './runner';
 
 /** A slot's identity is its position in the bar (patterns repeat 'D'/'U' symbols). */
@@ -42,6 +43,9 @@ export function E5ViewComponent({
 }) {
   const { view, phase, remainingMs } = useRunnerSnapshot(runner);
   const chord = view.chords.length > 0 ? view.chords[(view.bar ?? 0) % view.chords.length] : null;
+  const live = view.source === 'mic' && phase !== 'armed' && phase !== 'ready' && phase !== 'done';
+  /** The bar judged last: its slot verdicts are shown under the pattern cells. */
+  const lastBar = view.liveBars[view.liveBars.length - 1] ?? null;
   return (
     <div className="flex flex-col gap-4" data-testid="e5-view" data-phase={phase}>
       <BigTimer remainingMs={remainingMs} />
@@ -73,11 +77,22 @@ export function E5ViewComponent({
                 {view.cuesHidden ? '' : ko.exercises.e5.direction[slot]}
               </span>
               <span className="text-xs">{view.cuesHidden ? '' : ko.exercises.e5.directionLabel[slot]}</span>
+              {live && lastBar && (
+                <span
+                  className={`text-sm font-bold ${{ hit: 'text-ok', miss: 'text-fail', extra: 'text-retry', empty: '' }[lastBar.judgements[position] ?? 'empty']}`}
+                  data-testid="e5-slot-judgement"
+                  data-judgement={lastBar.judgements[position] ?? 'empty'}
+                  aria-hidden="true"
+                >
+                  {ko.exercises.live.slot[lastBar.judgements[position] ?? 'empty']}
+                </span>
+              )}
             </li>
           );
         })}
       </ol>
       <BeatCount beat={view.beat} beatsPerBar={view.beatsPerBar} />
+      {live && <LiveBars bars={view.bars} live={view.liveBars} current={view.bar} kind="counts" />}
       <p className="text-center" data-testid="e5-count-hint">
         {ko.exercises.e5.countAloud}
         {ctx.content.stage === 2 && ` ${ko.exercises.e5.footTap}`}

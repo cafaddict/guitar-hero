@@ -20,7 +20,8 @@ export type RetryReasonCode =
   | 'AMBIGUOUS'
   | 'NO_ONSET'
   | 'MULTIPLE_ONSETS'
-  | 'DETUNED';
+  | 'DETUNED'
+  | 'NOT_STRING';
 
 export const ko = {
   app: {
@@ -423,6 +424,21 @@ export const ko = {
     tips: '팁',
     criteria: '진급 기준',
     chords: (list: string) => `새 코드: ${list}`,
+    /** "이 단계 연습" (D-072): pick exercises of any stage and play them now. */
+    practice: {
+      title: '이 단계 연습하기',
+      intro:
+        '하나를 골라 바로 하거나, 여러 개를 골라 순서대로 세션으로 할 수 있어요. 기록은 평소처럼 남아요.',
+      now: '바로 하기',
+      add: '세션에 넣기',
+      start: (n: number) => (n === 0 ? '세션에 넣을 연습을 골라요' : `고른 ${n}개로 세션 시작`),
+      none: '지금은 없음',
+      noneHint: '지금은 할 항목이 없어요(배운 코드·카드가 아직 없거나 오늘 상한에 닿았어요).',
+      otherStage: '지금 단계가 아닌 단계로 한 세션은 지금 단계의 최소 세션 수에는 들어가지 않아요.',
+      back: '단계로',
+      next: '다음 연습',
+      order: (n: number) => `${n}번째`,
+    },
     exam: '졸업 시험',
     examIntro: '항목별로 따로 통과해도 돼요. 통과한 항목은 기록돼요.',
     examItems: {
@@ -477,6 +493,13 @@ export const ko = {
     leftHanded: '왼손잡이(다이어그램 좌우 반전)',
     strictness: '판정 엄격도',
     strictnessNames: { lenient: '관대', normal: '보통', strict: '엄격' },
+    sensitivity: '판정 감도(줄 하나씩 확인)',
+    sensitivityNames: {
+      low: '둔감 — 작은 소리·잡음은 무시',
+      normal: '보통',
+      high: '민감 — 작은 소리도 판정',
+    },
+    sensitivityHelp: '몸통을 친 소리처럼 줄 소리가 아닌 건 어느 감도에서나 다시 쳐 달라고 해요.',
     visualOnly: '시각 전용 메트로놈(소리 없이)',
     xStringCheck: 'x줄 확인(치지 않는 줄이 조용한지 확인)',
     sessionMinutes: '세션 길이(분)',
@@ -622,6 +645,29 @@ export const ko = {
       noMic: '마이크 없이 진행해요(수동·자가 판정).',
       unknownExercise: '알 수 없는 연습이에요.',
       paused: '일시정지',
+    },
+    /** Live per-bar feedback while playing (D-077). */
+    live: {
+      title: '마디별 결과(바로 보기)',
+      status: { good: '제때', off: '조금 어긋남', miss: '많이 놓침', stop: '멈춤' },
+      icon: { good: '✓', off: '±', miss: '✗', stop: '■' },
+      pending: '아직',
+      slot: { hit: '✓', miss: '✗', extra: '+', empty: '' },
+      cell: (bar: number, status: string) => `${bar}마디 ${status}`,
+      timing: (ms: number) =>
+        Math.abs(ms) < 1 ? '정확' : `${ms > 0 ? '늦게' : '빨리'} ${Math.abs(Math.round(ms))} ms`,
+      chord: { right: '코드 맞음', wrong: '앞 코드 소리 같아요' },
+      beatOne: (bar: number, status: string, timing: string | null, chord: string | null) =>
+        [`${bar}마디: ${status}`, timing, chord].filter(Boolean).join(' · '),
+      counts: (bar: number, hits: number, expected: number, misses: number, extras: number) =>
+        [
+          `${bar}마디: ${hits}/${expected} 맞음`,
+          misses > 0 ? `놓침 ${misses}` : null,
+          extras > 0 ? `더 친 것 ${extras}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      note: '마디가 끝나면 1초 안에 결과가 떠요. 기록은 끝난 뒤 다시 계산한 값이에요.',
     },
     stringStatus: {
       OK: '깨끗',
@@ -1165,6 +1211,8 @@ export const ko = {
           return '여러 번 친 것 같아요. 한 번만 쳐 주세요.';
         case 'DETUNED':
           return '튜닝이 많이 벗어났어요. 튜너로 먼저 맞춰 주세요.';
+        case 'NOT_STRING':
+          return '줄 소리가 아닌 것 같아요(몸통 소리 등). 그 줄을 한 번 더 쳐 주세요.';
       }
     },
     unverifiable: '확인 불가',

@@ -16,6 +16,7 @@ import type {
   ExerciseOutput,
   ExerciseSettings,
   JudgedEvent,
+  PluckFallbackRequest,
   SequenceOutcome,
   SequenceRequest,
 } from '../types';
@@ -38,7 +39,7 @@ export class FakeMic implements ExerciseMic {
   readonly judged = new Emitter<JudgedEvent>();
   readonly coarse = new Emitter<number>();
   readonly tuner = new Emitter<{ f0: number | null; stableF0: number | null }>();
-  readonly fallbackRequests: { from: number; to: number; expectedF0: number }[] = [];
+  readonly fallbackRequests: PluckFallbackRequest[] = [];
   fallbackResult: JudgedEvent | null = null;
 
   setJob(job: Job | null): void {
@@ -58,11 +59,7 @@ export class FakeMic implements ExerciseMic {
   onTuner(listener: (reading: { f0: number | null; stableF0: number | null }) => void): () => void {
     return this.tuner.on(listener);
   }
-  async pluckFallback(request: {
-    from: number;
-    to: number;
-    expectedF0: number;
-  }): Promise<JudgedEvent | null> {
+  async pluckFallback(request: PluckFallbackRequest): Promise<JudgedEvent | null> {
     this.fallbackRequests.push(request);
     return this.fallbackResult;
   }
@@ -188,6 +185,7 @@ export class FakeOutput implements ExerciseOutput {
 
 export const TEST_SETTINGS: ExerciseSettings = {
   strictness: 'lenient',
+  sensitivity: 'normal',
   xStringCheck: false,
   leftHanded: false,
   visualOnlyMetronome: false,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { actionForKey, isEditableTarget, isNativeActivation } from '../../app/keys';
 import { audioEngine, metronome, repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
@@ -20,6 +20,8 @@ import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { ChordDiagram } from '../../ui/ChordDiagram';
 import { Screen } from '../../ui/Screen';
+import type { CustomSessionRequest } from '../curriculum/StagePractice';
+import { practiceOptions, stageContent, stageItems } from '../curriculum/stagePracticeModel';
 import { routineInputFrom } from '../home/homeModel';
 import { itemTitle } from './itemTitle';
 import { type RunIdentity, repeatSuggestion } from './repeat';
@@ -50,6 +52,9 @@ import {
   startSession,
 } from './sessionModel';
 import { clearSplit, closeSplit, pendingSplit, saveSplitProgress } from './splitResume';
+
+/** Session.routineId of a curriculum session (exercises picked on a stage page, D-072). */
+export const CUSTOM_ROUTINE_ID = 'custom';
 
 interface Loaded {
   items: RoutineItem[];
@@ -177,6 +182,13 @@ export function SessionScreen() {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   /** "이어서 하기": the second half of a split session continues the same session (§7.3-11). */
   const resuming = useSearchParams()[0].get('resume') !== null;
+  /** A curriculum session (exercises picked on a stage page, D-072) instead of today's routine. */
+  const customState = (useLocation().state as { custom?: CustomSessionRequest } | null)?.custom;
+  const customKey = customState ? JSON.stringify(customState) : null;
+  const custom = useMemo(
+    () => (customKey ? (JSON.parse(customKey) as CustomSessionRequest) : null),
+    [customKey],
+  );
   const [sessionId, setSessionId] = useState<string | null>(null);
   /** The kept first half this runner resumed (its record follows the second half's progress). */
   const [resumedSplit, setResumedSplit] = useState<SplitResume | null>(null);
@@ -232,6 +244,36 @@ export function SessionScreen() {
       // "시작" while today's first half is kept: that half ends as it is (it counts) and a new session starts.
       if (split) await closeSplit(split);
       const stored = await loadStoredState(loadedAt);
+      if (custom) {
+        // Curriculum session (D-072): the picked exercises of that stage, in the picked order.
+        const all = practiceOptions(custom.stage);
+        const chosen = custom.options.flatMap((i) => (all[i] ? [all[i]] : []));
+        const { items } = stageItems(stored, custom.stage, chosen, loadedAt);
+        if (cancelled) return;
+        setLoaded({
+          items,
+          stage: custom.stage,
+          content: stageContent(stored, custom.stage),
+          rest: false,
+          splitAfterIndex: null,
+          repertoire: { songs: stored.songs, stage: custom.stage, skills: stored.skills },
+        });
+        if (items.length === 0) return;
+        const id = newId();
+        setSessionId(id);
+        await repo.startSession({
+          id,
+          startedAt: Date.now(),
+          endedAt: null,
+          routineId: CUSTOM_ROUTINE_ID,
+          plannedItems: items.length,
+          completedItems: 0,
+          selfReport: null,
+          stage: custom.stage,
+        });
+        if (!cancelled) setState(startSession(now()));
+        return;
+      }
       // Session start (SPEC v1.1 §7.4): expire prescriptions, detect stagnation, then plan the routine.
       const prep = prepareSession({
         progression: stored.progression,
@@ -270,7 +312,7 @@ export function SessionScreen() {
     return () => {
       cancelled = true;
     };
-  }, [resuming, now]);
+  }, [resuming, now, custom]);
 
   // Once per second: item budget display and the 30-minute break reminder (decided outside the state updater).
   const stateRef = useRef<SessionState | null>(null);
@@ -427,6 +469,12 @@ export function SessionScreen() {
       </Screen>
     );
   }
+  if (custom && loaded.items.length === 0)
+    return (
+      <Screen title={ko.session.title}>
+        <p data-testid="custom-session-empty">{ko.curriculum.practice.noneHint}</p>
+      </Screen>
+    );
   if (!state || !sessionId) return <Screen title={ko.session.title}>{null}</Screen>;
 
   if (ending || isFinished(state, items)) {
@@ -509,6 +557,7 @@ export function SessionScreen() {
           key={`${item.id}#${rerun.n}`}
           definition={definition}
           params={rerun.params ?? pluginParamsFor(item, definition, loaded.content)}
+          content={loaded.content}
           sessionId={sessionId}
           reviewOf={rerun.identity ? rerun.identity.reviewOf : (item.reviewOf ?? null)}
           routineKey={rerun.identity ? rerun.identity.routineKey : (item.key ?? null)}

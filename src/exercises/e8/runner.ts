@@ -8,6 +8,7 @@ import type { AltPickResult } from '../../domain/exerciseResults';
 import { ioiCv } from '../../dsp/timing';
 import { BaseRunner } from '../baseRunner';
 import { GridRecorder } from '../gridRecorder';
+import { type BarSlots, barsOf, type LiveBar, settleBars } from '../liveTiming';
 import type { ExerciseContext, RunnerCommand } from '../types';
 
 export const e8ParamsSchema = z.object({
@@ -33,6 +34,8 @@ export interface E8View {
   bar: number | null;
   analyzing: boolean;
   awaitingSelf: boolean;
+  /** Bars judged so far while playing (microphone only, view-only feedback, D-077). */
+  liveBars: readonly LiveBar[];
 }
 
 export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
@@ -41,6 +44,8 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
   private bar: number | null = null;
   private analyzing = false;
   private outcome: { hitRate: number; ioiCv: number | null } | null = null;
+  private liveBars: LiveBar[] = [];
+  private barSlots: BarSlots[] | null = null;
 
   constructor(
     ctx: ExerciseContext,
@@ -75,7 +80,32 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
       bar: this.bar,
       analyzing: this.analyzing,
       awaitingSelf: !this.ctx.audio && this.phase === 'review',
+      liveBars: this.liveBars,
     };
+  }
+
+  private slots(grid: number) {
+    return Array.from({ length: this.params.bars * 8 }, (_, i) => ({
+      time: grid + i * this.slotS,
+      expected: true,
+    }));
+  }
+
+  /** Live feedback (D-077): bars whose picks have all been judged, same verdicts as the final analysis. */
+  private settleLiveBars(now: number, grid: number): void {
+    if (!this.ctx.audio || this.outcome !== null) return;
+    this.barSlots ??= barsOf(this.slots(grid), 8);
+    const settled = settleBars(
+      this.barSlots,
+      this.recorder.strums,
+      this.recorder.rttS,
+      this.params.bpm,
+      now,
+      this.liveBars,
+    );
+    if (settled.length === this.liveBars.length) return;
+    this.liveBars = settled;
+    this.publish();
   }
 
   start(): void {
@@ -109,6 +139,7 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
         this.publish();
       }
     }
+    if (grid !== null && this.phase !== 'done') this.settleLiveBars(now, grid);
     const mic = this.ctx.audio;
     if (
       mic &&
@@ -120,13 +151,9 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
     ) {
       this.analyzing = true;
       this.publish();
-      const slots = Array.from({ length: this.params.bars * 8 }, (_, i) => ({
-        time: grid + i * this.slotS,
-        expected: true,
-      }));
       void mic
         .analyzeTiming({
-          slots,
+          slots: this.slots(grid),
           strumTimes: this.recorder.strums,
           rttS: this.recorder.rttS,
           bpm: this.params.bpm,

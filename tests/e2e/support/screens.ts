@@ -45,6 +45,7 @@ export const SCREENS: ScreenCase[] = [
   { name: 'home', path: '/#/' },
   { name: 'curriculum', path: '/#/curriculum' },
   { name: 'stage', path: '/#/curriculum/3' },
+  { name: 'stage-practice', path: '/#/curriculum/1/practice/0' },
   { name: 'exam', path: '/#/exam' },
   { name: 'library', path: '/#/library' },
   { name: 'chord', path: '/#/library/C' },
