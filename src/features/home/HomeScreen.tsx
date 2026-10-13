@@ -10,6 +10,7 @@ import { FINAL_STAGE, promote } from '../../domain/progression';
 import { startOfDay } from '../../domain/records';
 import { generateRoutine, type RoutinePlan } from '../../domain/routine';
 import { prepareSession } from '../../domain/sessionPrep';
+import { dueReviews } from '../../domain/srs';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { Screen } from '../../ui/Screen';
@@ -20,6 +21,7 @@ import {
   backupReminderDue,
   type DoneToday,
   practicedToday,
+  reviewsServedBy,
   routineInputFrom,
   type StoredState,
   stageChecklist,
@@ -41,10 +43,13 @@ function RoutineCard({
   plan,
   state,
   doneItems,
+  dueKeys,
   onLonger,
 }: {
   plan: RoutinePlan;
   state: StoredState;
+  /** Subjects of the reviews due now: items serving any of them carry a "복습" badge. */
+  dueKeys: ReadonlySet<string>;
   /** What was practised today (attempts), shown above the next session once today's session is done. */
   doneItems: readonly DoneToday[];
   onLonger: () => void;
@@ -108,17 +113,28 @@ function RoutineCard({
         ))}
       </ul>
       <ol className="mt-2 divide-y divide-surface-2" data-testid="routine-items">
-        {plan.items.map((item) => (
-          <li key={item.id} className="flex justify-between py-1">
-            <span>
-              <span className="text-muted">{ko.home.blocks[item.block]} · </span>
-              {itemTitle(item)}
-            </span>
-            <span className="tabular-nums text-muted">
-              {ko.home.itemMinutes(Math.max(1, Math.round(item.durationSec / 60)))}
-            </span>
-          </li>
-        ))}
+        {plan.items.map((item) => {
+          const reviews = reviewsServedBy(item, dueKeys).length;
+          return (
+            <li key={item.id} className="flex justify-between py-1">
+              <span>
+                <span className="text-muted">{ko.home.blocks[item.block]} · </span>
+                {itemTitle(item)}
+                {reviews > 0 && (
+                  <span
+                    className="ml-2 rounded bg-surface-2 px-1.5 text-xs text-info"
+                    data-testid="review-badge"
+                  >
+                    {ko.home.reviewBadge(reviews)}
+                  </span>
+                )}
+              </span>
+              <span className="tabular-nums text-muted">
+                {ko.home.itemMinutes(Math.max(1, Math.round(item.durationSec / 60)))}
+              </span>
+            </li>
+          );
+        })}
       </ol>
       {plan.needsCapConfirmation && (
         <div className="mt-3 rounded-lg bg-surface-2 p-3">
@@ -185,6 +201,7 @@ export function HomeScreen() {
   });
   const stored = { ...data, progression: prep.progression };
   const plan = generateRoutine(routineInputFrom(stored, now));
+  const dueKeys = new Set(dueReviews(data.reviews, now).map((r) => r.subjectKey));
   const checklist = stageChecklist(stored, now);
   const def = stageDef(data.progression.stage);
   const nextStage = data.progression.stage + 1;
@@ -236,6 +253,7 @@ export function HomeScreen() {
           plan={plan}
           state={data}
           doneItems={doneItems}
+          dueKeys={dueKeys}
           onLonger={() => {
             void updateSettings({ confirmedOverCap: true }).then(reload);
           }}
@@ -325,7 +343,12 @@ export function HomeScreen() {
           <section className="flex flex-wrap gap-4 rounded-lg bg-surface p-4" data-testid="week-card">
             <span data-testid="week-minutes">{ko.home.week(weekPracticeMinutes(data.sessions, now))}</span>
             <span>{ko.home.streak(streakWeeks(data.sessions, now))}</span>
-            <span>{ko.home.reviewsDue(plan.items.filter((i) => i.block === 'review').length)}</span>
+            <span data-testid="reviews-today">
+              {ko.home.reviewsDue(
+                plan.items.reduce((n, item) => n + reviewsServedBy(item, dueKeys).length, 0),
+                dueKeys.size,
+              )}
+            </span>
           </section>
         </div>
       </div>

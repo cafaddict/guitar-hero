@@ -4,9 +4,18 @@
  */
 import { STRUM_PATTERNS } from '../../content/patterns';
 import { changesPerMinute, oneMinuteResultSchema, strumResultSchema } from '../../domain/exerciseResults';
-import { type Attempt, dayKey, type Session, type SkillState, sessionPracticeMs } from '../../domain/records';
+import {
+  type Attempt,
+  DAY_MS,
+  dayKey,
+  type ReviewItem,
+  type Session,
+  type SkillState,
+  sessionPracticeMs,
+  startOfDay,
+} from '../../domain/records';
 import { median } from '../../domain/skills';
-import { weekIndex } from '../../domain/srs';
+import { dueReviews, weekIndex } from '../../domain/srs';
 import { STRING_INDICES } from '../../domain/strings';
 import type { ChordVoicing } from '../../domain/voicing';
 
@@ -121,4 +130,30 @@ export function timingTrend(attempts: readonly Attempt[]): TimingPoint[] {
     })
     .sort((x, y) => x.at - y.at)
     .map(({ day, mean, sd }) => ({ day, mean, sd }));
+}
+
+export interface ReviewRow {
+  item: ReviewItem;
+  /** Due rows: whole days past due (0 = due today). Upcoming rows: whole days until due (calendar days). */
+  days: number;
+}
+
+/**
+ * The review queue by name (D-081): what is due now (oldest first — the order the routine assigns them) and the
+ * next ones coming up, so "복습 대기 n개" is not just a number.
+ */
+export function reviewQueue(
+  reviews: readonly ReviewItem[],
+  now: number,
+  upcomingLimit = 5,
+): { due: ReviewRow[]; upcoming: ReviewRow[] } {
+  const today = startOfDay(now);
+  const days = (ms: number) => Math.round((startOfDay(ms) - today) / DAY_MS);
+  const due = dueReviews(reviews, now).map((item) => ({ item, days: Math.max(0, -days(item.due)) }));
+  const upcoming = reviews
+    .filter((item) => item.due > now)
+    .sort((a, b) => a.due - b.due || a.subjectKey.localeCompare(b.subjectKey))
+    .slice(0, upcomingLimit)
+    .map((item) => ({ item, days: days(item.due) }));
+  return { due, upcoming };
 }

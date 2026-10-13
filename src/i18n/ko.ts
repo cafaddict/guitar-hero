@@ -83,7 +83,20 @@ export const ko = {
     perMinute: (v: number) => `분당 ${v.toFixed(0)}회`,
     week: (minutes: number) => `이번 주 ${minutes}분`,
     streak: (weeks: number) => `주간 스트릭 ${weeks}주`,
-    reviewsDue: (n: number) => `오늘 복습 ${n}개`,
+    reviewsDue: (served: number, waiting: number) =>
+      waiting > served ? `오늘 복습 ${served}개 (대기 ${waiting}개)` : `오늘 복습 ${served}개`,
+    reviewBadge: (n: number) => (n > 1 ? `복습 ${n}` : '복습'),
+    reviewKinds: {
+      chord: '코드',
+      pair: '체인지',
+      pattern: '패턴',
+      song: '곡',
+      scale: '스케일',
+      riff: '리프',
+      recall: '코드 기억 카드',
+      note: '음이름 카드',
+      ear: '귀 훈련 카드',
+    },
     backupReminder: '마지막 백업 후 7일이 지났어요. 기록을 잃지 않게 백업해 두세요.',
     backupNow: '백업하러 가기',
     longer: '그래도 더 길게 하기',
@@ -132,6 +145,8 @@ export const ko = {
     subjects: {
       altpick: (stringNo: number) => `${stringNo}번 줄 교대 피킹`,
       riff: (id: string) => `리프 ${id}`,
+      notePosition: (stringNo: number, fret: number) => `${stringNo}번 줄 ${fret}프렛`,
+      earKind: { majmin: '메이저/마이너', interval: '인터벌', progression: '진행' } as Record<string, string>,
       scale: (id: string, step: string) => `스케일 ${id}${step ? ` ${step.replace('s', '')}단계` : ''}`,
     },
     promote: (stage: number) => `진급 조건을 모두 채웠어요! Stage ${stage}(으)로 올라갈까요?`,
@@ -467,6 +482,12 @@ export const ko = {
     patterns: '패턴별 최고 통과 BPM',
     timing: '타이밍 평균·흔들림(ms)',
     reviews: (n: number) => `복습 대기 ${n}개`,
+    reviewHow:
+      '복습은 따로 하지 않아요. 오늘의 루틴이 같은 종류의 칸(코드·체인지·리듬·기술·퀴즈·곡)에 오래 밀린 것부터 넣어요. 퀴즈 카드는 어디서 답해도, 나머지는 루틴에서 한 것만 복습으로 쳐요.',
+    reviewDueTitle: '지금 복습할 것',
+    reviewUpcomingTitle: '다가오는 복습',
+    reviewOverdue: (days: number) => (days <= 0 ? '오늘' : `${days}일 지남`),
+    reviewIn: (days: number) => (days <= 1 ? '내일' : `${days}일 뒤`),
     sessions: '세션 기록',
     noData: '아직 기록이 없어요.',
     sessionRow: (date: string, minutes: number, done: number, planned: number) =>

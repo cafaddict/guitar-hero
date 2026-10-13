@@ -22,11 +22,14 @@ import { stringNumber } from '../../domain/strings';
 import { ko } from '../../i18n/ko';
 import { Screen } from '../../ui/Screen';
 import type { StoredState } from '../home/homeModel';
+import { reviewLabel } from '../home/subjectLabel';
 import {
   chordStringHeatmap,
   pairTrend,
   patternBests,
   practicedPairs,
+  type ReviewRow,
+  reviewQueue,
   timingTrend,
   weeklyMinutes,
 } from './progressModel';
@@ -46,6 +49,39 @@ function Card({ title, children, testId }: { title: string; children: React.Reac
  * Progress dashboard (SPEC §12.1). Every chart has a text equivalent (table/list/sr-only text) for screen
  * readers, so the drawings are hidden from assistive tech and kept out of the tab order.
  */
+/** What is due now and what comes next, by name (D-081). */
+function ReviewQueueList({ queue }: { queue: { due: ReviewRow[]; upcoming: ReviewRow[] } }) {
+  const t = ko.progressScreen;
+  if (queue.due.length === 0 && queue.upcoming.length === 0) return null;
+  const rows = (list: ReviewRow[], when: (days: number) => string, testId: string) => (
+    <ul className="space-y-1 text-sm" data-testid={testId}>
+      {list.map((row) => (
+        <li key={row.item.subjectKey} className="flex justify-between gap-2">
+          <span>{reviewLabel(row.item)}</span>
+          <span className="tabular-nums text-muted">{when(row.days)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <div className="mb-4 space-y-2" data-testid="review-queue">
+      <p className="text-sm text-muted">{t.reviewHow}</p>
+      {queue.due.length > 0 && (
+        <>
+          <h3 className="text-sm font-semibold">{t.reviewDueTitle}</h3>
+          {rows(queue.due, t.reviewOverdue, 'review-due')}
+        </>
+      )}
+      {queue.upcoming.length > 0 && (
+        <>
+          <h3 className="text-sm font-semibold">{t.reviewUpcomingTitle}</h3>
+          {rows(queue.upcoming, t.reviewIn, 'review-upcoming')}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function ProgressScreen() {
   const [state, setState] = useState<StoredState | null>(null);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
@@ -204,6 +240,7 @@ export function ProgressScreen() {
 
         <Card title={ko.progressScreen.sessions} testId="progress-sessions">
           <p className="mb-2">{ko.progressScreen.reviews(dueReviews(state.reviews, now).length)}</p>
+          <ReviewQueueList queue={reviewQueue(state.reviews, now)} />
           {sessions.length === 0 ? (
             <p className="text-muted">{ko.progressScreen.noData}</p>
           ) : (

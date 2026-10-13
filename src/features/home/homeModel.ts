@@ -2,7 +2,7 @@
  * Pure assembly of what the home screen and the session runner need (SPEC v1.1 §12.1 홈, §7.3): the routine input
  * from stored state, this week's practice time, weak pairs, the backup reminder and the stage checklist.
  */
-import type { PracticeSong, RoutineTemplate, StageDef } from '../../content/schemas';
+import type { PracticeSong, RoutineItem, RoutineTemplate, StageDef } from '../../content/schemas';
 import type { Settings } from '../../data/settings';
 import type { PracticeHistory } from '../../domain/history';
 import { pairKey, parsePairId } from '../../domain/pairs';
@@ -112,6 +112,27 @@ export function streakWeeks(sessions: readonly Session[], now: number): number {
 
 export function practicedToday(sessions: readonly Session[], now: number): boolean {
   return finished(sessions).some((s) => dayKey(s.startedAt) === dayKey(now));
+}
+
+/**
+ * Due reviews a routine item serves (SPEC v1.1 §7.5, D-058: there is no review slot — a review rides in a block of
+ * its kind): its `reviewOf`, the due cards a quiz asks first (Q3/Q4 `focus`) and the due chord cards among Q2's
+ * chords. D-081: the home count is the sum of these, not a "review" block that no routine has any more.
+ */
+export function reviewsServedBy(
+  item: Pick<RoutineItem, 'exerciseType' | 'params' | 'reviewOf'>,
+  due: ReadonlySet<string>,
+): string[] {
+  const served = new Set<string>();
+  if (item.reviewOf && due.has(item.reviewOf)) served.add(item.reviewOf);
+  const p = item.params;
+  if (Array.isArray(p.focus)) for (const card of p.focus) if (due.has(String(card))) served.add(String(card));
+  if (item.exerciseType === 'Q2' && Array.isArray(p.chordClasses))
+    for (const cls of p.chordClasses) {
+      const card = `card:recall:${String(cls)}`;
+      if (due.has(card)) served.add(card);
+    }
+  return [...served];
 }
 
 /** One line of the home "오늘 한 연습" list. */

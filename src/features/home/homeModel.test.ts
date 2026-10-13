@@ -3,12 +3,19 @@ import { CURRICULUM } from '../../content/curriculum';
 import { PRACTICE_SONGS } from '../../content/songs';
 import { DEFAULT_SETTINGS } from '../../data/settings';
 import { EMPTY_HISTORY, practiceHistory } from '../../domain/history';
-import { DAY_MS, initialProgression, type Session, type SkillState } from '../../domain/records';
+import {
+  DAY_MS,
+  initialProgression,
+  type ReviewItem,
+  type Session,
+  type SkillState,
+} from '../../domain/records';
 import { generateRoutine } from '../../domain/routine';
 import { itemTitle } from '../session/itemTitle';
 import {
   backupReminderDue,
   practicedToday,
+  reviewsServedBy,
   routineInputFrom,
   type StoredState,
   stageChecklist,
@@ -178,5 +185,44 @@ describe('home model', () => {
     if (next.kind !== 'practice') throw new Error('expected a practice day');
     expect(next.items.find((i) => i.block === 'technique')?.exerciseType).toBe('E4');
     expect(todayPractice(attempts, NOW).map((l) => l.title)).toContain(itemTitle(technique!));
+  });
+
+  it("the home review count is what today's routine serves, not a review block that no longer exists (D-081)", () => {
+    const due = (subjectKey: string, kind: ReviewItem['kind']): ReviewItem => ({
+      subjectKey,
+      kind,
+      step: 0,
+      due: NOW - DAY_MS,
+      enqueuedAt: NOW - 2 * DAY_MS,
+      lastReviewedAt: null,
+      lapses: 0,
+    });
+    const reviews = [due('card:recall:E', 'card'), due('card:recall:A', 'card')];
+    const s = state({
+      progression: { ...initialProgression(NOW - 30 * DAY_MS), stage: 2, sessionsInStage: 1 },
+      reviews,
+    });
+    const plan = generateRoutine(routineInputFrom(s, NOW));
+    if (plan.kind !== 'practice') throw new Error('expected a practice day');
+    // v1.1 (D-058) puts reviews in blocks of their kind: the old count (block === 'review') was always 0.
+    expect(plan.items.some((i) => i.block === 'review')).toBe(false);
+    const keys = new Set(reviews.map((r) => r.subjectKey));
+    const served = plan.items.flatMap((i) => reviewsServedBy(i, keys));
+    expect(served.sort()).toEqual(['card:recall:A', 'card:recall:E']);
+    expect(plan.items.find((i) => reviewsServedBy(i, keys).length > 0)?.exerciseType).toBe('Q2');
+  });
+
+  it("reviewsServedBy: an item's reviewOf and the due cards a quiz asks first, each once", () => {
+    const due = new Set(['pair:A|D', 'card:note:0:3', 'card:recall:E']);
+    expect(
+      reviewsServedBy({ exerciseType: 'E2', params: { direction: 'A>D' }, reviewOf: 'pair:A|D' }, due),
+    ).toEqual(['pair:A|D']);
+    expect(
+      reviewsServedBy({ exerciseType: 'Q3', params: { focus: ['card:note:0:3', 'card:note:1:2'] } }, due),
+    ).toEqual(['card:note:0:3']);
+    expect(reviewsServedBy({ exerciseType: 'Q2', params: { chordClasses: ['E', 'D', 'E'] } }, due)).toEqual([
+      'card:recall:E',
+    ]);
+    expect(reviewsServedBy({ exerciseType: 'E1', params: {}, reviewOf: 'chord:C' }, due)).toEqual([]);
   });
 });

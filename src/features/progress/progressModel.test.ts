@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { voicingById } from '../../content/voicings';
-import { type Attempt, DAY_MS, type Session, type SkillState } from '../../domain/records';
+import { type Attempt, DAY_MS, type ReviewItem, type Session, type SkillState } from '../../domain/records';
 import {
   chordStringHeatmap,
   pairTrend,
   patternBests,
   practicedPairs,
+  reviewQueue,
   timingTrend,
   weeklyMinutes,
 } from './progressModel';
@@ -133,5 +134,35 @@ describe('progress model', () => {
       },
     };
     expect(timingTrend([e5])).toEqual([{ day: '2026-10-08', mean: 12, sd: 9 }]);
+  });
+
+  it('review queue: due now oldest first with days past due, then the next ones with days to go (D-081)', () => {
+    const item = (subjectKey: string, due: number): ReviewItem => ({
+      subjectKey,
+      kind: 'card',
+      step: 0,
+      due,
+      enqueuedAt: 0,
+      lastReviewedAt: null,
+      lapses: 0,
+    });
+    const queue = reviewQueue(
+      [
+        item('card:recall:E', NOW - 1000),
+        item('card:recall:A', NOW - 2 * DAY_MS),
+        item('card:recall:D', NOW + 3 * DAY_MS),
+        item('pair:A|D', NOW + DAY_MS),
+      ],
+      NOW,
+    );
+    expect(queue.due.map((r) => [r.item.subjectKey, r.days])).toEqual([
+      ['card:recall:A', 2],
+      ['card:recall:E', 0],
+    ]);
+    expect(queue.upcoming.map((r) => [r.item.subjectKey, r.days])).toEqual([
+      ['pair:A|D', 1],
+      ['card:recall:D', 3],
+    ]);
+    expect(reviewQueue([], NOW)).toEqual({ due: [], upcoming: [] });
   });
 });
