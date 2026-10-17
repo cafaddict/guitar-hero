@@ -134,6 +134,10 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
   private earphones: boolean;
   private stopBacking: (() => void) | null = null;
   private songJob: Job | null = null;
+  /** Stops the "들어 보기" playback; null when none is playing. */
+  private stopListen: (() => void) | null = null;
+  /** Audio-clock time the listen playback (with its ring-out) ends. */
+  private listenEndsAt = 0;
 
   private readonly params: SongParams;
 
@@ -228,27 +232,51 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
     const mic = this.ctx.audio;
     if (mic) {
       this.own(
-        mic.onCoarseOnset(() => {
-          if (this.phase === 'armed') this.play();
+        mic.onCoarseOnset((time) => {
+          if (this.phase === 'armed' && !this.heardListen(time)) this.play();
         }),
       );
     }
+    this.own(() => this.endListen());
     this.setPhase(mic ? 'armed' : 'ready');
   }
 
   /** "들어 보기" (key M): synthesized strums of the bars to play (first 8 bars at most). */
   private listen(): void {
+    this.endListen();
     const beatsPerBar = this.song.timeSignature === '6/8' ? 2 : 4;
-    this.ctx.output.playSamples(
-      this.renderListen(
-        this.playBars.slice(0, 8).map((b) => b.chord),
-        this.bpm,
-        beatsPerBar,
-      ),
+    const samples = this.renderListen(
+      this.playBars.slice(0, 8).map((b) => b.chord),
+      this.bpm,
+      beatsPerBar,
     );
+    try {
+      this.stopListen = this.ctx.output.playSamples(samples);
+    } catch {
+      // Synth playback is refused while the microphone judges; there is nothing to stop then.
+      return;
+    }
+    this.listenEndsAt = this.ctx.output.now() + samples.length / this.ctx.output.sampleRate();
+  }
+
+  /**
+   * The listen synth leaks into the microphone on speakers: an onset that arrives while it plays (plus the
+   * round trip) is the synth, not the user's first strum, and must not start the count-in off the beat.
+   */
+  private heardListen(onsetTime: number): boolean {
+    if (!this.stopListen) return false;
+    const rtt = (this.ctx.calibration?.rttMs ?? 0) / 1000;
+    return onsetTime <= this.listenEndsAt + rtt;
+  }
+
+  private endListen(): void {
+    this.stopListen?.();
+    this.stopListen = null;
   }
 
   private play(): void {
+    // The listen runs on its own start time, not the metronome grid: it must not play over the count-in.
+    this.endListen();
     if (!this.chartHidden) this.chartShownWhilePlaying = true;
     this.recorder?.dispose();
     this.stopBacking?.();
