@@ -69,6 +69,7 @@ function E11Summary({ result }: { result: HammerResult; params: E11Params }) {
           Math.min(HAMMER_MAX_BPM, ladderNextBpm(result.bpm, result.ladder)),
         )}
       </p>
+      {(result.pauses ?? 0) > 0 && <p className="text-muted">{ko.exercises.common.pausedRun}</p>}
     </div>
   );
 }
@@ -117,4 +118,6 @@ export const e11Plugin: ExercisePlugin<E11Params, HammerResult, E11View> = {
   historyDepth: SEQUENCE_HISTORY_DEPTH,
   withHistory: (params, recent) => nextHammerRun(params, recent),
   usesMicrophone: true,
+  // P pauses; a paused run keeps the ladder where it is (D-085).
+  pausable: true,
 };

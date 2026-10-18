@@ -75,6 +75,7 @@ function E17Summary({ result }: { result: RiffResult; params: E17Params }) {
     <div>
       <p className="text-xl font-bold">{ko.exercises.e17.summary(result.cycles.length, flawless)}</p>
       <p>{ko.exercises.e17.ladder[result.ladder](ladderNextBpm(result.bpm, result.ladder))}</p>
+      {(result.pauses ?? 0) > 0 && <p className="text-muted">{ko.exercises.common.pausedRun}</p>}
     </div>
   );
 }
@@ -114,4 +115,6 @@ export const e17Plugin: ExercisePlugin<E17Params, RiffResult, E17View> = {
   },
   suggestedTempoRetry: (params, result) => tempoRetry(params, ladderNextBpm(result.bpm, result.ladder)),
   usesMicrophone: true,
+  // P pauses; a paused run keeps the ladder where it is (D-085).
+  pausable: true,
 };

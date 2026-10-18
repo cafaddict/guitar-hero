@@ -10,11 +10,12 @@ import {
   CHROMATIC_START_FRET,
   CHROMATIC_STREAK,
   type ChromaticResult,
+  countsForCriteria,
   longestFlawlessRun,
   type SequenceCycle,
   sequenceRates,
 } from '../../domain/exerciseResults';
-import { ioiCv } from '../../dsp/timing';
+import { pooledIoiCv } from '../../dsp/timing';
 import { type PlannedNote, SequenceRunner, type SequenceView } from '../sequence/runner';
 import type { ExerciseContext } from '../types';
 
@@ -77,17 +78,22 @@ export class ChromaticRunner extends SequenceRunner<ChromaticResult, E9View> {
 
   finish(): ChromaticResult {
     const rates = sequenceRates(this.cycleRecords);
-    const onsets = [...this.onsetTimes].sort((a, b) => a - b);
+    const pauses = this.pauses > 0 ? { pauses: this.pauses } : {};
     return {
       startFret: this.params.startFret,
       bpm: this.params.bpm,
       cycles: [...this.cycleRecords],
-      ladder: chromaticLadder(this.cycleRecords, this.params.previousLow),
+      // A paused run is recorded but keeps the ladder where it is (D-085).
+      ladder: countsForCriteria(pauses)
+        ? chromaticLadder(this.cycleRecords, this.params.previousLow)
+        : 'stay',
       source: this.source,
       hitRate: rates.hitRate,
       okRatio: rates.okRatio,
-      ioiCv: onsets.length >= 3 ? ioiCv(onsets) : null,
+      // Intervals inside each stretch played, not across a pause (D-085).
+      ioiCv: this.onsetTimes.length >= 3 ? pooledIoiCv(this.onsetGroups()) : null,
       ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
+      ...pauses,
     };
   }
 }

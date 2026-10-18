@@ -13,6 +13,7 @@ import {
   scaleStepSequence,
 } from '../../content/scales';
 import {
+  countsForCriteria,
   longestFlawlessRun,
   SCALE_GRADUATION_BPM,
   SCALE_MEMORIZE_MIN_BPM,
@@ -82,12 +83,20 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
     return this.params.withBacking && this.source === 'mic' && !this.earphones;
   }
 
-  /** Step 6: the backing starts with the count-in bar and loops the tonic chord for a long while. */
+  /**
+   * Step 6: the backing starts with the count-in bar and loops the tonic chord for a long while; after a pause
+   * it starts again with the resume's count-in (D-085).
+   */
   protected override onGrid(gridStart: number): void {
     if (!this.backing) return;
     const barS = (4 * 60) / this.params.bpm;
     this.stopBacking = this.ctx.output.playBacking(this.backing.signal, gridStart - barS);
     this.own(() => this.stopBacking?.());
+  }
+
+  protected override onPauseTake(): void {
+    this.stopBacking?.();
+    this.stopBacking = null;
   }
 
   override command(cmd: Parameters<SequenceRunner<ScaleResult, E10View>['command']>[0]): void {
@@ -133,8 +142,10 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
   }
 
   finish(): ScaleResult {
-    // A reference run (backing on speakers) neither graduates nor proves memorization.
-    const run = this.backingAudible ? 0 : longestFlawlessRun(this.cycleRecords);
+    // A reference run (backing on speakers) or a paused one (D-085) neither graduates nor proves memorization.
+    const pauses = this.pauses > 0 ? { pauses: this.pauses } : {};
+    const counts = !this.backingAudible && countsForCriteria(pauses);
+    const run = counts ? longestFlawlessRun(this.cycleRecords) : 0;
     return {
       scaleId: this.scale.id,
       step: this.params.step,
@@ -145,7 +156,7 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
       ...(this.params.withBacking ? { backingAudible: this.backingAudible } : {}),
       ...(this.params.review ? { review: true } : {}),
       cycles: [...this.cycleRecords],
-      ladder: this.backingAudible ? 'stay' : sequenceLadder(this.cycleRecords, this.params.previousLow),
+      ladder: counts ? sequenceLadder(this.cycleRecords, this.params.previousLow) : 'stay',
       graduated: run >= SEQUENCE_STREAK && this.params.bpm >= SCALE_GRADUATION_BPM,
       memorized:
         this.params.step === 1 &&
@@ -154,6 +165,7 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
         this.params.bpm >= SCALE_MEMORIZE_MIN_BPM,
       source: this.source,
       ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
+      ...pauses,
     };
   }
 }

@@ -62,6 +62,7 @@ function E10Summary({ result }: { result: ScaleResult; params: E10Params }) {
       {result.graduated && <p className="text-ok">{ko.exercises.e10.graduated(result.step)}</p>}
       {result.memorized && <p className="text-ok">{ko.exercises.e10.memorized}</p>}
       {!result.graduated && <p>{t.ladder[result.ladder](ladderNextBpm(result.bpm, result.ladder))}</p>}
+      {(result.pauses ?? 0) > 0 && <p className="text-muted">{ko.exercises.common.pausedRun}</p>}
     </div>
   );
 }
@@ -131,4 +132,6 @@ export const e10Plugin: ExercisePlugin<E10Params, ScaleResult, E10View> = {
   suggestedTempoRetry: (params, result) =>
     result.graduated && result.step < 5 ? null : tempoRetry(params, ladderNextBpm(result.bpm, result.ladder)),
   usesMicrophone: true,
+  // P pauses; a paused run keeps the ladder where it is (D-085).
+  pausable: true,
 };

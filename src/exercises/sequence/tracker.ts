@@ -4,6 +4,9 @@
  * DSP worker in chunks that fit the capture ring (≤ maxChunkS of audio), each chunk with the notes judged just
  * before it (they may still ring) and the span in which it owns EXTRA onsets, so a long cycle is judged exactly
  * like one long recording. A cycle is complete once all of its slots and its EXTRA span are judged.
+ *
+ * A pause cuts the plan (cutAt, D-085): the cycles it interrupted never complete, and the slots planned after the
+ * resume start a new stretch that is judged like the start of a take (nothing reaches back across the gap).
  */
 import {
   countStops,
@@ -69,6 +72,10 @@ export class SequenceTracker {
   private readonly done = new Set<number>();
   /** Slots planned per cycle (a cycle cut short by stop() never completes). */
   private readonly cycleSizes = new Map<number, number>();
+  /** Cycles a pause interrupted: they never complete (their content is played again under a new id). */
+  private readonly cancelled = new Set<number>();
+  /** Slot indices where a stretch after a pause starts (ascending); chunks never span one. */
+  private readonly barriers: number[] = [];
   private readonly completed: CycleOutcome[] = [];
   private readonly listeners = new Set<(c: CycleOutcome) => void>();
   private processingTotal = 0;
@@ -134,6 +141,29 @@ export class SequenceTracker {
     this.judged.length = keep;
   }
 
+  /**
+   * A pause (D-085): every cycle with a slot at or after audio time `at` is cancelled, and the slots from `at`
+   * on that were not requested yet are dropped. Returns the slot count kept (≥ the slots already requested):
+   * slots added from now on start a new stretch there. The slots before the cut are judged without waiting
+   * for more (the capture ring must still hold them).
+   */
+  cutAt(at: number): number {
+    for (const s of this.slots) if (s.time >= at) this.cancelled.add(s.cycle);
+    let keep = this.slots.length;
+    while (keep > this.next && this.slots[keep - 1]!.time >= at) keep--;
+    this.slots.length = keep;
+    this.judged.length = keep;
+    if (this.barriers.at(-1) !== keep) this.barriers.push(keep);
+    return keep;
+  }
+
+  /** First slot of the stretch slot `i` belongs to. */
+  private stretchStart(i: number): number {
+    let start = 0;
+    for (const b of this.barriers) if (b <= i) start = b;
+    return start;
+  }
+
   /** Nothing left to request or wait for. */
   get idle(): boolean {
     return !this.inFlight && this.next >= this.slots.length;
@@ -156,19 +186,23 @@ export class SequenceTracker {
     if (this.inFlight || this.next >= this.slots.length) return;
     const first = this.next;
     const head = this.slots[first]!.time;
+    // After a pause the stretch starts over like a take: no EXTRA span, earlier notes or chunk across the gap.
+    const stretch = this.stretchStart(first);
+    const barrier = this.barriers.find((b) => b > first) ?? Number.POSITIVE_INFINITY;
+    const fresh = first === stretch;
     // The chunk reaches back far enough to own the EXTRA onsets since the previous chunk, but always leaves
     // room for its first slot (after a long gap the oldest stretch is given up rather than overflowing the ring).
-    let extraFrom = this.coveredTo ?? head - this.window(first);
+    let extraFrom = (fresh ? null : this.coveredTo) ?? head - this.window(first);
     const from = Math.max(Math.min(head - this.leadS, extraFrom - 0.3), head + this.tailS - this.maxChunkS);
     extraFrom = Math.max(extraFrom, from + 0.3);
     // A second detection of the previous chunk's last note is a duplicate there, not an EXTRA here (§10.10:
     // unmatched onsets within duplicateMs of a matched one are ignored, as in a whole-take verification).
-    const previousOnset = first > 0 ? this.judged[first - 1]?.onsetTime : undefined;
+    const previousOnset = first > stretch ? this.judged[first - 1]?.onsetTime : undefined;
     if (previousOnset !== undefined)
       extraFrom = Math.max(extraFrom, previousOnset + DEFAULT_SEQUENCE_PARAMS.duplicateMs / 1000);
     let last = -1;
     let full = false;
-    for (let i = first; i < this.slots.length; i++) {
+    for (let i = first; i < Math.min(this.slots.length, barrier); i++) {
       const end = this.slots[i]!.time + this.tailS;
       if (end - from > this.maxChunkS) {
         full = true;
@@ -179,14 +213,14 @@ export class SequenceTracker {
     }
     if (last < 0) return;
     // Batch slots so each chunk sees its neighbours (matching windows, pitch windows), unless the chunk is
-    // full, the oldest slot has waited batchS, or the run has ended (nothing more will come).
-    const flushing = this.ended && last === this.slots.length - 1;
+    // full, the oldest slot has waited batchS, or the run has ended or paused (nothing more will come).
+    const flushing = (this.ended && last === this.slots.length - 1) || last === barrier - 1;
     if (!full && !flushing && now - (head + this.tailS) < this.batchS) return;
     const extraTo = this.slots[last]!.time + this.window(last);
     const group = this.slots.slice(first, last + 1);
     const ringingS = DEFAULT_SEQUENCE_PARAMS.ringingMs / 1000;
-    const priorNotes = this.slots.slice(0, first).flatMap((s, i) => {
-      const j = this.judged[i];
+    const priorNotes = this.slots.slice(stretch, first).flatMap((s, k) => {
+      const j = this.judged[stretch + k];
       const at = j?.onsetTime ?? s.time;
       if (!j || j.status === 'MISSED' || this.slots[first]!.time - at > ringingS) return [];
       return [{ f0: midiHz(s.midi + (j.semitones ?? 0)), stringIdx: s.stringIdx, time: at }];
@@ -248,7 +282,7 @@ export class SequenceTracker {
         indices.length === this.cycleSizes.get(cycle) &&
         indices.every((i) => this.judged[i] !== null) &&
         (this.coveredTo ?? Number.NEGATIVE_INFINITY) >= end;
-      if (ready && !this.done.has(cycle)) {
+      if (ready && !this.done.has(cycle) && !this.cancelled.has(cycle)) {
         this.done.add(cycle);
         const notes = indices.map((i) => this.judged[i]!);
         const nonLegato = indices.filter((i) => !this.slots[i]!.legatoAllowed);

@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { positionMidi } from '../../content/scales';
 import {
+  countsForCriteria,
   HAMMER_MAX_BPM,
   HAMMER_PAIRS,
   HAMMER_PICKED_HIT_RATE,
@@ -44,8 +45,8 @@ export function hammerLadder(pickedHitRate: number, rating: number | null): 'up'
 
 export class HammerRunner extends SequenceRunner<HammerResult, E11View> {
   private rating: number | null = null;
-  private startedMs: number | null = null;
-  private endedMs: number | null = null;
+  /** Played time (cap and durationMs) runs on the base timer: pauses are left out (D-085). */
+  private started = false;
 
   constructor(
     ctx: ExerciseContext,
@@ -114,7 +115,10 @@ export class HammerRunner extends SequenceRunner<HammerResult, E11View> {
 
   override command(cmd: RunnerCommand): void {
     if (this.capped && this.phase === 'ready' && cmd !== 'abort') return;
-    if (this.phase === 'ready' && (cmd === 'toggle' || cmd === 'next')) this.startedMs = this.ctx.clock.now();
+    if (this.phase === 'ready' && (cmd === 'toggle' || cmd === 'next')) {
+      this.startTimer(null);
+      this.started = true;
+    }
     if (this.phase === 'review' && cmd === 'abort') {
       super.command(cmd);
       return;
@@ -129,8 +133,10 @@ export class HammerRunner extends SequenceRunner<HammerResult, E11View> {
     }
     const before = this.phase;
     super.command(cmd);
-    if ((before === 'running' || before === 'countIn') && this.phase !== before) {
-      this.endedMs = this.ctx.clock.now();
+    // The run ended (not a pause or resume): the played time stops here.
+    const playing = before === 'running' || before === 'countIn' || before === 'paused';
+    if (playing && (this.phase === 'review' || this.phase === 'done')) {
+      this.pauseTimer();
       // Always ask for the evenness rating (also without a microphone, where the run ends straight away).
       if (this.phase === 'done' && cmd !== 'abort') this.setPhase('review');
     }
@@ -139,8 +145,7 @@ export class HammerRunner extends SequenceRunner<HammerResult, E11View> {
   override tick(): void {
     const playing = this.phase === 'running' || this.phase === 'countIn';
     // The daily cap also ends a run in progress (to the evenness rating).
-    if (playing && this.startedMs !== null && this.ctx.clock.now() - this.startedMs >= this.capLeftMs)
-      this.command('toggle');
+    if (playing && this.started && this.elapsedMs() >= this.capLeftMs) this.command('toggle');
     const before = this.phase;
     super.tick();
     // The base runner ends the review when judging is done; E11 still waits for the rating.
@@ -153,6 +158,7 @@ export class HammerRunner extends SequenceRunner<HammerResult, E11View> {
 
   finish(): HammerResult {
     const picked = this.pickedHitRate();
+    const pauses = this.pauses > 0 ? { pauses: this.pauses } : {};
     const ratio =
       picked ??
       (this.cycleRecords.length
@@ -166,11 +172,10 @@ export class HammerRunner extends SequenceRunner<HammerResult, E11View> {
       pickedHitRate: picked,
       legatoBeta: this.legatoCounts(),
       evenRating: this.rating,
-      ladder: hammerLadder(ratio, this.rating),
-      durationMs: Math.max(
-        0,
-        (this.endedMs ?? this.ctx.clock.now()) - (this.startedMs ?? this.ctx.clock.now()),
-      ),
+      // A paused run is recorded but keeps the ladder where it is (D-085).
+      ladder: countsForCriteria(pauses) ? hammerLadder(ratio, this.rating) : 'stay',
+      durationMs: this.elapsedMs(),
+      ...pauses,
     };
   }
 }

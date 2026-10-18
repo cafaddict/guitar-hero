@@ -180,3 +180,56 @@ describe('SequenceTracker (SPEC v1.1 §10.10 in chunks)', () => {
     ]);
   });
 });
+
+describe('SequenceTracker cut by a pause (D-085)', () => {
+  /** Four-note cycles every 0.5 s from t = 1 (fake worker: every slot OK, played on time). */
+  const cycleSlots = (cycle: number, from: number): PlannedSlot[] =>
+    [0, 1, 2, 3].map((k) => ({ time: from + k * 0.5, midi: 52 + k, stringIdx: k % 6, cycle }));
+  const pumpTo = async (tracker: SequenceTracker, from: number, to: number) => {
+    for (let t = from; t <= to + 1e-9; t += 0.05) {
+      tracker.pump(t);
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+  };
+
+  it('keeps the slots before the cut, judges them at once, and starts the next stretch like a new take', async () => {
+    const mic = new FakeMic();
+    const tracker = new SequenceTracker(mic, { bpm: 120 });
+    tracker.addSlots([...cycleSlots(0, 1), ...cycleSlots(1, 3), ...cycleSlots(2, 5)]);
+    await pumpTo(tracker, 0, 3.2);
+    // Slots 1, 1.5, 2 went in one batch; 2.5 is still waiting for more.
+    expect(mic.sequenceRequests.map((r) => r.slots.length)).toEqual([3]);
+    // Paused in cycle 1: it and the cycle planned after it are cut; slot 2.5 stays.
+    expect(tracker.cutAt(3)).toBe(4);
+    expect(tracker.plannedCount).toBe(4);
+    tracker.pump(3.2);
+    await Promise.resolve();
+    // The slot before the cut is sent at once (the ring must still hold it), alone.
+    expect(mic.sequenceRequests.map((r) => r.slots.length)).toEqual([3, 1]);
+    expect(tracker.cycles().map((c) => c.cycle)).toEqual([0]);
+    // The replay (new id 3), placed close enough that the old notes would still "ring" across a plain chunk.
+    tracker.addSlots(cycleSlots(3, 3.6));
+    await pumpTo(tracker, 3.2, 8);
+    const after = mic.sequenceRequests.slice(2);
+    expect(after.length).toBeGreaterThan(0);
+    for (const r of after) expect(r.slots.every((s) => s.time >= 3.6)).toBe(true);
+    expect(after[0]!.priorNotes).toEqual([]);
+    expect(after[0]!.extraSpan[0]).toBeGreaterThan(3.3);
+    expect(tracker.cycles().map((c) => c.cycle)).toEqual([0, 3]);
+  });
+
+  it('a cycle already partly requested when cut never completes; the kept count covers its sent slots', async () => {
+    const mic = new FakeMic();
+    const tracker = new SequenceTracker(mic, { bpm: 120 });
+    tracker.addSlots([...cycleSlots(0, 1), ...cycleSlots(1, 3)]);
+    await pumpTo(tracker, 0, 4.9);
+    const sent = mic.sequenceRequests.flatMap((r) => r.slots).length;
+    expect(sent).toBeGreaterThan(4);
+    // Cut at cycle 1's start: its slots already sent stay (kept ≥ sent), the rest are dropped.
+    expect(tracker.cutAt(3)).toBe(sent);
+    await pumpTo(tracker, 4.9, 8);
+    expect(tracker.idle).toBe(true);
+    expect(tracker.cycles().map((c) => c.cycle)).toEqual([0]);
+  });
+});

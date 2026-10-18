@@ -7,7 +7,7 @@
 import { z } from 'zod';
 import { type Riff, riffById, riffNotes } from '../../content/riffs';
 import { positionMidi } from '../../content/scales';
-import type { RiffResult, SequenceCycle } from '../../domain/exerciseResults';
+import { countsForCriteria, type RiffResult, type SequenceCycle } from '../../domain/exerciseResults';
 import { type PlannedNote, SequenceRunner, type SequenceView } from '../sequence/runner';
 import type { ExerciseContext, RunnerCommand } from '../types';
 import { renderRiffDemo } from './listen';
@@ -137,14 +137,17 @@ export class RiffRunner extends SequenceRunner<RiffResult, E17View> {
   }
 
   finish(): RiffResult {
+    const pauses = this.pauses > 0 ? { pauses: this.pauses } : {};
     return {
       riffId: this.riff.id,
       bpm: this.params.bpm,
       tabHidden: this.tabHidden,
       cycles: [...this.cycleRecords],
-      ladder: sequenceLadder(this.cycleRecords, this.params.previousLow),
+      // A paused run is recorded but keeps the ladder where it is (D-085).
+      ladder: countsForCriteria(pauses) ? sequenceLadder(this.cycleRecords, this.params.previousLow) : 'stay',
       source: this.source,
       ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
+      ...pauses,
     };
   }
 }
