@@ -5,13 +5,15 @@
  * judged (v2). Ladder: hit rate ≥ 90 % and no miss → +5 BPM; a second run in a row below 70 % → −5 BPM.
  * Without a microphone the user rates the run (1 nothing missed / 2 sometimes missed / 3 often missed).
  * With a microphone the run waits "armed": the first strum (or Space) starts the count-in (SPEC §12.3).
+ * P pauses: the interrupted bar is replayed after a one-bar count-in; a paused run is recorded but keeps the
+ * ladder where it is (D-085).
  */
 import { z } from 'zod';
 import { clampBpm, DEFAULT_METRONOME_CONFIG, type MetronomeConfig } from '../../audio/metronome';
 import type { Job } from '../../audio/worker/protocol';
 import { patternById, patternSlotTimes, type StrumPattern, slotsPerBeat } from '../../content/patterns';
 import { voicingById, voicingForClass } from '../../content/voicings';
-import type { StrumResult } from '../../domain/exerciseResults';
+import { countsForCriteria, type StrumResult } from '../../domain/exerciseResults';
 import { barDynamics } from '../../dsp/beta/dynamics';
 import type { TimingAnalysis, TimingSlot } from '../../dsp/timing';
 import { BaseRunner } from '../baseRunner';
@@ -46,6 +48,8 @@ export const LADDER_DOWN_HIT_RATE = 0.7;
 export const LADDER_STEP_BPM = 5;
 /** The ladder only steps up on a full 8-bar run (SPEC §11.6 "8마디"). */
 export const LADDER_MIN_BARS = 8;
+/** Phases in which bars are judged live (D-077); bars before a pause's cut settle while paused (D-085). */
+const LIVE_PHASES: ReadonlySet<string> = new Set(['countIn', 'running', 'paused', 'review']);
 /** Self ratings (no microphone): 1 nothing missed, 2 sometimes missed, 3 often missed. */
 const SELF_HIT_RATE = { manual1: 1, manual2: 0.8, manual3: 0.5 } as const;
 
@@ -158,7 +162,10 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
   private cuesShownWhilePlaying = false;
   private dynamicsRating: 1 | 2 | 3 | null = null;
   private liveBars: LiveBar[] = [];
-  private barSlots: BarSlots[] | null = null;
+  /** Slot grid of the bars played so far, per segment, and its bars; rebuilt when the timeline changes (D-085). */
+  private slotCache: { version: number; slots: TimingSlot[]; bars: BarSlots[] } | null = null;
+  /** After a pause: the bar to replay, shown through the resume's count-in (D-085). */
+  private replayBar: number | null = null;
 
   constructor(
     ctx: ExerciseContext,
@@ -232,8 +239,11 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     return 60 / this.params.bpm / slotsPerBeat(this.pattern);
   }
 
-  /** Bar and slot sounding `elapsed` seconds after the grid start (swing-aware, §6.10). */
-  private positionAt(elapsed: number): { bar: number; slot: number } | null {
+  /**
+   * Bar and slot sounding `elapsed` seconds after a segment's grid whose first bar is `first` (swing-aware,
+   * §6.10).
+   */
+  private positionAt(elapsed: number, first: number): { bar: number; slot: number } | null {
     if (elapsed < 0) return null;
     const oneBar = slotGrid(this.pattern, this.params.bpm, 1, 0);
     const barS = (this.pattern.slots.length / slotsPerBeat(this.pattern)) * (60 / this.params.bpm);
@@ -241,10 +251,29 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     const within = elapsed - bar * barS;
     let slot = 0;
     while (slot + 1 < oneBar.length && oneBar[slot + 1]!.time <= within) slot++;
-    return { bar, slot };
+    return { bar: first + bar, slot };
+  }
+
+  /** The pattern's slots of every bar played so far, each segment on its own grid (D-085). */
+  private played(): { slots: TimingSlot[]; bars: BarSlots[] } {
+    const timeline = this.recorder.timeline;
+    if (this.slotCache?.version !== timeline.version) {
+      const slots = timeline.segments.flatMap((segment) =>
+        slotGrid(
+          this.pattern,
+          this.params.bpm,
+          Math.min(segment.end ?? this.params.bars, this.params.bars) - segment.first,
+          segment.grid,
+        ),
+      );
+      this.slotCache = { version: timeline.version, slots, bars: barsOf(slots, this.pattern.slots.length) };
+    }
+    return this.slotCache;
   }
 
   private ladder(): Ladder | null {
+    // A paused run is recorded but does not move the ladder (D-085).
+    if (this.analysis && !countsForCriteria({ pauses: this.pauses })) return 'stay';
     if (this.analysis)
       return ladderDecision(
         // The ladder and pattern passes use the personal-lead-corrected hit rate (SPEC v1.1 §7.1, §11.6).
@@ -266,7 +295,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       chords: this.params.chords,
       cuesHidden: this.cuesHidden,
       source: this.source,
-      bar: this.position?.bar ?? null,
+      bar: this.position?.bar ?? this.replayBar,
       slot: this.position?.slot ?? null,
       analyzing: this.analyzing,
       analysisFailed: this.analysisFailed,
@@ -307,15 +336,35 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     this.recorder.start(() => this.publish());
   }
 
+  /** Pause (D-085): the interrupted bar is replayed, its live verdict (and later ones) dropped. */
+  protected override pauseTake(): { counted: boolean } | null {
+    const outcome = this.recorder.pause(this.ctx.output.now());
+    if (outcome.kind === 'ignored') return null;
+    this.position = null;
+    this.countInBeat = null;
+    if (outcome.counted) {
+      this.liveBars = this.liveBars.slice(0, outcome.resumeBar);
+      this.replayBar = outcome.resumeBar;
+    }
+    return { counted: outcome.counted };
+  }
+
+  protected override resumeTake(): void {
+    this.recorder.resume(() => this.publish());
+  }
+
   command(cmd: RunnerCommand): void {
     if (cmd === 'abort') {
       this.recorder.stop();
       if (this.phase !== 'done') this.setPhase('done');
       return;
     }
+    if (this.handlePause(cmd)) return;
     if (cmd === 'cues' && this.phase !== 'review' && this.phase !== 'done') {
       this.cuesHidden = !this.cuesHidden;
-      if (!this.cuesHidden && this.phase === 'running') this.cuesShownWhilePlaying = true;
+      // Shown while paused counts as shown while playing (the run goes on afterwards, D-085).
+      if (!this.cuesHidden && (this.phase === 'running' || this.phase === 'paused'))
+        this.cuesShownWhilePlaying = true;
       this.publish();
       return;
     }
@@ -355,22 +404,26 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
   override tick(): void {
     super.tick();
     const now = this.ctx.output.now();
-    if (this.gridStart !== null && (this.phase === 'countIn' || this.phase === 'running')) {
-      if (now >= this.gridStart && this.phase === 'countIn') {
+    // The segment being played (D-085): after a pause its count-in comes first, on a new grid.
+    const open = this.recorder.timeline.open;
+    if (open && (this.phase === 'countIn' || this.phase === 'running')) {
+      const grid = open.grid;
+      if (now >= grid && this.phase === 'countIn') {
         if (!this.cuesHidden) this.cuesShownWhilePlaying = true;
+        this.replayBar = null;
         this.setPhase('running');
       }
-      if (now < this.gridStart) {
-        // Count-in: beats of the bar before bar 1, counted aloud too.
+      if (now < grid) {
+        // Count-in: beats of the bar before bar 1 (or the replayed bar), counted aloud too.
         const beatS = 60 / this.params.bpm;
         const beatsPerBar = this.pattern.slots.length / slotsPerBeat(this.pattern);
-        const beat = beatsPerBar - Math.ceil((this.gridStart - now) / beatS) + 1;
+        const beat = beatsPerBar - Math.ceil((grid - now) / beatS) + 1;
         if (beat !== this.countInBeat) {
           this.countInBeat = beat >= 1 ? beat : null;
           this.publish();
         }
       } else this.countInBeat = null;
-      const next = this.positionAt(now - this.gridStart);
+      const next = this.positionAt(now - grid, open.first);
       if (next?.bar !== this.position?.bar || next?.slot !== this.position?.slot) {
         this.position = next && next.bar < this.params.bars ? next : null;
         this.publish();
@@ -391,13 +444,10 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
   /** Live feedback (D-077): bars whose strums have all been judged, same verdicts as the final analysis. */
   private settleLiveBars(now: number): void {
     if (this.source !== 'mic' || this.gridStart === null || this.analysis !== null) return;
-    if (this.phase !== 'countIn' && this.phase !== 'running' && this.phase !== 'review') return;
-    this.barSlots ??= barsOf(
-      slotGrid(this.pattern, this.params.bpm, this.params.bars, this.gridStart),
-      this.pattern.slots.length,
-    );
+    if (!LIVE_PHASES.has(this.phase)) return;
     const rttS = (this.ctx.calibration?.rttMs ?? 0) / 1000;
-    const settled = settleBars(this.barSlots, this.strums, rttS, this.params.bpm, now, this.liveBars);
+    const bars = this.played().bars;
+    const settled = settleBars(bars, this.strums, rttS, this.params.bpm, now, this.liveBars);
     if (settled.length === this.liveBars.length) return;
     this.liveBars = settled;
     this.publish();
@@ -410,7 +460,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     this.publish();
     void mic
       .analyzeTiming({
-        slots: slotGrid(this.pattern, this.params.bpm, this.params.bars, this.gridStart),
+        slots: this.played().slots,
         strumTimes: this.strums,
         rttS: (this.ctx.calibration?.rttMs ?? 0) / 1000,
         bpm: this.params.bpm,
@@ -448,9 +498,12 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     if (palm.length) out.palmMuteShare = palm.filter((p) => p >= 0.5).length / palm.length;
     const levels = r.flatMap((x) => (x.levelDb === undefined ? [] : [x]));
     if (levels.length && this.gridStart !== null) {
-      const barS = (this.pattern.slots.length / slotsPerBeat(this.pattern)) * (60 / this.params.bpm);
       const rtt = (this.ctx.calibration?.rttMs ?? 0) / 1000;
-      const barOf = levels.map((x) => Math.floor((x.time - this.gridStart! - rtt + 0.1) / barS));
+      // The absolute bar on the recording timeline (replayed bars keep their number, D-085); −1 = no bar.
+      const barOf = levels.map((x) => {
+        const at = this.recorder.timeline.position(x.time - rtt + 0.1);
+        return at === null ? -1 : Math.floor(at);
+      });
       out.dynamics = barDynamics(
         levels.map((x) => x.levelDb!),
         barOf,
@@ -475,9 +528,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       meanOffsetMs: null,
       sdOffsetMs: null,
     };
-    const ladder = this.analysis
-      ? ladderDecision(a.hitRateCorrected, a.misses, this.params.previousLow, this.params.bars)
-      : 'stay';
+    const ladder = this.ladder() ?? 'stay';
     return {
       patternId: this.params.patternId,
       bpm: this.params.bpm,
@@ -498,6 +549,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       ...(this.params.palmMute ? { palmMute: true } : {}),
       ...(this.betaReadings.length > 0 ? { beta: this.betaSummary() } : {}),
       ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
+      ...(this.pauses > 0 ? { pauses: this.pauses } : {}),
     };
   }
 }

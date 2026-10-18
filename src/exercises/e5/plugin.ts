@@ -70,4 +70,6 @@ export const e5Plugin: ExercisePlugin<E5Params, StrumResult, E5View> = {
   },
   suggestedTempoRetry: (params, result) => tempoRetry(params, nextBpmFor(result.bpm, result.ladder)),
   usesMicrophone: true,
+  // P pauses; a paused run keeps the ladder where it is (D-085).
+  pausable: true,
 };

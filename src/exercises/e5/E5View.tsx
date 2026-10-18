@@ -187,6 +187,7 @@ export function E5Summary({ result }: { result: StrumResult; params: E5Params })
       >
         {ko.exercises.e5.ladder[result.ladder](next)}
       </p>
+      {(result.pauses ?? 0) > 0 && <p className="text-muted">{ko.exercises.common.pausedRun}</p>}
     </div>
   );
 }
