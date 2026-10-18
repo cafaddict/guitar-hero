@@ -65,6 +65,7 @@ function E6Summary({ result }: { result: OneBeatResult; params: E6Params }) {
       <p className="mt-2 font-semibold">
         {result.passed ? ko.exercises.e6.passed(nextBpmFor(result.bpm, 'up')) : ko.exercises.e6.notYet}
       </p>
+      {(result.pauses ?? 0) > 0 && <p className="text-muted">{ko.exercises.common.pausedRun}</p>}
     </div>
   );
 }
@@ -103,4 +104,6 @@ export const e6Plugin: ExercisePlugin<E6Params, OneBeatResult, E6View> = {
   suggestedTempoRetry: (params, result) =>
     result.passed ? tempoRetry(params, nextBpmFor(result.bpm, 'up')) : null,
   usesMicrophone: true,
+  // P pauses; a paused run does not count for the ladder (D-085).
+  pausable: true,
 };

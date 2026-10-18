@@ -1,11 +1,13 @@
 /**
  * E8 alternate picking on one string (SPEC §11.8): eighth notes against the metronome (start 60 BPM).
  * Mode D hit rate plus evenness ioi_cv = sd(IOI)/mean(IOI); ≥ 90 % and ioi_cv ≤ 0.10 over 8 bars → +5 BPM.
+ * P pauses: the interrupted bar is replayed after a one-bar count-in; the intervals are taken inside each
+ * stretch played (not across the pause), and a paused run does not count for the ladder (D-085).
  */
 import { z } from 'zod';
 import { DEFAULT_METRONOME_CONFIG } from '../../audio/metronome';
-import type { AltPickResult } from '../../domain/exerciseResults';
-import { ioiCv } from '../../dsp/timing';
+import { type AltPickResult, countsForCriteria } from '../../domain/exerciseResults';
+import { pooledIoiCv } from '../../dsp/timing';
 import { BaseRunner } from '../baseRunner';
 import { GridRecorder } from '../gridRecorder';
 import { type BarSlots, barsOf, type LiveBar, settleBars } from '../liveTiming';
@@ -46,6 +48,8 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
   private outcome: { hitRate: number; ioiCv: number | null } | null = null;
   private liveBars: LiveBar[] = [];
   private barSlots: BarSlots[] | null = null;
+  /** Timeline version `barSlots` was built from (a pause or resume changes the bar grids, D-085). */
+  private barSlotsVersion = -1;
 
   constructor(
     ctx: ExerciseContext,
@@ -84,17 +88,36 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
     };
   }
 
-  private slots(grid: number) {
-    return Array.from({ length: this.params.bars * 8 }, (_, i) => ({
-      time: grid + i * this.slotS,
-      expected: true,
-    }));
+  /** Eight eighth-note slots per bar played, each bar on its own segment's grid (D-085). */
+  private slots() {
+    return this.recorder.timeline
+      .starts(this.params.bars)
+      .flatMap((start) =>
+        Array.from({ length: 8 }, (_, i) => ({ time: start + i * this.slotS, expected: true })),
+      );
+  }
+
+  /** Picks grouped by the stretch they were played in (sorted): IOIs never span a pause (D-085). */
+  private pickGroups(): number[][] {
+    const timeline = this.recorder.timeline;
+    const segments = timeline.segments;
+    const sorted = [...this.recorder.strums].sort((a, b) => a - b);
+    // A segment's picks start after the previous one's are over: its count-in bar is a safe boundary.
+    const boundary = (i: number) => {
+      const segment = segments[i];
+      return segment ? segment.grid - timeline.unitS : Number.POSITIVE_INFINITY;
+    };
+    return segments.map((_, i) => sorted.filter((t) => (i === 0 || t >= boundary(i)) && t < boundary(i + 1)));
   }
 
   /** Live feedback (D-077): bars whose picks have all been judged, same verdicts as the final analysis. */
-  private settleLiveBars(now: number, grid: number): void {
+  private settleLiveBars(now: number): void {
     if (!this.ctx.audio || this.outcome !== null) return;
-    this.barSlots ??= barsOf(this.slots(grid), 8);
+    if (this.barSlotsVersion !== this.recorder.timeline.version) {
+      this.barSlots = barsOf(this.slots(), 8);
+      this.barSlotsVersion = this.recorder.timeline.version;
+    }
+    if (!this.barSlots) return;
     const settled = settleBars(
       this.barSlots,
       this.recorder.strums,
@@ -114,12 +137,28 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
     this.recorder.start(() => this.publish());
   }
 
+  /** Pause (D-085): the interrupted bar is replayed, its live verdict (and later ones) dropped. */
+  protected override pauseTake(): { counted: boolean } | null {
+    const outcome = this.recorder.pause(this.ctx.output.now());
+    if (outcome.kind === 'ignored') return null;
+    if (outcome.counted) {
+      this.liveBars = this.liveBars.slice(0, outcome.resumeBar);
+      this.bar = outcome.resumeBar;
+    }
+    return { counted: outcome.counted };
+  }
+
+  protected override resumeTake(): void {
+    this.recorder.resume(() => this.publish());
+  }
+
   command(cmd: RunnerCommand): void {
     if (cmd === 'abort') {
       this.recorder.stop();
       if (this.phase !== 'done') this.setPhase('done');
       return;
     }
+    if (this.handlePause(cmd)) return;
     if (this.phase !== 'review' || this.ctx.audio) return;
     const rate = cmd === 'manual1' ? 1 : cmd === 'manual2' ? 0.8 : cmd === 'manual3' ? 0.5 : null;
     if (rate === null) return;
@@ -130,20 +169,24 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
   override tick(): void {
     super.tick();
     const now = this.ctx.output.now();
-    const grid = this.recorder.gridStart;
+    // The segment being played (D-085): after a pause its count-in comes first, on a new grid.
+    const grid = this.recorder.currentGrid;
     if (grid !== null && (this.phase === 'countIn' || this.phase === 'running')) {
       if (this.phase === 'countIn' && now >= grid) this.setPhase('running');
-      const bar = now >= grid ? Math.floor((now - grid) / (8 * this.slotS)) : null;
+      // In a count-in the bar stays as it was: none at the start, the replayed one after a pause.
+      const position = this.recorder.timeline.position(now);
+      const bar = position === null ? this.bar : Math.floor(position);
       if (bar !== this.bar && (bar === null || bar < this.params.bars)) {
         this.bar = bar;
         this.publish();
       }
     }
-    if (grid !== null && this.phase !== 'done') this.settleLiveBars(now, grid);
+    const started = this.recorder.gridStart !== null;
+    if (started && this.phase !== 'done') this.settleLiveBars(now);
     const mic = this.ctx.audio;
     if (
       mic &&
-      grid !== null &&
+      started &&
       this.phase === 'review' &&
       !this.analyzing &&
       !this.outcome &&
@@ -153,7 +196,7 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
       this.publish();
       void mic
         .analyzeTiming({
-          slots: this.slots(grid),
+          slots: this.slots(),
           strumTimes: this.recorder.strums,
           rttS: this.recorder.rttS,
           bpm: this.params.bpm,
@@ -163,7 +206,7 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
           this.recordDsp(outcome);
           this.outcome = {
             hitRate: outcome.result.hitRate,
-            ioiCv: ioiCv([...this.recorder.strums].sort((a, b) => a - b)),
+            ioiCv: pooledIoiCv(this.pickGroups()),
           };
           this.analyzing = false;
           this.setPhase('done');
@@ -184,6 +227,7 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
   finish(): AltPickResult {
     const o = this.outcome ?? { hitRate: 0, ioiCv: null };
     const evenEnough = o.ioiCv === null ? this.ctx.audio === null : o.ioiCv <= ALT_PICK_MAX_IOI_CV;
+    const pauses = this.pauses > 0 ? { pauses: this.pauses } : {};
     return {
       stringIdx: this.params.stringIdx,
       bpm: this.params.bpm,
@@ -195,9 +239,12 @@ export class AltPickRunner extends BaseRunner<AltPickResult, E8View> {
         this.outcome !== null &&
         this.params.bars >= ALT_PICK_MIN_BARS &&
         o.hitRate >= ALT_PICK_HIT_RATE &&
-        evenEnough,
+        evenEnough &&
+        // A paused run is recorded but does not move the ladder (D-085).
+        countsForCriteria(pauses),
       source: this.ctx.audio ? 'mic' : 'self',
       ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
+      ...pauses,
     };
   }
 }

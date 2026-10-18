@@ -62,6 +62,7 @@ function E8Summary({ result }: { result: AltPickResult; params: E8Params }) {
       <p className="mt-2 font-semibold">
         {result.passed ? ko.exercises.e8.passed(nextBpmFor(result.bpm, 'up')) : ko.exercises.e8.notYet}
       </p>
+      {(result.pauses ?? 0) > 0 && <p className="text-muted">{ko.exercises.common.pausedRun}</p>}
     </div>
   );
 }
@@ -98,4 +99,6 @@ export const e8Plugin: ExercisePlugin<E8Params, AltPickResult, E8View> = {
   suggestedTempoRetry: (params, result) =>
     result.passed ? tempoRetry(params, nextBpmFor(result.bpm, 'up')) : null,
   usesMicrophone: true,
+  // P pauses; a paused run does not count for the ladder (D-085).
+  pausable: true,
 };

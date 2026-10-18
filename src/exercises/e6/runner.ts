@@ -3,13 +3,14 @@
  * the next bar's first beat. Mode D measures the beat-1 strum of every bar (delay vs grid + RTT) and finds bars
  * with no strum at all (a stop). Rule: ≥ 14 of 16 bars inside the window and no stop → +5 BPM. With a
  * microphone every strum is also classified among the progression's chords (Mode C), and each bar that changes
- * chord is checked as a two-way choice "this bar's chord vs the previous one" (research 01:315).
+ * chord is checked as a two-way choice "this bar's chord vs the previous one" (research 01:315). P pauses: the
+ * interrupted bar is replayed after a one-bar count-in, and a paused run does not count for the ladder (D-085).
  */
 import { z } from 'zod';
 import { DEFAULT_METRONOME_CONFIG } from '../../audio/metronome';
 import { patternById } from '../../content/patterns';
 import { voicingById, voicingForClass } from '../../content/voicings';
-import type { OneBeatResult } from '../../domain/exerciseResults';
+import { countsForCriteria, type OneBeatResult } from '../../domain/exerciseResults';
 import type { SetClassification } from '../../dsp/modeC';
 import { timingWindowMs } from '../../dsp/timing';
 import { BaseRunner } from '../baseRunner';
@@ -120,6 +121,8 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
   /** Distinct chord classes of the progression (Mode C candidates). */
   private readonly chords: string[];
   private liveBars: LiveBar[] = [];
+  /** Bars a resume replayed from, one per counted pause (D-085). */
+  private readonly cuts: number[] = [];
 
   constructor(
     ctx: ExerciseContext,
@@ -172,15 +175,17 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
   }
 
   /** Live feedback (D-077): each bar's beat 1 as soon as it can be judged, the same rules as the summary. */
-  private settleLiveBars(now: number, grid: number): void {
+  private settleLiveBars(now: number): void {
     if (!this.ctx.audio || this.outcome !== null) return;
     const rttS = this.recorder.rttS;
     const windowS = timingWindowMs(this.params.bpm) / 1000;
+    // Bars played so far, each on its own segment's grid (only up to the cut while paused, D-085).
+    const barStarts = this.recorder.timeline.starts(this.params.bars);
     let changed = false;
-    for (let b = this.liveBars.length; b < this.params.bars; b++) {
+    for (let b = this.liveBars.length; b < barStarts.length; b++) {
       const judged = judgeBeatOne({
         bar: b,
-        barStart: grid + b * this.barS,
+        barStart: barStarts[b]!,
         barS: this.barS,
         strums: this.recorder.strums,
         rttS,
@@ -188,13 +193,14 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
         now,
       });
       if (!judged) break;
+      // A resume's count-in leads into the replayed bar: no chord change to check there.
       const chord =
-        this.chords.length >= 2
+        this.chords.length >= 2 && !this.cuts.includes(b)
           ? barChordVerdict(
               this.params.progression,
               this.chords,
               this.recorder.events,
-              grid + b * this.barS,
+              barStarts[b]!,
               b,
               rttS,
               windowS,
@@ -225,12 +231,29 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
     this.recorder.start(() => this.publish());
   }
 
+  /** Pause (D-085): the interrupted bar is replayed, its live verdict (and later ones) dropped. */
+  protected override pauseTake(): { counted: boolean } | null {
+    const outcome = this.recorder.pause(this.ctx.output.now());
+    if (outcome.kind === 'ignored') return null;
+    if (outcome.counted) {
+      this.cuts.push(outcome.resumeBar);
+      this.liveBars = this.liveBars.slice(0, outcome.resumeBar);
+      this.bar = outcome.resumeBar;
+    }
+    return { counted: outcome.counted };
+  }
+
+  protected override resumeTake(): void {
+    this.recorder.resume(() => this.publish());
+  }
+
   command(cmd: RunnerCommand): void {
     if (cmd === 'abort') {
       this.recorder.stop();
       if (this.phase !== 'done') this.setPhase('done');
       return;
     }
+    if (this.handlePause(cmd)) return;
     if ((this.phase === 'armed' || this.phase === 'ready') && (cmd === 'toggle' || cmd === 'next')) {
       this.begin();
       return;
@@ -262,20 +285,24 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
   override tick(): void {
     super.tick();
     const now = this.ctx.output.now();
-    const grid = this.recorder.gridStart;
+    // The segment being played (D-085): after a pause its count-in comes first, on a new grid.
+    const grid = this.recorder.currentGrid;
     if (grid !== null && (this.phase === 'countIn' || this.phase === 'running')) {
       if (this.phase === 'countIn' && now >= grid) this.setPhase('running');
-      const bar = now >= grid ? Math.floor((now - grid) / this.barS) : null;
+      // In a count-in the bar stays as it was: none at the start, the replayed one after a pause.
+      const position = this.recorder.timeline.position(now);
+      const bar = position === null ? this.bar : Math.floor(position);
       if (bar !== this.bar && (bar === null || bar < this.params.bars)) {
         this.bar = bar;
         this.publish();
       }
     }
-    if (grid !== null && this.phase !== 'done') this.settleLiveBars(now, grid);
+    const started = this.recorder.gridStart !== null;
+    if (started && this.phase !== 'done') this.settleLiveBars(now);
     const mic = this.ctx.audio;
     if (
       mic &&
-      grid !== null &&
+      started &&
       this.phase === 'review' &&
       !this.analyzing &&
       !this.outcome &&
@@ -283,7 +310,8 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
     ) {
       this.analyzing = true;
       this.publish();
-      const barStarts = Array.from({ length: this.params.bars }, (_, b) => grid + b * this.barS);
+      // Each bar once, on the grid of the segment that played it (a replayed bar after a pause, D-085).
+      const barStarts = this.recorder.timeline.starts(this.params.bars);
       const slots = barStarts.map((time) => ({ time, expected: true }));
       void mic
         .analyzeTiming({
@@ -311,6 +339,7 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
               barStarts,
               this.recorder.rttS,
               windowS,
+              this.cuts,
             ),
           };
           this.analyzing = false;
@@ -331,14 +360,18 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
 
   finish(): OneBeatResult {
     const o = this.outcome ?? this.summarize(0, this.params.bars, null);
+    const pauses = this.pauses > 0 ? { pauses: this.pauses } : {};
     return {
       progression: [...this.params.progression],
       patternId: this.params.patternId,
       bpm: this.params.bpm,
       bars: this.params.bars,
       ...o,
+      // A paused run is recorded but does not move the ladder (D-085).
+      passed: o.passed && countsForCriteria(pauses),
       source: this.ctx.audio ? 'mic' : 'self',
       ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
+      ...pauses,
     };
   }
 }
