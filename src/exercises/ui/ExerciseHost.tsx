@@ -174,7 +174,9 @@ function RunningExercise({
       )}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {showPause && (
+          // Large (≥ 64 px, SPEC §12.3): it is tapped with a hand coming off the guitar mid-run.
           <Button
+            large
             variant={paused ? 'primary' : 'secondary'}
             aria-pressed={paused}
             onClick={() => runner.command('pause')}
