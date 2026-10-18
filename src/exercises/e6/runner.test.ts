@@ -91,14 +91,23 @@ describe('E6 change on beat 1', () => {
     });
     // C G C G over 4 bars of 3 s: bars 1, 2, 3 change chord; bar 2 sounded like G (wrong), the others right.
     const events = [ev(3, [0, 5]), ev(6, [1, 4]), ev(9, [0, 5])];
-    expect(chordCorrectRatio(['C', 'G'], ['C', 'G'], events, 0, 3, 4, 0, 0.05)).toBeCloseTo(2 / 3, 5);
+    const starts = [0, 3, 6, 9];
+    expect(chordCorrectRatio(['C', 'G'], ['C', 'G'], events, starts, 0, 0.05)).toBeCloseTo(2 / 3, 5);
     // Repeated chords are not checked; no event near a bar → not judged.
-    expect(chordCorrectRatio(['C', 'C'], ['C'], events, 0, 3, 4, 0, 0.05)).toBeNull();
-    expect(chordCorrectRatio(['C', 'G'], ['C', 'G'], [], 0, 3, 4, 0, 0.05)).toBeNull();
+    expect(chordCorrectRatio(['C', 'C'], ['C'], events, starts, 0, 0.05)).toBeNull();
+    expect(chordCorrectRatio(['C', 'G'], ['C', 'G'], [], starts, 0, 0.05)).toBeNull();
+    // Skipped bars are not checked (bar 2 = the wrong one).
+    expect(chordCorrectRatio(['C', 'G'], ['C', 'G'], events, starts, 0, 0.05, [2])).toBe(1);
+    // Bars after a pause sit on their own grid (D-085): bar 2 replayed from 20 s, bar 3 at 23 s.
+    const resumed = [ev(3, [0, 5]), ev(20, [5, 0]), ev(23, [0, 5])];
+    expect(chordCorrectRatio(['C', 'G'], ['C', 'G'], resumed, [0, 3, 20, 23], 0, 0.05)).toBe(1);
   });
 
   it('stoppedBars helper', () => {
-    expect(stoppedBars([0.1, 3.2, 9.0], 0, 3, 4, 0.05)).toEqual([2]);
+    expect(stoppedBars([0.1, 3.2, 9.0], [0, 3, 6, 9], 3, 0.05)).toEqual([2]);
+    // Bar starts after a pause (D-085): bar 2 replayed at 20 s, its region ends at 23 − window.
+    expect(stoppedBars([0.1, 3.2, 22.9, 23.1], [0, 3, 20, 23], 3, 0.05)).toEqual([]);
+    expect(stoppedBars([0.1, 3.2, 9.0, 23.1], [0, 3, 20, 23], 3, 0.05)).toEqual([2]);
   });
 
   it('shows the current and next chord of the progression', async () => {

@@ -20,13 +20,13 @@ import type { ExerciseContext, JudgedEvent, RunnerCommand } from '../types';
 /**
  * Bar `b` changes chord: did its beat-1 strum sound more like this bar's chord ('right') than the previous one
  * ('wrong')? null when the bar keeps its chord or no classified strum landed on beat 1 (research 01:315).
+ * `barStart` is bar `b`'s downbeat (its own grid after a pause, D-085).
  */
 export function barChordVerdict(
   progression: readonly string[],
   chords: readonly string[],
   events: readonly JudgedEvent[],
-  gridStart: number,
-  barS: number,
+  barStart: number,
   b: number,
   rttS: number,
   windowS: number,
@@ -35,7 +35,7 @@ export function barChordVerdict(
   const chord = progression[b % progression.length]!;
   const previous = progression[(b - 1) % progression.length]!;
   if (chord === previous) return null;
-  const at = gridStart + b * barS + rttS;
+  const at = barStart + rttS;
   const event = events
     .filter((e) => Math.abs(e.time - at) <= windowS)
     .sort((x, y) => Math.abs(x.time - at) - Math.abs(y.time - at))[0];
@@ -46,21 +46,23 @@ export function barChordVerdict(
 
 /**
  * Share of chord-changing bars whose beat-1 strum sounded more like this bar's chord than the previous one
- * (null when no such bar was heard). `chords` are the classification candidates (classes, distinct).
+ * (null when no such bar was heard). `chords` are the classification candidates (classes, distinct);
+ * `barStarts` the downbeat of each bar played; `skipBars` are not checked (e.g. bars a resume started on, D-085).
  */
 export function chordCorrectRatio(
   progression: readonly string[],
   chords: readonly string[],
   events: readonly JudgedEvent[],
-  gridStart: number,
-  barS: number,
-  bars: number,
+  barStarts: readonly number[],
   rttS: number,
   windowS: number,
+  skipBars: readonly number[] = [],
 ): number | null {
-  const verdicts = Array.from({ length: bars }, (_, b) =>
-    barChordVerdict(progression, chords, events, gridStart, barS, b, rttS, windowS),
-  ).filter((v) => v !== null);
+  const verdicts = barStarts
+    .map((start, b) =>
+      skipBars.includes(b) ? null : barChordVerdict(progression, chords, events, start, b, rttS, windowS),
+    )
+    .filter((v) => v !== null);
   return verdicts.length === 0 ? null : verdicts.filter((v) => v === 'right').length / verdicts.length;
 }
 
@@ -93,18 +95,17 @@ export interface E6View {
   liveBars: readonly LiveBar[];
 }
 
-/** Bars (0-based) with no onset anywhere in [bar start − window, next bar start − window). */
+/** Bars (0-based) with no onset anywhere in [bar start − window, bar start + barS − window). */
 export function stoppedBars(
   strums: readonly number[],
-  gridStart: number,
+  barStarts: readonly number[],
   barS: number,
-  bars: number,
   windowS: number,
 ): number[] {
   const stops: number[] = [];
-  for (let b = 0; b < bars; b++) {
-    const from = gridStart + b * barS - windowS;
-    const to = gridStart + (b + 1) * barS - windowS;
+  for (const [b, start] of barStarts.entries()) {
+    const from = start - windowS;
+    const to = start + barS - windowS;
     if (!strums.some((t) => t >= from && t < to)) stops.push(b);
   }
   return stops;
@@ -179,7 +180,7 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
     for (let b = this.liveBars.length; b < this.params.bars; b++) {
       const judged = judgeBeatOne({
         bar: b,
-        gridStart: grid,
+        barStart: grid + b * this.barS,
         barS: this.barS,
         strums: this.recorder.strums,
         rttS,
@@ -193,8 +194,7 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
               this.params.progression,
               this.chords,
               this.recorder.events,
-              grid,
-              this.barS,
+              grid + b * this.barS,
               b,
               rttS,
               windowS,
@@ -283,10 +283,8 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
     ) {
       this.analyzing = true;
       this.publish();
-      const slots = Array.from({ length: this.params.bars }, (_, b) => ({
-        time: grid + b * this.barS,
-        expected: true,
-      }));
+      const barStarts = Array.from({ length: this.params.bars }, (_, b) => grid + b * this.barS);
+      const slots = barStarts.map((time) => ({ time, expected: true }));
       void mic
         .analyzeTiming({
           slots,
@@ -300,9 +298,8 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
           const windowS = timingWindowMs(this.params.bpm) / 1000;
           const stops = stoppedBars(
             this.recorder.strums.map((t) => t - this.recorder.rttS),
-            grid,
+            barStarts,
             this.barS,
-            this.params.bars,
             windowS,
           ).length;
           this.outcome = {
@@ -311,9 +308,7 @@ export class OneBeatRunner extends BaseRunner<OneBeatResult, E6View> {
               this.params.progression,
               this.chords,
               this.recorder.events,
-              grid,
-              this.barS,
-              this.params.bars,
+              barStarts,
               this.recorder.rttS,
               windowS,
             ),

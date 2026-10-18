@@ -614,6 +614,8 @@ export const ko = {
       loop: '구간 반복',
       hide: '악보·TAB 숨기기',
       backing: '반주 켜기·끄기',
+      pause: '일시정지·이어서',
+      restart: '노래 처음부터',
     } as Record<string, string>,
     keyNames: {
       ' ': 'Space',
@@ -632,7 +634,7 @@ export const ko = {
     custom: '학습한 키',
     remove: '지우기',
     pedalTip: '블루투스 페이지 터너 페달은 키보드처럼 동작해요. 페달 버튼을 원하는 동작에 연결하세요.',
-    hint: 'Space 시작/정지 · Enter 다음 · ↑↓ 보정 · 1/2/3 수동 판정 · Esc 중단',
+    hint: 'Space 시작/정지 · Enter 다음 · ↑↓ 보정 · 1/2/3 수동 판정 · P 일시정지 · Esc 중단',
     confirmAbort: '연습을 중단할까요? 지금까지 한 것은 기록돼요.',
     abortYes: '중단하기',
     abortNo: '계속하기',
@@ -875,7 +877,9 @@ export const ko = {
       beta: '베타',
       noMic: '마이크 없이 진행해요(수동·자가 판정).',
       unknownExercise: '알 수 없는 연습이에요.',
-      paused: '일시정지',
+      paused: '일시정지했어요. P나 Space를 누르면 한 마디 세고 이어서 해요.',
+      pause: '일시정지 (P)',
+      resume: '이어서 (P)',
     },
     /** Live per-bar feedback while playing (D-077). */
     live: {

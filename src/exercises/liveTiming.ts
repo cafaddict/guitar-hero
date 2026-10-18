@@ -126,11 +126,12 @@ export function settleBars(
 /**
  * E6 beat-1 bar (SPEC v1.1 §11.7): on time when a strum lands inside the window around beat 1; a strum elsewhere
  * in the bar = late/early ('off', with the nearest strum's offset); no strum at all = a stop. Beat 1 is known
- * ~1 s after the downbeat; "stop" only once the bar is over.
+ * ~1 s after the downbeat; "stop" only once the bar is over. `barStart` is the bar's own downbeat (bars after a
+ * pause play on a new grid, D-085).
  */
 export function judgeBeatOne(input: {
   bar: number;
-  gridStart: number;
+  barStart: number;
   barS: number;
   strums: readonly number[];
   rttS: number;
@@ -140,9 +141,9 @@ export function judgeBeatOne(input: {
 }): Omit<LiveBar, 'chord'> | null {
   const lag = input.lagS ?? LIVE_LAG_S;
   const windowS = timingWindowMs(input.bpm) / 1000;
-  const beat1 = input.gridStart + input.bar * input.barS + input.rttS;
+  const beat1 = input.barStart + input.rttS;
   if (input.now < beat1 + windowS + lag) return null;
-  const slot = { time: input.gridStart + input.bar * input.barS, expected: true };
+  const slot = { time: input.barStart, expected: true };
   // Same stop region as stoppedBars(): [bar start − window, next bar start − window), recording timeline.
   const from = beat1 - windowS;
   const to = beat1 + input.barS - windowS;

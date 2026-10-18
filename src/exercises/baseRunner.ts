@@ -26,6 +26,7 @@ export abstract class BaseRunner<R, V> implements ExerciseRunner<R, V> {
   private durationMs: number | null = null;
   private disposed = false;
   private shownSecond: number | null = null;
+  private pauseCount = 0;
 
   constructor(protected readonly ctx: ExerciseContext) {}
 
@@ -132,6 +133,47 @@ export abstract class BaseRunner<R, V> implements ExerciseRunner<R, V> {
       this.shownSecond = second;
       this.publish();
     }
+  }
+
+  // --- pause / resume (D-085) ------------------------------------------------------------------
+
+  /** Counted pauses of this take (a pause in a count-in is not one). */
+  protected get pauses(): number {
+    return this.pauseCount;
+  }
+
+  protected resetPauses(): void {
+    this.pauseCount = 0;
+  }
+
+  /** Stops the take where it is (metronome, recording); null = it cannot be paused now (e.g. its end is due). */
+  protected pauseTake?(): { counted: boolean } | null;
+
+  /** Continues the take after a pause: a count-in, then the replayed bar or cycle. */
+  protected resumeTake?(): void;
+
+  /**
+   * Pause commands of a pausable runner (one with pauseTake/resumeTake): 'pause' in a count-in or while running
+   * pauses (the timer too); 'pause' or 'toggle' (Space) while paused resumes into a count-in. True when the
+   * command was taken here — other commands (abort, next while paused) are left to the runner.
+   */
+  protected handlePause(cmd: RunnerCommand): boolean {
+    if (!this.pauseTake || !this.resumeTake) return false;
+    if (cmd === 'pause' && (this.phase === 'countIn' || this.phase === 'running')) {
+      const paused = this.pauseTake();
+      if (!paused) return true;
+      this.pauseTimer();
+      if (paused.counted) this.pauseCount++;
+      this.setPhase('paused');
+      return true;
+    }
+    if (this.phase === 'paused' && (cmd === 'pause' || cmd === 'toggle')) {
+      this.resumeTimer();
+      this.setPhase('countIn');
+      this.resumeTake();
+      return true;
+    }
+    return false;
   }
 
   /** Timed part over; default goes straight to done. */

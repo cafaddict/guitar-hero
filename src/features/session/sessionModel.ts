@@ -15,7 +15,12 @@ export interface SessionState {
   /** Ids of items whose run produced a stored Attempt. */
   recorded: string[];
   paused: boolean;
-  /** Clock value (ms) when the current un-paused stretch started, or null while paused. */
+  /**
+   * The practice clock is held by a paused exercise run (D-085): stopped like a session pause, without the
+   * paused screen (the run shows its own).
+   */
+  held?: boolean;
+  /** Clock value (ms) when the current un-paused stretch started, or null while paused or held. */
   runningSince: number | null;
   /** Practice time accumulated before `runningSince`. */
   practiceMs: number;
@@ -49,7 +54,19 @@ export function pause(state: SessionState, now: number): SessionState {
 
 export function resume(state: SessionState, now: number): SessionState {
   if (!state.paused) return state;
-  return { ...state, paused: false, runningSince: now };
+  return { ...state, paused: false, runningSince: state.held ? null : now };
+}
+
+/** A run was paused (D-085): practice time stops until releaseClock. */
+export function holdClock(state: SessionState, now: number): SessionState {
+  if (state.held) return state;
+  return { ...state, held: true, practiceMs: practiceMs(state, now), runningSince: null };
+}
+
+/** The paused run went on (or was left): practice time runs again unless the session itself is paused. */
+export function releaseClock(state: SessionState, now: number): SessionState {
+  if (!state.held) return state;
+  return { ...state, held: false, runningSince: state.paused ? null : now };
 }
 
 function moveTo(state: SessionState, index: number, now: number): SessionState {

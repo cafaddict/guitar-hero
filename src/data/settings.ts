@@ -21,6 +21,9 @@ export const KEY_ACTIONS = [
   'loop',
   'hide',
   'backing',
+  // Pause/resume of a metronome run and the song's start-over (D-085).
+  'pause',
+  'restart',
 ] as const;
 export type KeyAction = (typeof KEY_ACTIONS)[number];
 

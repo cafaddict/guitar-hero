@@ -5,7 +5,13 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEngineStatus, useMicReleasedOnExit } from '../../app/audioHooks';
-import { actionForKey, isEditableTarget, isNativeActivation } from '../../app/keys';
+import {
+  actionForKey,
+  isEditableTarget,
+  isMarkedNativeActivation,
+  isNativeActivation,
+  NATIVE_KEYS_ATTR,
+} from '../../app/keys';
 import { audioEngine, captureReady, metronome, repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
 import { simulatedRate } from '../../app/testRate';
@@ -39,6 +45,8 @@ export interface ExerciseHostProps {
   autoFocusStart?: boolean;
   /** True from the start tap until the run ended (the session runner locks its navigation meanwhile). */
   onActiveChange?: (active: boolean) => void;
+  /** True while a pausable run is paused (D-085): the session runner holds its practice clock meanwhile. */
+  onPausedChange?: (paused: boolean) => void;
   /** Content to run with (a curriculum stage other than the current one, D-072); default the current stage's. */
   content?: ContentContext;
 }
@@ -79,16 +87,21 @@ function useAnimationTick(runner: ExerciseRunner<unknown, unknown> | null): void
   }, [runner]);
 }
 
+/** Phases a pausable run shows its pause button in (D-085). */
+const PAUSE_PHASES: ReadonlySet<string> = new Set(['countIn', 'running', 'paused']);
+
 function RunningExercise({
   definition,
   params,
   running,
   onDone,
+  onPausedChange,
 }: {
   definition: ExerciseDefinition;
   params: unknown;
   running: Running;
   onDone: () => void;
+  onPausedChange: ((paused: boolean) => void) | undefined;
 }) {
   const { runner, ctx } = running;
   const snapshot = useRunnerSnapshot(runner);
@@ -100,6 +113,16 @@ function RunningExercise({
     if (snapshot.phase === 'done') onDone();
   }, [snapshot.phase, onDone]);
 
+  // Through a ref like onActiveChange: an inline callback would re-run the effect on every render.
+  const paused = snapshot.phase === 'paused';
+  const onPausedChangeRef = useRef(onPausedChange);
+  onPausedChangeRef.current = onPausedChange;
+  useEffect(() => {
+    if (!paused) return;
+    onPausedChangeRef.current?.(true);
+    return () => onPausedChangeRef.current?.(false);
+  }, [paused]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
@@ -110,14 +133,19 @@ function RunningExercise({
         setConfirmAbort(false);
         return;
       }
-      if (!action) return;
+      // Space/Enter on the focused pause button: its own click pauses or resumes, once (D-085).
+      if (isMarkedNativeActivation(event)) return;
+      // Only metronome exercises pause; elsewhere P does nothing.
+      if (!action || (action === 'pause' && !definition.pausable)) return;
       event.preventDefault();
       if (action === 'abort') setConfirmAbort(true);
       else runner.command(action);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [runner, confirmAbort, settings?.customKeys]);
+  }, [runner, confirmAbort, settings?.customKeys, definition.pausable]);
+
+  const showPause = definition.pausable && PAUSE_PHASES.has(snapshot.phase);
 
   const howTo = definition.howTo(params);
   return (
@@ -139,7 +167,23 @@ function RunningExercise({
           </div>
         </div>
       )}
+      {showPause && paused && (
+        <p role="status" className="mt-4 text-lg font-semibold" data-testid="exercise-paused">
+          {ko.exercises.common.paused}
+        </p>
+      )}
       <div className="mt-4 flex flex-wrap items-center gap-3">
+        {showPause && (
+          <Button
+            variant={paused ? 'primary' : 'secondary'}
+            aria-pressed={paused}
+            onClick={() => runner.command('pause')}
+            data-testid="exercise-pause"
+            {...{ [NATIVE_KEYS_ATTR]: '' }}
+          >
+            {paused ? ko.exercises.common.resume : ko.exercises.common.pause}
+          </Button>
+        )}
         <Button variant="secondary" onClick={() => runner.command('abort')} data-testid="exercise-finish">
           {ko.exercises.common.finish}
         </Button>
@@ -164,6 +208,7 @@ export function ExerciseHost({
   renderAfter,
   autoFocusStart = false,
   onActiveChange,
+  onPausedChange,
   content,
 }: ExerciseHostProps) {
   const settings = useSettingsStore((s) => s.settings);
@@ -355,7 +400,13 @@ export function ExerciseHost({
   }
   if (running)
     return (
-      <RunningExercise definition={definition} params={running.params} running={running} onDone={onDone} />
+      <RunningExercise
+        definition={definition}
+        params={running.params}
+        running={running}
+        onDone={onDone}
+        onPausedChange={onPausedChange}
+      />
     );
   const howTo = definition.howTo(params);
   return (

@@ -83,4 +83,28 @@ describe('MetronomeRuntime', () => {
     expect(ends).toEqual([10.1 + 2 + 4]);
     expect(runtime.isRunning).toBe(false);
   });
+
+  it('a stop while the audio context is still starting cancels that start (D-085)', async () => {
+    const clock = { currentTime: 10 };
+    let resolveContext: (c: typeof clock) => void = () => {};
+    const output: MetronomeOutput = {
+      ensureContext: () => new Promise((resolve) => (resolveContext = resolve)),
+      scheduleClick: () => {},
+      setClickTimes: () => {},
+    };
+    let tickers = 0;
+    const runtime = new MetronomeRuntime(output, () => {
+      tickers++;
+      return { intervalMs: 25, lookaheadS: 0.1, start: () => {}, stop: () => {} };
+    });
+    const running: boolean[] = [];
+    runtime.running.on((r) => running.push(r));
+    const started = runtime.start({ ...DEFAULT_METRONOME_CONFIG, countInBars: 0 });
+    runtime.stop();
+    resolveContext(clock);
+    await started;
+    expect(tickers).toBe(0);
+    expect(runtime.isRunning).toBe(false);
+    expect(running).toEqual([]);
+  });
 });

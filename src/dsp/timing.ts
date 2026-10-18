@@ -125,9 +125,17 @@ export function personalOffset(recentMeanOffsetsMs: readonly number[]): number |
 
 /** Inter-onset-interval coefficient of variation (E8): sd(IOI)/mean(IOI). */
 export function ioiCv(strumTimes: readonly number[]): number | null {
-  if (strumTimes.length < 3) return null;
+  return pooledIoiCv([strumTimes]);
+}
+
+/**
+ * ioiCv over several stretches played apart (segments between pauses, D-085): the intervals are taken inside
+ * each group only — the gap of a pause is not an interval — and pooled. Null with fewer than two intervals.
+ */
+export function pooledIoiCv(groups: readonly (readonly number[])[]): number | null {
   const iois: number[] = [];
-  for (let i = 1; i < strumTimes.length; i++) iois.push(strumTimes[i]! - strumTimes[i - 1]!);
+  for (const times of groups) for (let i = 1; i < times.length; i++) iois.push(times[i]! - times[i - 1]!);
+  if (iois.length < 2) return null;
   const mean = iois.reduce((s, x) => s + x, 0) / iois.length;
   const sd = Math.sqrt(iois.reduce((s, x) => s + (x - mean) ** 2, 0) / (iois.length - 1));
   return mean > 0 ? sd / mean : null;

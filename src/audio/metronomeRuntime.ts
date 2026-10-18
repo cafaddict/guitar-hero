@@ -27,6 +27,8 @@ export class MetronomeRuntime {
   private clock: { readonly currentTime: number } | null = null;
   private recent: ScheduledClick[] = [];
   private rttS = 0;
+  /** Bumped by stop(): a start still awaiting the audio context is cancelled by a stop in between (D-085). */
+  private generation = 0;
 
   constructor(
     private readonly output: MetronomeOutput,
@@ -56,7 +58,9 @@ export class MetronomeRuntime {
     options: { rttMs?: number; startDelayS?: number } = {},
   ): Promise<void> {
     this.stop();
+    const generation = this.generation;
     const clock = await this.output.ensureContext();
+    if (generation !== this.generation) return;
     this.clock = clock;
     this.rttS = (options.rttMs ?? 0) / 1000;
     this.recent = [];
@@ -76,6 +80,7 @@ export class MetronomeRuntime {
   }
 
   stop(): void {
+    this.generation++;
     const wasRunning = this.scheduler !== null;
     this.ticker?.stop();
     this.ticker = null;

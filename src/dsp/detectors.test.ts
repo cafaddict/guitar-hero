@@ -10,7 +10,7 @@ import { DEFAULT_ONSET_PARAMS, detectStrums } from './onset';
 import { estimateRtt, rttProbe, tapRtt, tapRttStats } from './rtt';
 import { applyMuteEnvelope, type NoteSpec, renderNote } from './synth/note';
 import { normalizeNote, renderStrum } from './synth/strum';
-import { analyzeTiming, ioiCv, personalOffset, timingWindowMs } from './timing';
+import { analyzeTiming, ioiCv, personalOffset, pooledIoiCv, timingWindowMs } from './timing';
 import { analyzeTuning, TunerStability } from './tuner';
 import { DETECTOR_VERSION } from './version';
 
@@ -242,6 +242,25 @@ describe('onset detection and timing (Mode D)', () => {
     expect(personalOffset([-50, -55])).toBeNull();
     expect(personalOffset([-50, -55, -60])).toBeCloseTo(-55, 6);
     expect(ioiCv([0, 0.25, 0.5, 0.75])).toBeCloseTo(0, 6);
+  });
+
+  it('pooledIoiCv: intervals inside each segment only (the pause gap is not one, D-085)', () => {
+    const even = pooledIoiCv([
+      [0, 0.25, 0.5],
+      [9, 9.25, 9.5, 9.75],
+    ]);
+    expect(even).toBeCloseTo(0, 6);
+    expect(ioiCv([0, 0.25, 0.5, 9, 9.25])).toBeGreaterThan(1);
+    const uneven = [0, 0.25, 0.55, 0.75];
+    expect(pooledIoiCv([uneven])).toBe(ioiCv(uneven));
+    expect(pooledIoiCv([[0, 0.25], [5]])).toBeNull();
+    expect(
+      pooledIoiCv([
+        [0, 0.25],
+        [5, 5.25],
+      ]),
+    ).toBeCloseTo(0, 6);
+    expect(ioiCv([0, 0.25])).toBeNull();
   });
 });
 

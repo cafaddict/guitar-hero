@@ -32,6 +32,7 @@ import {
   BLOCK_TRANSITION_MS,
   breakDue,
   completeItem,
+  holdClock,
   isFinished,
   itemRemainingSec,
   markRecorded,
@@ -40,6 +41,7 @@ import {
   practiceMs,
   previousItem,
   REPEATABLE_TYPES,
+  releaseClock,
   restartItemClock,
   resume,
   resumeSplit,
@@ -563,6 +565,9 @@ export function SessionScreen() {
           routineKey={rerun.identity ? rerun.identity.routineKey : (item.key ?? null)}
           autoFocusStart
           onActiveChange={setRunActive}
+          onPausedChange={(paused) =>
+            setState((s) => s && (paused ? holdClock(s, now()) : releaseClock(s, now())))
+          }
           onFinished={(attempt) => {
             setEndedIndex(state.index);
             setLastAttempt(attempt);

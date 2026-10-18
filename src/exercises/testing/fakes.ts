@@ -131,14 +131,39 @@ export class FakeOutput implements ExerciseOutput {
   private readonly endEmitter = new Emitter<number>();
   lastConfig: MetronomeConfig | null = null;
   lastRttMs: number | undefined;
+  /** Bumped by metronome.stop(), like MetronomeRuntime: a held start stopped meanwhile never starts (D-085). */
+  private startGeneration = 0;
+  private holding = false;
+  private readonly heldStarts: (() => void)[] = [];
 
   constructor(private readonly clock: FakeClock) {}
+
+  /** From now on metronome.start() waits (like a slow audio context) until releaseStarts(). */
+  holdStarts(): void {
+    this.holding = true;
+  }
+
+  get metronomeRunning(): boolean {
+    return this.scheduler?.isRunning ?? false;
+  }
+
+  /** Lets the held starts go on (at the clock's time then); call flush afterwards. */
+  releaseStarts(): void {
+    this.holding = false;
+    for (const release of this.heldStarts.splice(0)) release();
+  }
 
   now = (): number => this.clock.audio();
   readonly metronome = {
     start: async (config: MetronomeConfig, options?: { rttMs?: number }) => {
+      this.metronome.stop();
+      const generation = this.startGeneration;
       this.lastConfig = config;
       this.lastRttMs = options?.rttMs;
+      if (this.holding) {
+        await new Promise<void>((resolve) => this.heldStarts.push(resolve));
+        if (generation !== this.startGeneration) return;
+      }
       this.scheduler = new MetronomeScheduler(
         { now: () => this.clock.audio() },
         (c) => {
@@ -149,7 +174,10 @@ export class FakeOutput implements ExerciseOutput {
       );
       this.scheduler.start(config, this.clock.audio() + 0.1);
     },
-    stop: () => this.scheduler?.stop(),
+    stop: () => {
+      this.startGeneration++;
+      this.scheduler?.stop();
+    },
     setBpm: (bpm: number) => this.scheduler?.setBpm(bpm),
     onClick: (listener: (click: ScheduledClick) => void) => this.clickEmitter.on(listener),
     onEnd: (listener: (time: number) => void) => this.endEmitter.on(listener),

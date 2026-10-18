@@ -23,6 +23,8 @@ export interface ExerciseDefinition {
   version: number;
   titleKey: ExerciseTitleKey;
   usesMicrophone: boolean;
+  /** The run can be paused (P, the pause button, D-085). */
+  pausable: boolean;
   /** How many recent results withHistory sees. */
   historyDepth: number;
   resultSchema: z.ZodType<unknown>;
@@ -56,6 +58,7 @@ export function definePlugin<P, R, V>(plugin: ExercisePlugin<P, R, V>): Exercise
     version: plugin.version,
     titleKey: plugin.titleKey,
     usesMicrophone: plugin.usesMicrophone,
+    pausable: plugin.pausable ?? false,
     historyDepth: plugin.historyDepth ?? DEFAULT_HISTORY_DEPTH,
     resultSchema: plugin.resultSchema,
     defaultParams: (content) => plugin.defaultParams(content),

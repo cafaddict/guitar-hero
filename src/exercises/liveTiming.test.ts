@@ -66,17 +66,20 @@ describe('live per-bar timing (D-077)', () => {
   });
 
   it('E6 beat 1: on time, late (with the offset) as soon as heard, a stop only after the bar', () => {
-    const base = { gridStart: 10, barS: 3, rttS: 0.03, bpm: 80 };
-    const beat1 = (bar: number) => 10 + bar * 3 + 0.03;
-    const good = judgeBeatOne({ ...base, bar: 0, strums: [beat1(0) + 0.02], now: beat1(0) + 1 });
+    const base = { barS: 3, rttS: 0.03, bpm: 80 };
+    const barStart = (bar: number) => 10 + bar * 3;
+    const beat1 = (bar: number) => barStart(bar) + 0.03;
+    const judge = (bar: number, strums: number[], now: number) =>
+      judgeBeatOne({ ...base, bar, barStart: barStart(bar), strums, now });
+    const good = judge(0, [beat1(0) + 0.02], beat1(0) + 1);
     expect(good).toMatchObject({ status: 'good', hits: 1 });
     expect(good!.offsetMs).toBeCloseTo(20, 6);
-    expect(judgeBeatOne({ ...base, bar: 1, strums: [beat1(1) + 0.12], now: beat1(1) + 0.5 })).toBeNull();
-    const late = judgeBeatOne({ ...base, bar: 1, strums: [beat1(1) + 0.12], now: beat1(1) + 0.9 });
+    expect(judge(1, [beat1(1) + 0.12], beat1(1) + 0.5)).toBeNull();
+    const late = judge(1, [beat1(1) + 0.12], beat1(1) + 0.9);
     expect(late).toMatchObject({ status: 'off', hits: 0 });
     expect(late!.offsetMs).toBeCloseTo(120, 6);
-    expect(judgeBeatOne({ ...base, bar: 2, strums: [], now: beat1(2) + 2 })).toBeNull();
-    expect(judgeBeatOne({ ...base, bar: 2, strums: [], now: beat1(2) + 3.7 })).toMatchObject({
+    expect(judge(2, [], beat1(2) + 2)).toBeNull();
+    expect(judge(2, [], beat1(2) + 3.7)).toMatchObject({
       status: 'stop',
     });
   });

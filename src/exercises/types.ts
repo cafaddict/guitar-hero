@@ -31,7 +31,10 @@ export type RunnerCommand =
   | 'cues'
   | 'loop'
   | 'hide'
-  | 'backing';
+  | 'backing'
+  // Pause/resume and the song's start-over (D-085).
+  | 'pause'
+  | 'restart';
 
 /**
  * ready: waiting for the user · armed: waiting for the first strum (auto start) · countIn · running ·
@@ -234,6 +237,8 @@ export interface ExercisePlugin<P, R, V> {
   /** Optional: the run again at the tempo its summary suggests (ladder up/down, passed → +5), or null. */
   suggestedTempoRetry?(params: P, result: R): { bpm: number; params: P } | null;
   usesMicrophone: boolean;
+  /** The run can be paused and resumed (P, D-085): metronome exercises only. Default false. */
+  pausable?: boolean;
   migrateResult?(raw: unknown, fromVersion: number): R;
 }
 

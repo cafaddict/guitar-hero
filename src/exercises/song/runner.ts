@@ -504,9 +504,10 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
       );
       // Strums judged as backing bleed are not the user's (§10.12); the rest also carry the chord scores.
       const strums = rec.events.filter((e) => this.isUserStrum(e));
+      const barStarts = Array.from({ length: bars }, (_, b) => grid + b * this.barS);
       void mic
         .analyzeTiming({
-          slots: Array.from({ length: bars }, (_, b) => ({ time: grid + b * this.barS, expected: true })),
+          slots: barStarts.map((time) => ({ time, expected: true })),
           strumTimes: strums.map((e) => e.time),
           rttS: rec.rttS,
           bpm: this.bpm,
@@ -526,9 +527,7 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
                 ...e,
                 result: (e.result as { set?: SetClassification } | null)?.set ?? null,
               })),
-              grid,
-              this.barS,
-              bars,
+              barStarts,
               rec.rttS,
               timingWindowMs(this.bpm) / 1000,
             );

@@ -13,6 +13,7 @@ import {
   atSplitPoint,
   breakDue,
   completeItem,
+  holdClock,
   isFinished,
   itemRemainingSec,
   markRecorded,
@@ -21,6 +22,7 @@ import {
   practiceMs,
   previousItem,
   REPEATABLE_TYPES,
+  releaseClock,
   restartItemClock,
   resume,
   resumeSplit,
@@ -204,6 +206,28 @@ describe('session model', () => {
     expect(practiceMs(s, 500_000)).toBe(60_000);
     s = resume(s, 500_000);
     expect(itemRemainingSec(s, items, 530_000)).toBe(30);
+  });
+
+  it('a paused run holds the practice clock without the paused screen (D-085)', () => {
+    let s = startSession(0);
+    s = holdClock(s, 10_000);
+    expect(s.paused).toBe(false);
+    expect(practiceMs(s, 70_000)).toBe(10_000);
+    expect(holdClock(s, 80_000)).toBe(s);
+    s = releaseClock(s, 70_000);
+    expect(practiceMs(s, 75_000)).toBe(15_000);
+    expect(releaseClock(s, 80_000)).toBe(s);
+    // Held and session-paused together: the clock runs only once both are let go.
+    s = holdClock(s, 80_000);
+    s = pause(s, 90_000);
+    s = resume(s, 100_000);
+    expect(practiceMs(s, 120_000)).toBe(20_000);
+    s = pause(s, 120_000);
+    s = releaseClock(s, 130_000);
+    expect(practiceMs(s, 140_000)).toBe(20_000);
+    s = resume(s, 150_000);
+    expect(practiceMs(s, 160_000)).toBe(30_000);
+    expect(breakDue(holdClock(s, 160_000), 160_000 + 40 * 60_000)).toBe(false);
   });
 
   it('break reminder after every 30 minutes of practice', () => {

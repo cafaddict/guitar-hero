@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { actionForKey, defaultActionForKey, isEditableTarget, isNativeActivation } from './keys';
+import {
+  actionForKey,
+  defaultActionForKey,
+  defaultKeysFor,
+  isEditableTarget,
+  isMarkedNativeActivation,
+  isNativeActivation,
+  NATIVE_KEYS_ATTR,
+} from './keys';
 
 const key = (k: string, code = '') => ({ key: k, code });
 
@@ -36,6 +44,16 @@ describe('actionForKey (SPEC §12.3)', () => {
     expect(actionForKey(key('ㅗ', 'KeyH'), { KeyH: 'next' })).toBe('next');
   });
 
+  it('P pauses/resumes, R starts the song over — also with the Korean IME on (D-085)', () => {
+    for (const k of ['p', 'P']) expect(actionForKey(key(k, 'KeyP')), k).toBe('pause');
+    for (const k of ['r', 'R']) expect(actionForKey(key(k, 'KeyR')), k).toBe('restart');
+    expect(actionForKey(key('ㅔ', 'KeyP'))).toBe('pause');
+    expect(actionForKey(key('ㄱ', 'KeyR'))).toBe('restart');
+    expect(actionForKey(key('Process', 'KeyP'))).toBe('pause');
+    expect(defaultKeysFor('pause')).toEqual(['p', 'P']);
+    expect(defaultKeysFor('restart')).toEqual(['r', 'R']);
+  });
+
   it('learned pedal bindings override defaults; modifiers are ignored', () => {
     expect(actionForKey(key('b', 'KeyB'), { KeyB: 'next' })).toBe('next');
     expect(actionForKey(key('PageDown', 'PageDown'), { PageDown: 'inc' })).toBe('inc');
@@ -62,6 +80,20 @@ describe('actionForKey (SPEC §12.3)', () => {
     expect(isNativeActivation({ key: 'PageDown', target: el('BUTTON') })).toBe(false);
     expect(isNativeActivation({ key: 'Enter', target: el('BODY') })).toBe(false);
     expect(isNativeActivation({ key: 'Enter', target: null })).toBe(false);
+  });
+
+  it('the pause button keeps its own Space/Enter while running (one press = one pause/resume, D-085)', () => {
+    const button = (marked: boolean) =>
+      ({
+        tagName: 'BUTTON',
+        getAttribute: () => null,
+        hasAttribute: (name: string) => marked && name === NATIVE_KEYS_ATTR,
+      }) as unknown as EventTarget;
+    expect(isMarkedNativeActivation({ key: ' ', target: button(true) })).toBe(true);
+    expect(isMarkedNativeActivation({ key: 'Enter', target: button(true) })).toBe(true);
+    expect(isMarkedNativeActivation({ key: 'p', target: button(true) })).toBe(false);
+    expect(isMarkedNativeActivation({ key: ' ', target: button(false) })).toBe(false);
+    expect(isMarkedNativeActivation({ key: ' ', target: null })).toBe(false);
   });
 
   it('v1.1 option keys (SPEC v1.1 §12.3) are new keys: every v1 default keeps its action', () => {
@@ -96,6 +128,10 @@ describe('actionForKey (SPEC §12.3)', () => {
       ['H', 'hide'],
       ['b', 'backing'],
       ['B', 'backing'],
+      ['p', 'pause'],
+      ['P', 'pause'],
+      ['r', 'restart'],
+      ['R', 'restart'],
     ];
     for (const [k, action] of options) expect(actionForKey(key(k, `Key${k.toUpperCase()}`)), k).toBe(action);
     expect(new Set(options.map(([k]) => k)).size).toBe(options.length);

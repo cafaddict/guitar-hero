@@ -34,6 +34,11 @@ const DEFAULT_KEYS: Readonly<Record<string, KeyAction>> = {
   H: 'hide',
   b: 'backing',
   B: 'backing',
+  // P = pause/resume a metronome run, R = start the song over (D-085).
+  p: 'pause',
+  P: 'pause',
+  r: 'restart',
+  R: 'restart',
 };
 
 /** Default keys per action (for the settings screen). */
@@ -97,4 +102,15 @@ export function isNativeActivation(event: { key: string; target: EventTarget | n
   const target = event.target as HTMLElement | null;
   if (!target || typeof target.tagName !== 'string') return false;
   return target.tagName === 'BUTTON' || target.tagName === 'A' || target.getAttribute('role') === 'button';
+}
+
+/** Marks a button whose Enter/Space stays its own while an exercise runs (the pause button, D-085). */
+export const NATIVE_KEYS_ATTR = 'data-native-keys';
+
+/**
+ * Enter/Space on a focused button marked with NATIVE_KEYS_ATTR: the running exercise's key handler leaves the key
+ * to the button, so one press acts once (Space would resume, then the button's click would pause again).
+ */
+export function isMarkedNativeActivation(event: { key: string; target: EventTarget | null }): boolean {
+  return isNativeActivation(event) && (event.target as HTMLElement).hasAttribute?.(NATIVE_KEYS_ATTR) === true;
 }
