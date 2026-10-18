@@ -3,6 +3,7 @@ import {
   CHROMATIC_STREAK,
   type ChromaticResult,
   chromaticResultSchema,
+  countsForCriteria,
   extractMetrics,
   ladderNextBpm,
 } from '../../domain/exerciseResults';
@@ -64,10 +65,12 @@ export const e9Plugin: ExercisePlugin<E9Params, ChromaticResult, E9View> = {
   withHistory: (params, recent) => {
     const last = recent.find((r) => r.startFret === params.startFret);
     if (!last || params.ladderBase !== undefined) return params;
+    // `previousLow` from the latest run that counts (a paused one is ignored, D-085).
+    const counted = recent.find((r) => r.startFret === params.startFret && countsForCriteria(r));
     return {
       ...params,
       bpm: ladderNextBpm(last.bpm, last.ladder),
-      previousLow: last.cycles.length > 0 && flawlessShare(last.cycles) < 0.5,
+      previousLow: counted !== undefined && counted.cycles.length > 0 && flawlessShare(counted.cycles) < 0.5,
     };
   },
   suggestedTempoRetry: (params, result) => tempoRetry(params, ladderNextBpm(result.bpm, result.ladder)),

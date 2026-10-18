@@ -5,6 +5,7 @@
 import { BEGINNER_CHORD_CLASSES, type GVoicing, voicingForClass } from '../../content/voicings';
 import {
   changesPerMinute,
+  countsForCriteria,
   type OneMinuteResult,
   RECALL_LIMIT_MS,
   type RecallResult,
@@ -64,9 +65,13 @@ export function exam3Passed(results: readonly OneMinuteResult[]): boolean {
   );
 }
 
-/** 4. Standard pattern D DU UDU at 80 BPM, 8 bars, hit rate ≥ 90 % — with and without visual cues. */
+/**
+ * 4. Standard pattern D DU UDU at 80 BPM, 8 bars, hit rate ≥ 90 % — with and without visual cues; a paused run
+ * does not count (D-085).
+ */
 export function exam4Passed(shown: StrumResult, hidden: StrumResult): boolean {
   const ok = (r: StrumResult) =>
+    countsForCriteria(r) &&
     r.patternId === EXAM_PATTERN.patternId &&
     r.bpm >= EXAM_PATTERN.bpm &&
     r.bars >= EXAM_PATTERN.bars &&

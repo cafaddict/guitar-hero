@@ -1,5 +1,10 @@
 import { patternById, slotsPerBeat } from '../../content/patterns';
-import { extractMetrics, type StrumResult, strumResultSchema } from '../../domain/exerciseResults';
+import {
+  countsForCriteria,
+  extractMetrics,
+  type StrumResult,
+  strumResultSchema,
+} from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
 import type { ExercisePlugin } from '../types';
 import { E5Summary, E5ViewComponent } from './E5View';
@@ -57,9 +62,10 @@ export const e5Plugin: ExercisePlugin<E5Params, StrumResult, E5View> = {
     };
   },
   toMetrics: (result) => extractMetrics('E5', result),
-  // "Two runs in a row below 70 %": the latest run of the same pattern decides `previousLow`.
+  // "Two runs in a row below 70 %": the latest run of the same pattern decides `previousLow` (paused runs do not
+  // count, D-085).
   withHistory: (params, recent) => {
-    const last = recent.find((r) => r.patternId === params.patternId);
+    const last = recent.find((r) => r.patternId === params.patternId && countsForCriteria(r));
     return { ...params, previousLow: last !== undefined && last.hitRateCorrected < LADDER_DOWN_HIT_RATE };
   },
   suggestedTempoRetry: (params, result) => tempoRetry(params, nextBpmFor(result.bpm, result.ladder)),

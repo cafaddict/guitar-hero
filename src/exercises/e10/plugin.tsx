@@ -1,6 +1,7 @@
 import { patternById } from '../../content/patterns';
 import { voicingById, voicingForClass } from '../../content/voicings';
 import {
+  countsForCriteria,
   extractMetrics,
   ladderNextBpm,
   SCALE_GRADUATION_BPM,
@@ -79,11 +80,13 @@ export function nextScaleRun(params: E10Params, recent: readonly ScaleResult[]):
   if (!memorizing && last.graduated && last.step < 5)
     return { ...params, step: last.step + 1, bpm: SCALE_START_BPM, previousLow: false };
   const bpm = ladderNextBpm(last.bpm, last.ladder);
+  // `previousLow` from the latest run of this step that counts (a paused one is ignored, D-085).
+  const counted = mine.find((r) => r.step === last.step && countsForCriteria(r));
   return {
     ...params,
     step: last.step,
     bpm: params.ladderBase !== undefined ? params.bpm : bpm,
-    previousLow: mistakeRatio(last.cycles) >= LOW_MISTAKE_RATIO,
+    previousLow: counted !== undefined && mistakeRatio(counted.cycles) >= LOW_MISTAKE_RATIO,
   };
 }
 

@@ -40,13 +40,19 @@ export interface SequenceView {
 /** Seconds of notes planned ahead of the audio clock. */
 const PLAN_AHEAD_S = 4;
 
-/** Current run of flawless cycles (uncertain cycles neither extend nor break it). */
-export function flawlessStreak(cycles: readonly Pick<SequenceCycle, 'flawless' | 'uncertain'>[]): number {
+/**
+ * Current run of flawless cycles (uncertain cycles neither extend nor break it; it starts at the first cycle
+ * after a pause, D-085).
+ */
+export function flawlessStreak(
+  cycles: readonly Pick<SequenceCycle, 'flawless' | 'uncertain' | 'resumed'>[],
+): number {
   let n = 0;
   for (let i = cycles.length - 1; i >= 0; i--) {
     const c = cycles[i]!;
     if (c.flawless) n += 1;
     else if (!c.uncertain) break;
+    if (c.resumed) break;
   }
   return n;
 }

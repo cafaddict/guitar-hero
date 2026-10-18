@@ -1,5 +1,6 @@
 import { riffById } from '../../content/riffs';
 import {
+  countsForCriteria,
   extractMetrics,
   ladderNextBpm,
   type RiffResult,
@@ -107,7 +108,8 @@ export const e17Plugin: ExercisePlugin<E17Params, RiffResult, E17View> = {
   },
   toMetrics: (result) => extractMetrics('E17', result),
   withHistory: (params, recent) => {
-    const last = recent.find((r) => r.riffId === params.riffId);
+    // A paused run does not count for the ladder (D-085).
+    const last = recent.find((r) => r.riffId === params.riffId && countsForCriteria(r));
     return { ...params, previousLow: last !== undefined && mistakeRatio(last.cycles) >= LOW_MISTAKE_RATIO };
   },
   suggestedTempoRetry: (params, result) => tempoRetry(params, ladderNextBpm(result.bpm, result.ladder)),

@@ -289,8 +289,9 @@ describe('E5 strumming ladder', () => {
       cuesHidden: false,
       previousLow: false,
     };
-    const run = (patternId: string, hitRate: number) => ({
+    const run = (patternId: string, hitRate: number, pauses?: number) => ({
       ...strumResultSchema.parse({
+        ...(pauses === undefined ? {} : { pauses }),
         patternId,
         bpm: 80,
         bars: 8,
@@ -311,6 +312,9 @@ describe('E5 strumming ladder', () => {
     expect(e5Plugin.withHistory!(params, [run('P1', 0.2), run('P3', 0.6)]).previousLow).toBe(true);
     expect(e5Plugin.withHistory!(params, [run('P3', 0.75), run('P3', 0.5)]).previousLow).toBe(false);
     expect(e5Plugin.withHistory!(params, []).previousLow).toBe(false);
+    // A paused run is not "the latest run" for the ladder (D-085).
+    expect(e5Plugin.withHistory!(params, [run('P3', 0.3, 1), run('P3', 0.9)]).previousLow).toBe(false);
+    expect(e5Plugin.withHistory!(params, [run('P3', 0.9, 1), run('P3', 0.3)]).previousLow).toBe(true);
   });
 });
 

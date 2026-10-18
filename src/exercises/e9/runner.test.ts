@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { chromaticResultSchema, extractMetrics } from '../../domain/exerciseResults';
 import { testContext } from '../testing/fakes';
+import { e9Plugin } from './plugin';
 import { ChromaticRunner, chromaticLadder, e9ParamsSchema } from './runner';
 
 const c = (flawless: boolean) => ({ flawless, uncertain: false, stops: 0, okRatio: null });
@@ -21,6 +22,36 @@ describe('E9 chromatic 1-2-3-4 (SPEC v1.1 §11.14)', () => {
     ).toBe('stay');
     expect(chromaticLadder([c(false), c(false), c(true)], true)).toBe('down');
     expect(chromaticLadder([c(false), c(true)], true)).toBe('stay');
+    // A pause splits the run of flawless groups (D-085).
+    const split = Array.from({ length: 10 }, (_, i) => ({ ...c(true), resumed: i === 5 }));
+    expect(chromaticLadder(split, false)).toBe('stay');
+  });
+
+  it('withHistory: the tempo follows the latest run, previousLow ignores a paused one (D-085)', () => {
+    const params = e9ParamsSchema.parse({ startFret: 5, bpm: 60 });
+    const run = (flawless: boolean[], ladder: 'up' | 'stay', pauses?: number) =>
+      chromaticResultSchema.parse({
+        startFret: 5,
+        bpm: 60,
+        cycles: flawless.map((f) => c(f)),
+        ladder,
+        source: 'self',
+        hitRate: null,
+        okRatio: null,
+        ioiCv: null,
+        ...(pauses === undefined ? {} : { pauses }),
+      });
+    const low = [false, false, true];
+    const good = [true, true, true];
+    expect(e9Plugin.withHistory!(params, [run(low, 'stay'), run(good, 'stay')])).toMatchObject({
+      bpm: 60,
+      previousLow: true,
+    });
+    expect(e9Plugin.withHistory!(params, [run(low, 'stay', 1), run(good, 'up')])).toMatchObject({
+      bpm: 60,
+      previousLow: false,
+    });
+    expect(e9Plugin.withHistory!(params, [run(good, 'stay', 1), run(low, 'stay')]).previousLow).toBe(true);
   });
 
   it('eighth-note four-note groups from the start fret; metrics under chromatic:<startFret>', () => {

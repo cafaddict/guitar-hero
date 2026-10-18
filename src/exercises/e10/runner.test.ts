@@ -157,4 +157,27 @@ describe('E10 scale ladder (SPEC v1.1 §11.13)', () => {
       ]),
     ).toMatchObject({ step: 1, bpm: 80 });
   });
+
+  it('previousLow comes from the latest run of the step that counts: a paused one is ignored (D-085)', () => {
+    const run = (flawless: boolean[], pauses?: number): ScaleResult => ({
+      scaleId: 'em-pent-open',
+      step: 1,
+      bpm: 70,
+      tabHidden: false,
+      hiddenThroughout: false,
+      withBacking: false,
+      cycles: flawless.map((f) => ({ flawless: f, uncertain: false, stops: 0, okRatio: null })),
+      ladder: 'stay',
+      graduated: false,
+      memorized: false,
+      source: 'self',
+      ...(pauses === undefined ? {} : { pauses }),
+    });
+    const low = [false, false, true];
+    const good = [true, true, true];
+    expect(nextScaleRun(params(), [run(low), run(good)]).previousLow).toBe(true);
+    expect(nextScaleRun(params(), [run(low, 1), run(good)]).previousLow).toBe(false);
+    expect(nextScaleRun(params(), [run(good, 1), run(low)]).previousLow).toBe(true);
+    expect(nextScaleRun(params(), [run(low, 1)])).toMatchObject({ step: 1, bpm: 70, previousLow: false });
+  });
 });

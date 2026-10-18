@@ -36,14 +36,15 @@ export interface E17View extends SequenceView {
   listening: boolean;
 }
 
-/** Ladder decision of a run of cycles (shared by sequence exercises: E9, E10, E17). */
+/** Ladder decision of a run of cycles (shared by sequence exercises: E9, E10, E17); a pause restarts the streak. */
 export function sequenceLadder(
-  cycles: readonly Pick<SequenceCycle, 'flawless' | 'uncertain'>[],
+  cycles: readonly Pick<SequenceCycle, 'flawless' | 'uncertain' | 'resumed'>[],
   previousLow: boolean,
   streakForUp = FLAWLESS_STREAK_UP,
 ): 'up' | 'down' | 'stay' {
   let streak = 0;
   for (const c of cycles) {
+    if (c.resumed) streak = 0;
     if (c.flawless) streak += 1;
     else if (!c.uncertain) streak = 0;
     if (streak >= streakForUp) return 'up';

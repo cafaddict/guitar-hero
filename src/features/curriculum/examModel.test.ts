@@ -107,6 +107,10 @@ describe('graduation exam rules (SPEC §7.6)', () => {
     expect(exam4Passed(r(0.92, false), r(0.9, true))).toBe(true);
     expect(exam4Passed(r(0.92, false), r(0.88, true))).toBe(false);
     expect(exam4Passed(r(0.92, false), r(0.95, false))).toBe(false);
+    // A paused run does not count (D-085).
+    expect(exam4Passed({ ...r(0.92, false), pauses: 1 }, r(0.9, true))).toBe(false);
+    expect(exam4Passed(r(0.92, false), { ...r(0.9, true), pauses: 2 })).toBe(false);
+    expect(exam4Passed({ ...r(0.92, false), pauses: 0 }, r(0.9, true))).toBe(true);
   });
 
   it('5: songs played from memory — hidden stage completed with ≤ 1 stop (v1.1 §7.6-5, §11.10)', () => {

@@ -37,8 +37,9 @@ export function flawlessShare(cycles: readonly Pick<SequenceCycle, 'flawless' | 
   return judged.length ? judged.filter((c) => c.flawless).length / judged.length : 0;
 }
 
+/** E9 ladder: the flawless run restarts at a cycle after a pause (longestFlawlessRun, D-085). */
 export function chromaticLadder(
-  cycles: readonly Pick<SequenceCycle, 'flawless' | 'uncertain'>[],
+  cycles: readonly Pick<SequenceCycle, 'flawless' | 'uncertain' | 'resumed'>[],
   previousLow: boolean,
 ): 'up' | 'down' | 'stay' {
   if (longestFlawlessRun(cycles) >= CHROMATIC_STREAK) return 'up';

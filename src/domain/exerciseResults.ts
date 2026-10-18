@@ -97,6 +97,8 @@ export const strumResultSchema = z.object({
   beta: z.record(z.string(), z.unknown()).optional(),
   /** Ladder tempo kept during a −10 BPM prescription (SPEC v1.1 §7.4). */
   ladderBase: z.number().optional(),
+  /** Counted pauses (D-085; written only when > 0): see countsForCriteria. */
+  pauses: z.number().int().min(0).optional(),
 });
 
 export const oneBeatResultSchema = z.object({
@@ -114,6 +116,8 @@ export const oneBeatResultSchema = z.object({
   chordCorrectRatio: z.number().nullable().optional(),
   /** Ladder tempo kept during a −10 BPM prescription (SPEC v1.1 §7.4). */
   ladderBase: z.number().optional(),
+  /** Counted pauses (D-085; written only when > 0): see countsForCriteria. */
+  pauses: z.number().int().min(0).optional(),
 });
 
 export const stretchResultSchema = z.object({
@@ -132,6 +136,8 @@ export const altPickResultSchema = z.object({
   source: z.enum(['mic', 'self']),
   /** Ladder tempo kept during a −10 BPM prescription (SPEC v1.1 §7.4). */
   ladderBase: z.number().optional(),
+  /** Counted pauses (D-085; written only when > 0): see countsForCriteria. */
+  pauses: z.number().int().min(0).optional(),
 });
 
 export const quizResultSchema = z.object({
@@ -179,6 +185,8 @@ export const songResultSchema = z.object({
   memorizedSelfReport: z.boolean().optional(),
   /** Output device of the run (the earphone choice is remembered per device, §8.6-1). */
   outputLabel: z.string().optional(),
+  /** Pauses of the run (D-085): each one is a stop (already in `stops`), so the run still counts. */
+  pauses: z.number().int().min(0).optional(),
 });
 
 export const examResultSchema = z.object({
@@ -226,6 +234,8 @@ export const sequenceCycleSchema = z.object({
       }),
     )
     .optional(),
+  /** First cycle played after a pause (D-085): a flawless streak starts over here. */
+  resumed: z.boolean().optional(),
 });
 
 /** E10 scale ladder (SPEC v1.1 §11.13). */
@@ -250,6 +260,8 @@ export const scaleResultSchema = z.object({
   memorized: z.boolean(),
   source: z.enum(['mic', 'self']),
   ladderBase: z.number().optional(),
+  /** Counted pauses (D-085; written only when > 0): see countsForCriteria. */
+  pauses: z.number().int().min(0).optional(),
 });
 
 /** E9 chromatic 1-2-3-4 (SPEC v1.1 §11.14): one cycle = one four-note group. */
@@ -263,6 +275,8 @@ export const chromaticResultSchema = z.object({
   okRatio: z.number().nullable(),
   ioiCv: z.number().nullable(),
   ladderBase: z.number().optional(),
+  /** Counted pauses (D-085; written only when > 0): see countsForCriteria. */
+  pauses: z.number().int().min(0).optional(),
 });
 
 export const HAMMER_PAIRS = ['1-2', '1-3', '1-4', '2-3', '2-4', '3-4'] as const;
@@ -281,6 +295,8 @@ export const hammerResultSchema = z.object({
   evenRating: z.number().int().min(1).max(3).nullable(),
   ladder: z.enum(['up', 'stay']),
   durationMs: z.number().min(0),
+  /** Counted pauses (D-085; written only when > 0): see countsForCriteria. */
+  pauses: z.number().int().min(0).optional(),
 });
 
 /** E12 pinky exercise (SPEC v1.1 §11.17): completion and clarity self-report, no speed score. */
@@ -313,6 +329,8 @@ export const riffResultSchema = z.object({
   source: z.enum(['mic', 'self']),
   /** Ladder tempo kept during a −10 BPM prescription (SPEC v1.1 §7.4). */
   ladderBase: z.number().optional(),
+  /** Counted pauses (D-085; written only when > 0): see countsForCriteria. */
+  pauses: z.number().int().min(0).optional(),
 });
 
 export type TuningResult = z.infer<typeof tuningResultSchema>;
@@ -376,11 +394,26 @@ export function sequenceRates(cycles: readonly SequenceCycle[]): {
   };
 }
 
-/** Longest run of flawless cycles (uncertain cycles neither extend nor break it). */
-export function longestFlawlessRun(cycles: readonly Pick<SequenceCycle, 'flawless' | 'uncertain'>[]): number {
+/**
+ * A run with a pause is recorded and analysed but does not count for criteria (D-085, after SPEC v1.1 §7.1 E2
+ * "중간 중단 실행은 기록하되 기준에 쓰지 않는다"): no ladder step, pass, graduation, memorization or streak tempo.
+ * Songs are exempt (a pause there is a stop).
+ */
+export function countsForCriteria(r: { pauses?: number | undefined }): boolean {
+  return (r.pauses ?? 0) === 0;
+}
+
+/**
+ * Longest run of flawless cycles (uncertain cycles neither extend nor break it; a cycle after a pause starts a
+ * new run, D-085).
+ */
+export function longestFlawlessRun(
+  cycles: readonly Pick<SequenceCycle, 'flawless' | 'uncertain' | 'resumed'>[],
+): number {
   let best = 0;
   let n = 0;
   for (const c of cycles) {
+    if (c.resumed) n = 0;
     if (c.flawless) best = Math.max(best, ++n);
     else if (!c.uncertain) n = 0;
   }
@@ -602,8 +635,10 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
       m(key, 'flawlessCycles', r.cycles.filter((c) => c.flawless).length),
       m(key, 'ladderBpm', storedLadder(r.bpm, r.ladder, r.ladderBase)),
     ];
-    // The tempo at which this step ran four flawless cycles in a row (graduation at ≥ 80, §11.13).
-    if (longestFlawlessRun(r.cycles) >= SEQUENCE_STREAK) out.push(m(key, 'streakBpm', r.bpm));
+    // The tempo at which this step ran four flawless cycles in a row (graduation at ≥ 80, §11.13); a paused run
+    // does not count (D-085).
+    const counts = countsForCriteria(r);
+    if (counts && longestFlawlessRun(r.cycles) >= SEQUENCE_STREAK) out.push(m(key, 'streakBpm', r.bpm));
     const rates = sequenceRates(r.cycles);
     if (rates.okRatio !== null) out.push(m(key, 'pitchOk', rates.okRatio));
     if (rates.hitRate !== null) out.push(m(key, 'hitRate', rates.hitRate));
@@ -614,7 +649,7 @@ export const METRIC_EXTRACTORS: Readonly<Record<string, Extractor>> = {
         r.cycles.reduce((a, c) => a + c.stops, 0),
       ),
     );
-    if (r.memorized) out.push(m(`scale:${r.scaleId}:memorized`, 'memorized', 1));
+    if (r.memorized && counts) out.push(m(`scale:${r.scaleId}:memorized`, 'memorized', 1));
     return out;
   },
   E9: (raw) => {

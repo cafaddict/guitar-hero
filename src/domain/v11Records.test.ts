@@ -4,7 +4,14 @@
  */
 import { describe, expect, it } from 'vitest';
 import { cardAnswers, deriveAll } from './derive';
-import { extractMetrics, ladderNextBpm } from './exerciseResults';
+import {
+  countsForCriteria,
+  extractMetrics,
+  ladderNextBpm,
+  longestFlawlessRun,
+  scaleResultSchema,
+  sequenceCycleSchema,
+} from './exerciseResults';
 import { type Attempt, DAY_MS } from './records';
 import { stageTemplate, templateTotal } from './routineTemplates';
 import { nextStretchStartFret, stretchStartFretFrom } from './safety';
@@ -137,6 +144,55 @@ describe('v1.1 metric extraction', () => {
       value: 1,
     });
     expect(song('perform', false, true, 1).some((m) => m.metric === 'repertoire')).toBe(false);
+  });
+});
+
+describe('paused runs (D-085, after SPEC v1.1 §7.1 E2)', () => {
+  const cycle = (flawless: boolean, resumed?: boolean) => ({
+    flawless,
+    uncertain: false,
+    stops: 0,
+    okRatio: null,
+    ...(resumed === undefined ? {} : { resumed }),
+  });
+
+  it('a run counts for criteria only without a counted pause', () => {
+    expect(countsForCriteria({})).toBe(true);
+    expect(countsForCriteria({ pauses: 0 })).toBe(true);
+    expect(countsForCriteria({ pauses: undefined })).toBe(true);
+    expect(countsForCriteria({ pauses: 1 })).toBe(false);
+  });
+
+  it('a flawless run starts over at the cycle after a pause', () => {
+    expect(sequenceCycleSchema.parse(cycle(true, true)).resumed).toBe(true);
+    expect(sequenceCycleSchema.parse(cycle(true)).resumed).toBeUndefined();
+    const flawless = [true, true, true, true].map((f) => cycle(f));
+    expect(longestFlawlessRun(flawless)).toBe(4);
+    expect(longestFlawlessRun([cycle(true), cycle(true), cycle(true, true), cycle(true)])).toBe(2);
+    expect(longestFlawlessRun([cycle(true), cycle(true, false), cycle(true)])).toBe(3);
+  });
+
+  it('E10: a paused run stores its cycles but no streak tempo and no memorization', () => {
+    const run = (pauses: number | undefined) =>
+      scaleResultSchema.parse({
+        scaleId: 'em-pent-open',
+        step: 1,
+        bpm: 80,
+        tabHidden: true,
+        hiddenThroughout: true,
+        withBacking: false,
+        cycles: Array.from({ length: 4 }, () => cycle(true)),
+        ladder: 'stay',
+        graduated: false,
+        memorized: true,
+        source: 'self',
+        ...(pauses === undefined ? {} : { pauses }),
+      });
+    const metrics = (pauses: number | undefined) => extractMetrics('E10', run(pauses)).map((s) => s.metric);
+    expect(metrics(undefined)).toEqual(expect.arrayContaining(['streakBpm', 'memorized']));
+    expect(metrics(1)).not.toContain('streakBpm');
+    expect(metrics(1)).not.toContain('memorized');
+    expect(metrics(1)).toContain('flawlessCycles');
   });
 });
 
