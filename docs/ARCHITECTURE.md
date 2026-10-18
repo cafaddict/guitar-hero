@@ -51,6 +51,7 @@ AudioEngine (main, 싱글턴)        src/audio/engine.ts  (+ metronomeRuntime, t
 - 즉시 피드백(`liveTiming.ts`, D-077): E5·E6·E8 러너가 tick마다 판정이 다 도착한 마디를 최종 분석과 같은 `analyzeTiming`으로 그 마디만 판정해 view에 싣는다(보기 전용, `ui/LiveBars.tsx`).
 - 커리큘럼 직접 연습(`features/curriculum/stagePracticeModel.ts`): 고른 연습을 그 단계의 일회용 사용자 템플릿으로 `generateRoutine`에 넣어 루틴과 같은 파라미터로 만든다. 바로 하기는 단독 실행, 여러 개는 세션 화면의 custom 분기(`routineId: 'custom'`, 세션 단계 = 그 단계, 현재 단계가 아니면 최소 체류에 세지 않음).
 - `withHistory(params, 최근 결과)`: 플러그인이 자기 최근 결과로 다음 실행을 고친다(사다리 −5 규칙, E10 단계·템포, E11 쌍, 곡 이어폰 기억). 호스트가 실행마다 적용하고, 보는 깊이는 플러그인이 정한다(`historyDepth`, 기본 5, 주제가 순환하는 E9·E10·E11은 30). 루틴이 정하는 템포(E5·E6·E8·E17)는 루틴이, 이력으로 정하는 템포(E9·E10·E11)는 이 경로가 사다리 현재 BPM을 쓴다.
+- **일시정지(D-085)**: 메트로놈 연습(S·E5·E6·E8은 `GridRecorder`, 시퀀스는 `SequenceRunner`)은 한 실행을 `Timeline` 구간 목록으로 둔다. 일시정지는 구간을 끊긴 마디(바퀴) 앞에서 닫고 메트로놈을 멈추며, 이어 하기는 새 그리드에 다음 구간을 연다. 마디·음 번호는 실행 전체 기준이고, 시각이 필요한 곳(채점 슬롯, 실시간 마디, 현재 마디)은 `timeline.start/position/starts`로 읽는다. job은 끄지 않고 구간 시간 창으로 이벤트를 거른다. 공통 조작은 `BaseRunner.handlePause`(phase `paused`, 타이머 정지)와 `ExerciseHost`의 일시정지 버튼(`pausable` 플러그인만).
 - 시퀀스 연습(E9·E10·E11·E17)은 공용 `SequenceRunner`(메트로놈·계획·트래커·자가 보고)를 상속한다. 베타 판독(방향·팜뮤트·셈여림·버징·레가토)은 화면에 "참고(베타)"로만 보이고 결과·지표의 판정에 쓰지 않는다(무결성 10).
 
 ## 4. 데이터

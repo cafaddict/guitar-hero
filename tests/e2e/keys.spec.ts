@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { ko } from '../../src/i18n/ko';
 
 test('AC-U2: a learned pedal key drives the exercise; Esc asks before stopping', async ({ page }) => {
   // Pedal learning: bind "b" (what a page-turner pedal might send) to next/confirm.
@@ -90,4 +91,17 @@ test('session: after a run Space runs the same item again (even with the focus o
   await expect(page.getByTestId('next-item')).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(header).toHaveAttribute('data-index', '1');
+});
+
+test('the settings key list has pause (P) and song start-over (R) rows (D-085)', async ({ page }) => {
+  await page.goto('/#/settings');
+  for (const [action, keys] of [
+    ['pause', 'p · P'],
+    ['restart', 'r · R'],
+  ] as const) {
+    const row = page.getByRole('row', { name: ko.keys.actions[action]! });
+    await expect(row).toBeVisible();
+    await expect(row).toContainText(keys);
+    await expect(page.getByTestId(`learn-${action}`)).toBeVisible();
+  }
 });

@@ -109,6 +109,21 @@ export const SCREENS: ScreenCase[] = [
   practiceAfter('Q4', '/#/practice/Q4?kind=interval', 'start', 'q4-view'),
   practiceAfter('Q5', '/#/practice/Q5', 'start', 'q5-view'),
   practiceAfter('S-perform', '/#/practice/S?songId=s15&mode=perform&backingOn=true', 'noMic', 'song-view'),
+  // D-085: a paused song (hidden stage): the pause/resume button, the paused panel and the restart button.
+  {
+    name: 'practice-S-paused',
+    path: '/#/practice/S?songId=s01&mode=perform&bpm=120&chartHidden=true',
+    practice: true,
+    prepare: async (page) => {
+      await startWithoutMic(page);
+      const view = page.getByTestId('song-view');
+      await expect(view).toHaveAttribute('data-phase', 'ready');
+      await page.keyboard.press('Space');
+      await expect(view).toHaveAttribute('data-phase', 'running', { timeout: 20_000 });
+      await page.keyboard.press('p');
+      await expect(page.getByTestId('exercise-paused')).toBeVisible();
+    },
+  },
   {
     name: 'session',
     path: '/#/session',
