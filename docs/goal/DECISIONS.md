@@ -676,3 +676,8 @@ v1.1 goal(M9–M15)이 끝난 뒤 사용자가 실제로 써 보며 요청한 �
 - **하는 법**: S `howTo`가 숨김 파라미터면 숨김 단계 문구(시작 전에는 보임)를 쓴다.
 - **고르지 않은 대안**: Stage 1–6에서는 숨김을 배정하지 않기(SPEC 배정 규칙 이탈), 단계를 사용자가 고르게 하기(바꿀 곳이 가장 많음).
 - **E2E 단언 이동**: `options.mic.spec.ts` S 부분 — H 뒤 "악보 숨김 — 외워서 쳐 봐요" 확인을 Space(카운트인/연주) 뒤로 옮기고, 준비 단계에서는 미리 보기 줄과 악보를 확인한다. 기록 `chartHidden: true` 단언은 그대로다.
+
+## D-083 글자 키는 한글 입력에서도 동작, 숨김 곡 결과 화면에 악보
+- **원인(실사용 보고 "H 눌러도 악보가 안 보여")**: `actionForKey`가 `event.key`로만 기본 키를 찾았다. 한글 입력이 켜져 있으면 H는 'ㅗ'(브라우저에 따라 'Process')라서 H·M·B·L·E·V 옵션 키가 모두 무시됐다. E2E는 영문 자판(`keyboard.press('h')`)이라 잡지 못했다. 그리고 숨김 단계 곡을 끝낸 결과 확인 단계에서도 악보가 가려져 있었고 H는 잠겨 있었다(기록 보호, D-065).
+- **결정**: 배운 키(`customKeys[code]`) → `DEFAULT_KEYS[key]` → key가 출력 가능한 ASCII가 아니면(자모·'Process'·'Unidentified') 키 위치의 글자(`event.code` KeyH → h)로 찾는다. 라틴 자판은 자기 글자를 그대로 쓴다(Dvorak의 'd'가 KeyH 자리에 있어도 숨김이 아님). 설정의 페달 학습도 같은 `letterOfCode`를 쓴다. 숨김 단계 악보는 연주하는 동안(카운트인·연주·일시정지)만 가리고 결과 확인 단계에서는 보인다 — 숨김 기록은 원래 연주 시간만 본다(`hiddenThroughout`).
+- **검사**: `keys.test.ts`(ㅗ/Process/ㅡ/ㅠ + 위치, Dvorak 'd', 배운 키 우선), 곡 `plugin.test.tsx`(결과 화면 악보), E2E `options.mic.spec.ts`가 `KeyboardEvent{key:'ㅗ', code:'KeyH'}`로 단계를 바꾸고 결과 화면 악보를 확인한다.

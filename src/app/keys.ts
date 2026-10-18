@@ -51,18 +51,34 @@ export interface KeyLike {
   metaKey?: boolean;
 }
 
+/** The letter printed on a letter key (`KeyH` → 'h') whatever the input language, or null. */
+export function letterOfCode(code: string): string | null {
+  return /^Key([A-Z])$/.exec(code)?.[1]?.toLowerCase() ?? null;
+}
+
+/** A key that types a printable ASCII character (so `event.key` names it in the user's own layout). */
+const isPrintableAscii = (key: string) => key.length === 1 && key >= ' ' && key <= '~';
+
 /** The default action of a key (`event.key`), or null. */
 export function defaultActionForKey(key: string): KeyAction | null {
   return DEFAULT_KEYS[key] ?? null;
 }
 
-/** Action for a key press, or null (modifier chords are left to the browser). */
+/**
+ * Action for a key press, or null (modifier chords are left to the browser). With the Korean IME (or any
+ * non-Latin input) `event.key` is a jamo or 'Process' — the letter keys then go by the key's position
+ * (`event.code`, D-083). A Latin layout keeps its own letters: Dvorak 'd' on KeyH is not H.
+ */
 export function actionForKey(
   event: KeyLike,
   customKeys: Readonly<Record<string, KeyAction>> = {},
 ): KeyAction | null {
   if (event.altKey || event.ctrlKey || event.metaKey) return null;
-  return customKeys[event.code] ?? DEFAULT_KEYS[event.key] ?? null;
+  const learned = customKeys[event.code] ?? DEFAULT_KEYS[event.key];
+  if (learned) return learned;
+  if (isPrintableAscii(event.key)) return null;
+  const letter = letterOfCode(event.code);
+  return letter ? (DEFAULT_KEYS[letter] ?? null) : null;
 }
 
 /** Keys typed into form fields must not drive the exercise. */

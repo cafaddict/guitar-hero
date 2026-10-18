@@ -29,8 +29,9 @@ function SongViewComponent({
   const song = view.song;
   const playing = phase === 'running' || phase === 'countIn';
   const waiting = phase === 'ready' || phase === 'armed';
-  // Hidden stage: the chart is covered from the count-in on; before the start it shows to look over (D-082).
-  const chartCovered = view.chartHidden && !waiting;
+  // Hidden stage: the chart is covered only while playing — shown before the start to look over (D-082) and in
+  // the review to check against (D-083). The record only looks at the playing time.
+  const chartCovered = view.chartHidden && (playing || phase === 'paused');
   return (
     <div
       className="flex flex-col gap-4"

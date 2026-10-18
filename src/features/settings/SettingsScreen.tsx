@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { defaultActionForKey, defaultKeysFor } from '../../app/keys';
+import { defaultActionForKey, defaultKeysFor, letterOfCode } from '../../app/keys';
 import { persistentStorageGranted, requestPersistentStorage } from '../../app/persist';
 import { repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
@@ -230,7 +230,7 @@ function KeysSection() {
       if (e.key !== 'Escape' && settings) {
         void update({ customKeys: { ...settings.customKeys, [e.code]: learning } });
         // By the letter on the key too: with the Korean IME KeyB gives 'ㅠ', yet the binding (by code) replaces B.
-        const letter = /^Key([A-Z])$/.exec(e.code)?.[1]?.toLowerCase();
+        const letter = letterOfCode(e.code);
         const previous = defaultActionForKey(e.key) ?? (letter ? defaultActionForKey(letter) : null);
         setReplaced(previous !== null && previous !== learning ? { key: e.key, action: previous } : null);
       }

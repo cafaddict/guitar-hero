@@ -96,6 +96,17 @@ test('E2E-22: practice options by key inside the session runner reach the run an
   await page.keyboard.press('b');
   await expect(page.getByTestId('song-backing-toggle')).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.press('h');
+  await expect(song).toHaveAttribute('data-stage', 'hidden');
+  // D-083: with the Korean IME on, H types 'ㅗ' — the key still works by its position (KeyH).
+  const imeKey = (key: string, code: string) =>
+    page.evaluate(({ k, c }) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, code: c })), {
+      k: key,
+      c: code,
+    });
+  await imeKey('ㅗ', 'KeyH');
+  await expect(song).toHaveAttribute('data-stage', 'perform');
+  await imeKey('ㅗ', 'KeyH');
+  await expect(song).toHaveAttribute('data-stage', 'hidden');
   // D-082: before the start the hidden stage still shows the chart to look over; it is covered once playing.
   await expect(page.getByTestId('song-hidden-preview')).toBeVisible();
   await expect(song.getByRole('list', { name: /./ })).toBeVisible();
@@ -104,6 +115,8 @@ test('E2E-22: practice options by key inside the session runner reach the run an
   await expect(song.getByText('악보 숨김 — 외워서 쳐 봐요')).toBeVisible();
   await page.keyboard.press('Space');
   await expect(song).toHaveAttribute('data-phase', 'review');
+  // D-083: the review shows the chart again to check against.
+  await expect(song.getByRole('list', { name: /./ })).toBeVisible();
   // A perform take is confirmed once its beat-1 analysis is not running (Enter is ignored meanwhile).
   await expect(async () => {
     await page.keyboard.press('Enter');

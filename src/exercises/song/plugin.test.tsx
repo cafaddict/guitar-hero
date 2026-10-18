@@ -56,6 +56,12 @@ describe('S hidden stage preview (D-082)', () => {
     expect(playing).not.toContain('<ol');
     expect(playing).toContain(ko.exercises.song.hidden);
     expect(playing).not.toContain('song-hidden-preview');
+
+    // D-083: after the take the chart shows again to check against; the take stays hidden.
+    runner.command('toggle');
+    expect(runner.snapshot().phase).toBe('review');
+    expect(render(runner, p)).toContain('<ol');
+    expect(runner.effectiveParams().chartHidden).toBe(true);
   });
 
   it('the preview does not make the take a perform take', () => {

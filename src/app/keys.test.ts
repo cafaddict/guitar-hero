@@ -23,6 +23,19 @@ describe('actionForKey (SPEC §12.3)', () => {
     expect(actionForKey(key(k))).toBe(action);
   });
 
+  it('letter keys work with the Korean IME on (by key position, D-083); a Latin layout keeps its letters', () => {
+    expect(actionForKey(key('ㅗ', 'KeyH'))).toBe('hide');
+    expect(actionForKey(key('Process', 'KeyH'))).toBe('hide');
+    expect(actionForKey(key('ㅡ', 'KeyM'))).toBe('mark');
+    expect(actionForKey(key('ㅠ', 'KeyB'))).toBe('backing');
+    expect(actionForKey(key('ㅂ', 'KeyQ'))).toBeNull();
+    // Dvorak: the key at QWERTY H types 'd' — not the hide key.
+    expect(actionForKey(key('d', 'KeyH'))).toBeNull();
+    expect(actionForKey(key('h', 'KeyJ'))).toBe('hide');
+    // Learned bindings still win.
+    expect(actionForKey(key('ㅗ', 'KeyH'), { KeyH: 'next' })).toBe('next');
+  });
+
   it('learned pedal bindings override defaults; modifiers are ignored', () => {
     expect(actionForKey(key('b', 'KeyB'), { KeyB: 'next' })).toBe('next');
     expect(actionForKey(key('PageDown', 'PageDown'), { PageDown: 'inc' })).toBe('inc');
