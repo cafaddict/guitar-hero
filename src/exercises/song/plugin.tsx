@@ -117,6 +117,11 @@ function SongViewComponent({
             : ko.exercises.song.chordCheck(view.chordCorrectRatio)}
         </p>
       )}
+      {phase === 'paused' && view.bar !== null && (
+        <p className="text-lg font-semibold" data-testid="song-paused">
+          {ko.exercises.song.pausedAt(view.bar + 1, view.chart.length)}
+        </p>
+      )}
       {phase === 'countIn' && <p>{ko.exercises.e5.countIn}</p>}
       {(phase === 'armed' || phase === 'ready') && (
         <p>{phase === 'armed' ? ko.exercises.e5.armed : ko.exercises.e5.ready}</p>
@@ -135,6 +140,16 @@ function SongViewComponent({
         {playing && (
           <Button large variant="secondary" onClick={() => runner.command('toggle')}>
             {ko.exercises.song.stop}
+          </Button>
+        )}
+        {(playing || phase === 'paused') && (
+          <Button
+            large
+            variant="secondary"
+            onClick={() => runner.command('restart')}
+            data-testid="song-restart"
+          >
+            {ko.exercises.song.restart}
           </Button>
         )}
       </div>
@@ -261,6 +276,7 @@ export const songPlugin: ExercisePlugin<SongParams, SongResult, SongView> = {
         g.pattern(pattern.label),
         g.mode[songStageOf(params.mode, params.chartHidden)],
         g.listen,
+        g.pause,
         g.goal,
       ],
       terms: ['strumLetters'],
@@ -268,4 +284,6 @@ export const songPlugin: ExercisePlugin<SongParams, SongResult, SongView> = {
   },
   toMetrics: (result) => extractMetrics('S', result),
   usesMicrophone: true,
+  // P pauses (a stop), R starts over (D-085).
+  pausable: true,
 };

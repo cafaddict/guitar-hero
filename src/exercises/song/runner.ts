@@ -5,6 +5,8 @@
  * shows before the start to look over, D-082). In perform/hidden with
  * a microphone the beat-1 strums are timed and every run of two or more bars without one counts as a stop;
  * without a microphone the user reports the stops. Afterwards: played to the end, stops, played from memory.
+ * P pauses (each pause is a stop; the interrupted bar is replayed after a one-bar count-in) and R starts the
+ * song over (D-085).
  */
 import { z } from 'zod';
 import { DEFAULT_METRONOME_CONFIG } from '../../audio/metronome';
@@ -86,9 +88,22 @@ export function firstRunAtStage(
 
 /** Stops (§11.10): every run of ≥ 2 consecutive bars whose beat-1 strum is missing. */
 export function beat1Stops(beat1Hit: readonly boolean[]): number {
+  return songStops(beat1Hit, []);
+}
+
+/**
+ * Stops with pauses (D-085): `cutBars` are the bars a resume replayed from (one per counted pause). A pause is a
+ * stop unless the silent bars just before it already made one; the count of silent bars starts over after it.
+ */
+export function songStops(beat1Hit: readonly boolean[], cutBars: readonly number[]): number {
   let stops = 0;
   let missing = 0;
-  for (const hit of beat1Hit) {
+  for (const [bar, hit] of beat1Hit.entries()) {
+    for (const cut of cutBars) {
+      if (cut !== bar) continue;
+      if (missing < 2) stops += 1;
+      missing = 0;
+    }
     if (hit) {
       missing = 0;
       continue;
@@ -154,6 +169,14 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
   private earphones: boolean;
   private stopBacking: (() => void) | null = null;
   private songJob: Job | null = null;
+  /** Bars a resume replayed from, one per counted pause (D-085). */
+  private cuts: number[] = [];
+  /** Bumped whenever the playing backing stops (pause, restart): a late bleed answer of it is ignored. */
+  private backingEpoch = 0;
+  /** Bleed gain measured from the first intro on speakers; a resumed backing reuses it (§10.12, D-085). */
+  private bleedGain: number | null = null;
+  /** Backing events in the worker's mask (audio-clock arrivals), to cut them at a pause. */
+  private backingMask: { arrivals: number[]; templateRises: number[] } | null = null;
   /** Stops the "들어 보기" playback; null when none is playing. */
   private stopListen: (() => void) | null = null;
   /** Audio-clock time the listen playback (with its ring-out) ends. */
@@ -301,21 +324,16 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
     this.endListen();
     if (!this.chartHidden) this.chartShownWhilePlaying = true;
     this.recorder?.dispose();
-    this.stopBacking?.();
+    this.haltBacking();
+    this.backingMask = null;
+    this.cuts = [];
     this.scoreFailed = false;
     const looping = this.params.mode === 'learn' && this.loopSection !== null;
     const sixEight = this.song.timeSignature === '6/8';
     const perform = this.params.mode === 'perform';
     // The backing is rendered before the count-in is scheduled: rendering takes long enough (≈ 0.1–0.3 s) to
     // miss its start otherwise (§8.6). Its first bar is the intro under the count-in.
-    const backing =
-      perform && this.backingOn && this.renderBacking
-        ? this.renderBacking(
-            [this.playBars[0]!.chord, ...this.playBars.map((b) => b.chord)],
-            this.song.patternId,
-            this.bpm,
-          )
-        : null;
+    const backing = this.renderBackingFrom(0);
     // Perform/hidden with a microphone: every strum also gets Mode C set scores for the chord check (§11.10).
     const voicings = this.chordClasses().map((c) =>
       voicingById(voicingForClass(c, this.ctx.content.gVoicing)),
@@ -337,22 +355,115 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
       () => this.toReview(),
       (event) => this.recordDsp(event),
       this.songJob ?? { kind: 'onsets' },
+      // The metronome counts eighths in 6/8: the window and the pause grace go by the song's own beat.
+      { windowS: timingWindowMs(this.bpm) / 1000, graceS: 60 / this.bpm },
     );
     this.own(() => this.recorder?.dispose());
     this.own(() => this.stopBacking?.());
     this.setPhase('countIn');
+    const epoch = this.backingEpoch;
     this.recorder.start(() => {
-      if (backing) this.startBacking(backing);
+      if (backing) this.startBacking(backing, epoch);
       this.publish();
     });
+  }
+
+  /** The play-along for bars `from`… with an intro bar (bar `from`'s chord) under the count-in, or null. */
+  private renderBackingFrom(from: number): RenderedBacking | null {
+    if (this.params.mode !== 'perform' || !this.backingOn || !this.renderBacking) return null;
+    const bars = this.playBars.slice(from);
+    if (bars.length === 0) return null;
+    return this.renderBacking([bars[0]!.chord, ...bars.map((b) => b.chord)], this.song.patternId, this.bpm);
+  }
+
+  private haltBacking(): void {
+    this.stopBacking?.();
+    this.stopBacking = null;
+    this.backingEpoch++;
+  }
+
+  /**
+   * Pause (D-085): the metronome and the backing stop, the backing events still to come leave the worker's mask
+   * (the resumed grid is elsewhere), and the interrupted bar is the one to replay. Every counted pause is a stop.
+   */
+  protected override pauseTake(): { counted: boolean } | null {
+    const recorder = this.recorder;
+    if (!recorder) return null;
+    const now = this.ctx.output.now();
+    const outcome = recorder.pause(now);
+    if (outcome.kind === 'ignored') return null;
+    this.haltBacking();
+    this.cutMask(now);
+    if (outcome.counted) {
+      this.cuts.push(outcome.resumeBar);
+      this.report.stops++;
+      this.bar = outcome.resumeBar;
+    }
+    return { counted: outcome.counted };
+  }
+
+  /** Resume: the backing from the replayed bar is rendered before the count-in is scheduled (§8.6). */
+  protected override resumeTake(): void {
+    const recorder = this.recorder;
+    if (!recorder) return;
+    const backing = this.renderBackingFrom(recorder.timeline.nextUnit);
+    const epoch = this.backingEpoch;
+    recorder.resume(() => {
+      if (backing && epoch === this.backingEpoch) this.startBacking(backing, epoch);
+      this.publish();
+    });
+  }
+
+  private cutMask(now: number): void {
+    const mask = this.backingMask;
+    if (!mask || this.bleedGain === null) return;
+    const until = now + (this.ctx.calibration?.rttMs ?? 0) / 1000;
+    const kept = mask.arrivals.flatMap((t, i) => (t <= until ? [i] : []));
+    this.applyMask(
+      kept.map((i) => mask.arrivals[i]!),
+      kept.map((i) => mask.templateRises[i]!),
+      this.bleedGain,
+    );
+  }
+
+  /** Points the worker's backing mask at these events (audio-clock arrivals). */
+  private applyMask(arrivals: number[], templateRises: number[], gain: number): void {
+    const mic = this.ctx.audio;
+    const job = this.songJob;
+    if (!mic || !this.recorder || !job || job.kind !== 'songStrum') return;
+    this.backingMask = { arrivals, templateRises };
+    this.recorder.updateJob({
+      ...job,
+      backing: { arrivals: arrivals.map((t) => mic.captureSampleOf(t)), templateRises, gain },
+    });
+  }
+
+  /**
+   * R (D-085): the take starts over from bar 0 (or the looped section's start). Perform/hidden forget the take
+   * so far; learn keeps its stops and counts this one if the song was playing.
+   */
+  private restart(): void {
+    if (this.params.mode === 'learn') {
+      if (this.phase === 'running') this.report.stops++;
+    } else {
+      Object.assign(this.report, { completed: false, stops: 0, memorized: false });
+      this.beat1HitRate = null;
+      this.autoStops = null;
+      this.chordRatio = null;
+      this.analyzing = false;
+      this.resetPauses();
+      this.chartShownWhilePlaying = false;
+    }
+    this.bar = null;
+    this.play();
   }
 
   /**
    * Schedules the backing so its intro bar is the count-in bar (§8.6). On speakers the bleed gain is learned
    * from that intro, then every strum is checked against the backing events (§10.12).
    */
-  private startBacking(backing: RenderedBacking): void {
-    const grid = this.recorder?.gridStart ?? null;
+  private startBacking(backing: RenderedBacking, epoch: number): void {
+    const grid = this.recorder?.currentGrid ?? null;
     if (grid === null) return;
     const start = grid - this.barS;
     this.stopBacking = this.ctx.output.playBacking(backing.signal, start);
@@ -366,12 +477,16 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
       fs,
     );
     const arrivals = backing.events.map((e) => start + e.time + rtt);
+    // A resumed backing plays on the same output: the gain measured from the first intro still holds.
+    if (this.bleedGain !== null) {
+      this.applyMask(arrivals, templateRises, this.bleedGain);
+      return;
+    }
     // Intro events inside the capture ring: at slow tempos (≤ 61 BPM) the intro bar is longer than the ring.
     const from = Math.max(start + rtt - BLEED_PRE_S, grid + rtt - BLEED_WINDOW_S);
     const intro = backing.events.flatMap((e, i) =>
       e.time < this.barS - 1e-6 && arrivals[i]! >= from + BLEED_PRE_S ? [i] : [],
     );
-    const job = this.songJob;
     const recorder = this.recorder;
     if (!recorder) return;
     void mic
@@ -382,12 +497,11 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
         templateRises: intro.map((i) => templateRises[i]!),
       })
       .then((gain) => {
-        // Only the take that asked (not a later one, not after leaving); the recorder ignores late updates too.
-        if (this.recorder !== recorder || this.phase === 'done') return;
-        recorder.updateJob({
-          ...job,
-          backing: { arrivals: arrivals.map((t) => mic.captureSampleOf(t)), templateRises, gain },
-        });
+        // Only the backing that asked (not a later take, not after a pause or leaving); the recorder ignores late
+        // updates too.
+        if (this.recorder !== recorder || epoch !== this.backingEpoch || this.phase === 'done') return;
+        this.bleedGain = gain;
+        this.applyMask(arrivals, templateRises, gain);
       })
       .catch(() => {
         // Without the gain the strums are judged unmasked; the chord check is "참고" anyway.
@@ -410,6 +524,14 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
       if (this.phase !== 'done') this.setPhase('done');
       return;
     }
+    if (this.handlePause(cmd)) return;
+    if (
+      cmd === 'restart' &&
+      (this.phase === 'countIn' || this.phase === 'running' || this.phase === 'paused')
+    ) {
+      this.restart();
+      return;
+    }
     const waiting = this.phase === 'ready' || this.phase === 'armed';
     // Play-along (perform/hidden only, §8.6): B switches the backing, E the earphone confirmation.
     if (waiting && this.params.mode === 'perform' && (cmd === 'backing' || cmd === 'ear')) {
@@ -424,7 +546,11 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
     }
     if (cmd === 'hide' && this.phase !== 'review' && this.phase !== 'done') {
       this.chartHidden = !this.chartHidden;
-      if (!this.chartHidden && (this.phase === 'countIn' || this.phase === 'running'))
+      // Shown while paused counts as shown while playing (the take goes on afterwards, D-085).
+      if (
+        !this.chartHidden &&
+        (this.phase === 'countIn' || this.phase === 'running' || this.phase === 'paused')
+      )
         this.chartShownWhilePlaying = true;
       this.publish();
       return;
@@ -475,21 +601,24 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
   override tick(): void {
     super.tick();
     const now = this.ctx.output.now();
-    const grid = this.recorder?.gridStart ?? null;
-    if (grid !== null && (this.phase === 'countIn' || this.phase === 'running')) {
+    const rec = this.recorder;
+    // The segment being played (D-085): after a pause its count-in comes first, on a new grid.
+    const grid = rec?.currentGrid ?? null;
+    if (rec && grid !== null && (this.phase === 'countIn' || this.phase === 'running')) {
       if (this.phase === 'countIn' && now >= grid) this.setPhase('running');
-      const bar = now >= grid ? Math.floor((now - grid) / this.barS) : null;
+      // In a count-in the bar stays as it was: none at the start, the replayed one after a pause.
+      const position = rec.timeline.position(now);
+      const bar = position === null ? this.bar : Math.floor(position);
       if (bar !== this.bar) {
         this.bar = bar;
         this.publish();
       }
     }
     const mic = this.ctx.audio;
-    const rec = this.recorder;
     if (
       mic &&
       rec &&
-      grid !== null &&
+      rec.gridStart !== null &&
       this.params.mode === 'perform' &&
       this.phase === 'review' &&
       this.beat1HitRate === null &&
@@ -498,13 +627,11 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
       rec.settled(now)
     ) {
       this.analyzing = true;
-      const bars = Math.max(
-        1,
-        Math.min(this.playBars.length, Math.round(((rec.endTime ?? now) - grid) / this.barS)),
-      );
+      // Each bar once, on the grid of the segment that played it (a replayed bar after a pause, D-085).
+      const barStarts = rec.timeline.starts(this.playBars.length);
       // Strums judged as backing bleed are not the user's (§10.12); the rest also carry the chord scores.
       const strums = rec.events.filter((e) => this.isUserStrum(e));
-      const barStarts = Array.from({ length: bars }, (_, b) => grid + b * this.barS);
+      const cuts = [...this.cuts];
       void mic
         .analyzeTiming({
           slots: barStarts.map((time) => ({ time, expected: true })),
@@ -516,8 +643,12 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
         .then((outcome) => {
           this.recordDsp(outcome);
           this.beat1HitRate = outcome.result.hitRate;
-          // A bar is "played" when its beat-1 strum hit; the user can still correct the count (↑/↓).
-          this.autoStops = beat1Stops(outcome.result.judgements.map((j) => j === 'hit'));
+          // A bar is "played" when its beat-1 strum hit; pauses are stops too (merged, so a pause after two silent
+          // bars is one stop). The user can still correct the count (↑/↓).
+          this.autoStops = songStops(
+            outcome.result.judgements.map((j) => j === 'hit'),
+            cuts,
+          );
           this.report.stops = this.autoStops;
           if (this.songJob)
             this.chordRatio = chordCorrectRatio(
@@ -530,6 +661,8 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
               barStarts,
               rec.rttS,
               timingWindowMs(this.bpm) / 1000,
+              // The intro under a resume's count-in already plays the replayed bar's chord: no change to check.
+              cuts,
             );
           this.analyzing = false;
           this.publish();
@@ -569,6 +702,7 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
       backingAudible: this.backingAudible,
       ...(this.outputLabel ? { outputLabel: this.outputLabel } : {}),
       ...(this.ctx.audio ? {} : { memorizedSelfReport: this.report.memorized }),
+      ...(this.pauses > 0 ? { pauses: this.pauses } : {}),
     };
   }
 }

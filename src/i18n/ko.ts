@@ -634,7 +634,16 @@ export const ko = {
     custom: '학습한 키',
     remove: '지우기',
     pedalTip: '블루투스 페이지 터너 페달은 키보드처럼 동작해요. 페달 버튼을 원하는 동작에 연결하세요.',
-    hint: 'Space 시작/정지 · Enter 다음 · ↑↓ 보정 · 1/2/3 수동 판정 · P 일시정지 · Esc 중단',
+    /** Key hint under a run; P only where the run can pause (D-085). */
+    hint: (pausable: boolean) =>
+      [
+        'Space 시작/정지',
+        'Enter 다음',
+        '↑↓ 보정',
+        '1/2/3 수동 판정',
+        ...(pausable ? ['P 일시정지'] : []),
+        'Esc 중단',
+      ].join(' · '),
     confirmAbort: '연습을 중단할까요? 지금까지 한 것은 기록돼요.',
     abortYes: '중단하기',
     abortNo: '계속하기',
@@ -861,6 +870,8 @@ export const ko = {
             '숨김: 연주와 같지만 시작하면 악보가 가려지고 몇 번째 마디인지만 보여요. 시작 전에는 악보를 볼 수 있어요.',
         },
         goal: '진급 조건: 이 단계 곡 하나를 연주 모드로 끝까지 치기(완주).',
+        pause:
+          'P로 잠깐 멈출 수 있어요: 멈춘 마디부터 한 마디 세고 다시 쳐요(멈춤 1회로 세요). R은 처음부터 다시 해요.',
       },
     },
     common: {
@@ -880,6 +891,7 @@ export const ko = {
       paused: '일시정지했어요. P나 Space를 누르면 한 마디 세고 이어서 해요.',
       pause: '일시정지 (P)',
       resume: '이어서 (P)',
+      pausedRun: '일시정지한 실행이라 진급 기준에는 쓰지 않아요.',
     },
     /** Live per-bar feedback while playing (D-077). */
     live: {
@@ -954,7 +966,7 @@ export const ko = {
         hidden: '숨김 단계(악보 없이 멈추지 않기)',
       },
       optionKeys:
-        '↑↓ 템포 · L 구간 반복(학습) · H 악보 숨기기 · M 들어 보기 · B 반주(연주) · E 이어폰/스피커',
+        '↑↓ 템포 · L 구간 반복(학습) · H 악보 숨기기 · M 들어 보기 · B 반주(연주) · E 이어폰/스피커 · P 일시정지 · R 처음부터',
       backingOn: '반주 켜짐 (B)',
       backingOff: '반주 꺼짐 (B)',
       earphones: '이어폰(유선 권장)을 쓰고 있어요 (E)',
@@ -968,6 +980,8 @@ export const ko = {
       again: '처음부터 다시 (Space)',
       start: '시작',
       stop: '멈추기',
+      restart: '처음부터 (R)',
+      pausedAt: (bar: number, bars: number) => `${bar}/${bars}마디에서 멈췄어요. 이 마디부터 다시 쳐요.`,
       section: (name: string) => `${name} 부분`,
       loop: (name: string) => `${name} 부분 반복`,
       hidden: '악보 숨김 — 외워서 쳐 봐요',

@@ -187,7 +187,7 @@ function RunningExercise({
         <Button variant="secondary" onClick={() => runner.command('abort')} data-testid="exercise-finish">
           {ko.exercises.common.finish}
         </Button>
-        <p className="text-xs text-muted">{ko.keys.hint}</p>
+        <p className="text-xs text-muted">{ko.keys.hint(definition.pausable)}</p>
       </div>
     </div>
   );
