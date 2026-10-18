@@ -8,7 +8,15 @@ import { Button } from '../../ui/Button';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { renderChordProgression } from './listen';
-import { isBluetoothLabel, type SongParams, SongRunner, type SongView, songParamsSchema } from './runner';
+import {
+  firstRunAtStage,
+  isBluetoothLabel,
+  type SongParams,
+  SongRunner,
+  type SongView,
+  songParamsSchema,
+  songStageOf,
+} from './runner';
 
 function SongViewComponent({
   runner,
@@ -20,6 +28,9 @@ function SongViewComponent({
   const { view, phase } = useRunnerSnapshot(runner);
   const song = view.song;
   const playing = phase === 'running' || phase === 'countIn';
+  const waiting = phase === 'ready' || phase === 'armed';
+  // Hidden stage: the chart is covered from the count-in on; before the start it shows to look over (D-082).
+  const chartCovered = view.chartHidden && !waiting;
   return (
     <div
       className="flex flex-col gap-4"
@@ -37,7 +48,15 @@ function SongViewComponent({
         {view.loopSection !== null &&
           ` · ${ko.exercises.song.loop(song.sections[view.loopSection]?.name ?? '')}`}
       </p>
-      {view.chartHidden ? (
+      {waiting && view.firstAtStage && view.stage !== 'learn' && (
+        <p className="font-bold" data-testid="song-stage-new">
+          {ko.exercises.song.stageNew[view.stage]}
+        </p>
+      )}
+      {waiting && view.chartHidden && (
+        <p data-testid="song-hidden-preview">{ko.exercises.song.hiddenPreview}</p>
+      )}
+      {chartCovered ? (
         <p className="rounded-lg bg-surface p-6 text-center text-xl">
           {ko.exercises.song.hidden}
           {view.bar !== null && (
@@ -222,7 +241,12 @@ export const songPlugin: ExercisePlugin<SongParams, SongResult, SongView> = {
     const byOutput: Record<string, boolean> = { ...params.earphonesByOutput };
     for (const r of [...recent].reverse())
       if (r.backingOn && r.outputLabel) byOutput[r.outputLabel] = r.backingAudible !== true;
-    return { ...params, earphonesByOutput: byOutput };
+    const stage = songStageOf(params.mode, params.chartHidden);
+    return {
+      ...params,
+      earphonesByOutput: byOutput,
+      firstAtStage: firstRunAtStage(params.songId, stage, recent),
+    };
   },
   View: SongViewComponent,
   Summary: SongSummary,
@@ -234,7 +258,7 @@ export const songPlugin: ExercisePlugin<SongParams, SongResult, SongView> = {
       steps: [
         g.grid(pattern.timeSignature === '6/8' ? 2 : 4),
         g.pattern(pattern.label),
-        g.mode[params.mode],
+        g.mode[songStageOf(params.mode, params.chartHidden)],
         g.listen,
         g.goal,
       ],

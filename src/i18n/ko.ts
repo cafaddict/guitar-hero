@@ -848,6 +848,8 @@ export const ko = {
         mode: {
           learn: '배우기: 틀리면 멈추고 다시 해도 돼요. L로 한 구간만 반복할 수 있어요.',
           perform: '연주: 틀려도 멈추지 말고 끝까지 가요. 두 마디 넘게 첫 박을 치지 않으면 멈춤으로 세요.',
+          hidden:
+            '숨김: 연주와 같지만 시작하면 악보가 가려지고 몇 번째 마디인지만 보여요. 시작 전에는 악보를 볼 수 있어요.',
         },
         goal: '진급 조건: 이 단계 곡 하나를 연주 모드로 끝까지 치기(완주).',
       },
@@ -958,6 +960,12 @@ export const ko = {
       section: (name: string) => `${name} 부분`,
       loop: (name: string) => `${name} 부분 반복`,
       hidden: '악보 숨김 — 외워서 쳐 봐요',
+      hiddenPreview:
+        '시작하면 악보가 가려지고 몇 번째 마디인지만 보여요. 지금 보고 외워 두세요. 악보를 보며 치려면 H.',
+      stageNew: {
+        perform: '이번부터 연주 단계예요: 틀려도 멈추지 말고 끝까지 가요.',
+        hidden: '이번부터 숨김 단계예요: 악보 없이 끝까지 쳐 봐요.',
+      },
       bar: (bar: number, bars: number) => `${bar}/${bars}마디`,
       reviewPrompt: '어땠나요? 맞는 것을 고르고 확인(Enter)을 누르세요.',
       completed: '끝까지 쳤어요 (1)',

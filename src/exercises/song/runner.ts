@@ -1,7 +1,8 @@
 /**
  * S practice song (SPEC v1.1 §11.10): chord chart in a bar grid with the current bar highlighted, count-in,
  * metronome, tempo (↑/↓), section loop (L), hidden chart (H), synth "listen" (M). Stages: learn (stop and retry;
- * a section can loop), perform (keep going) and hidden (perform with the chart covered). In perform/hidden with
+ * a section can loop), perform (keep going) and hidden (perform with the chart covered from the count-in on; it
+ * shows before the start to look over, D-082). In perform/hidden with
  * a microphone the beat-1 strums are timed and every run of two or more bars without one counts as a stop;
  * without a microphone the user reports the stops. Afterwards: played to the end, stops, played from memory.
  */
@@ -47,6 +48,8 @@ export const songParamsSchema = z.object({
   earphones: z.boolean().default(false),
   /** Last earphone choice per output device label, from this song's history (§8.6-1). */
   earphonesByOutput: z.record(z.string(), z.boolean()).default({}),
+  /** No recent run of this song at this stage (D-082): the view says the stage went up. Set from history. */
+  firstAtStage: z.boolean().default(false),
 });
 export type SongParams = z.infer<typeof songParamsSchema>;
 /** Params as callers may give them (the v1.1 play-along fields have defaults). */
@@ -64,6 +67,21 @@ export type SongStageName = 'learn' | 'perform' | 'hidden';
 /** Stage of a song run from its mode and chart setting (SPEC v1.1 §11.10). */
 export function songStageOf(mode: SongParams['mode'], chartHidden: boolean): SongStageName {
   return mode === 'learn' ? 'learn' : chartHidden ? 'hidden' : 'perform';
+}
+
+/**
+ * The routine raises a song's stage on its own (§11.10), so the first run at perform or hidden is announced
+ * (D-082): true when none of the recent results is this song at this stage. v1 results carry no `stage`.
+ */
+export function firstRunAtStage(
+  songId: string,
+  stage: SongStageName,
+  recent: readonly Pick<SongResult, 'songId' | 'mode' | 'chartHidden' | 'stage'>[],
+): boolean {
+  if (stage === 'learn') return false;
+  return !recent.some(
+    (r) => r.songId === songId && (r.stage ?? songStageOf(r.mode, r.chartHidden)) === stage,
+  );
 }
 
 /** Stops (§11.10): every run of ≥ 2 consecutive bars whose beat-1 strum is missing. */
@@ -101,6 +119,8 @@ export interface SongView {
   backingAudible: boolean;
   outputLabel: string;
   chordCorrectRatio: number | null;
+  /** First run of this song at the stage it was given (D-082); false once H switched the stage. */
+  firstAtStage: boolean;
 }
 
 /** Bars with repeats expanded, in playing order. */
@@ -219,6 +239,8 @@ export class SongRunner extends BaseRunner<SongResult, SongView> {
       backingAudible: this.backingAudible,
       outputLabel: this.outputLabel,
       chordCorrectRatio: this.chordRatio,
+      // About the stage the run was given: switching it with H drops the notice.
+      firstAtStage: this.params.firstAtStage && this.chartHidden === this.params.chartHidden,
     };
   }
 

@@ -96,9 +96,12 @@ test('E2E-22: practice options by key inside the session runner reach the run an
   await page.keyboard.press('b');
   await expect(page.getByTestId('song-backing-toggle')).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.press('h');
-  await expect(song.getByText('악보 숨김 — 외워서 쳐 봐요')).toBeVisible();
+  // D-082: before the start the hidden stage still shows the chart to look over; it is covered once playing.
+  await expect(page.getByTestId('song-hidden-preview')).toBeVisible();
+  await expect(song.getByRole('list', { name: /./ })).toBeVisible();
   await page.keyboard.press('Space');
   await expect(song).toHaveAttribute('data-phase', /countIn|running/);
+  await expect(song.getByText('악보 숨김 — 외워서 쳐 봐요')).toBeVisible();
   await page.keyboard.press('Space');
   await expect(song).toHaveAttribute('data-phase', 'review');
   // A perform take is confirmed once its beat-1 analysis is not running (Enter is ignored meanwhile).
