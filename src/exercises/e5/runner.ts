@@ -8,14 +8,16 @@
  */
 import { z } from 'zod';
 import { clampBpm, DEFAULT_METRONOME_CONFIG, type MetronomeConfig } from '../../audio/metronome';
+import type { Job } from '../../audio/worker/protocol';
 import { patternById, patternSlotTimes, type StrumPattern, slotsPerBeat } from '../../content/patterns';
 import { voicingById, voicingForClass } from '../../content/voicings';
 import type { StrumResult } from '../../domain/exerciseResults';
 import { barDynamics } from '../../dsp/beta/dynamics';
 import type { TimingAnalysis, TimingSlot } from '../../dsp/timing';
 import { BaseRunner } from '../baseRunner';
+import { GridRecorder } from '../gridRecorder';
 import { type BarSlots, barsOf, type LiveBar, settleBars } from '../liveTiming';
-import type { ExerciseContext, JudgedEvent, RunnerCommand } from '../types';
+import type { ExerciseContext, RunnerCommand } from '../types';
 
 export const e5ParamsSchema = z.object({
   patternId: z.enum(['P0', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8']),
@@ -46,8 +48,6 @@ export const LADDER_STEP_BPM = 5;
 export const LADDER_MIN_BARS = 8;
 /** Self ratings (no microphone): 1 nothing missed, 2 sometimes missed, 3 often missed. */
 const SELF_HIT_RATE = { manual1: 1, manual2: 0.8, manual3: 0.5 } as const;
-/** Judged onsets arrive ~0.4 s after the strum; wait this long after the last bar before scoring. */
-const SETTLE_S = 0.7;
 
 export type Ladder = StrumResult['ladder'];
 
@@ -145,12 +145,8 @@ export function slotGrid(pattern: StrumPattern, bpm: number, bars: number, gridS
 export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
   private readonly pattern: StrumPattern;
   private readonly source: 'mic' | 'self';
-  private readonly strums: number[] = [];
-  /** Beta readings per strum (direction, palm-mute probability, level) — "참고(베타)" only (§10.11). */
-  private readonly betaReadings: { time: number; direction?: string; palmMute?: number; levelDb?: number }[] =
-    [];
-  private gridStart: number | null = null;
-  private endTime: number | null = null;
+  /** Metronome, strum collection (one slot before the grid to one slot after the end) and the settle wait. */
+  private readonly recorder: GridRecorder;
   private analyzing = false;
   private analysisFailed = false;
   private analysis: E5View['analysis'] = null;
@@ -172,6 +168,49 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     this.pattern = patternById(params.patternId);
     this.source = ctx.audio ? 'mic' : 'self';
     this.cuesHidden = params.cuesHidden;
+    this.recorder = new GridRecorder(
+      ctx,
+      metronomeFor(this.pattern, params.bpm, params.bars, ctx.settings.visualOnlyMetronome),
+      () => {
+        this.position = null;
+        this.setPhase('review');
+      },
+      (event) => this.recordDsp(event),
+      this.job(),
+      { prePadS: this.slotS, postPadS: this.slotS },
+    );
+  }
+
+  /** Plain onsets plus the beta readings: direction, palm mute (Stage 10), level (dynamics), §10.11. */
+  private job(): Job {
+    const chord = this.params.mode === 'mute' ? undefined : this.params.chords?.[0];
+    return {
+      kind: 'onsets',
+      beta: {
+        direction: true,
+        palmMute: this.params.palmMute === true,
+        level: this.params.dynamics === true,
+        ...(chord ? { voicing: voicingById(voicingForClass(chord, this.ctx.content.gVoicing)) } : {}),
+      },
+    };
+  }
+
+  private get strums(): readonly number[] {
+    return this.recorder.strums;
+  }
+
+  /** Beta readings per strum (direction, palm-mute probability, level) — "참고(베타)" only (§10.11). */
+  private get betaReadings(): { time: number; direction?: string; palmMute?: number; levelDb?: number }[] {
+    return this.recorder.events.flatMap((event) => {
+      const beta = (
+        event.result as { beta?: { direction?: string; palmMute?: number; levelDb?: number } } | null
+      )?.beta;
+      return beta ? [{ time: event.time, ...beta }] : [];
+    });
+  }
+
+  private get gridStart(): number | null {
+    return this.recorder.gridStart;
   }
 
   /** The run counts as "visual cues hidden" only when they stayed hidden while the bars ran (§7.6-4, §11.6). */
@@ -250,6 +289,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
 
   start(): void {
     const mic = this.ctx.audio;
+    this.own(() => this.recorder.dispose());
     if (mic) {
       this.own(
         mic.onCoarseOnset(() => {
@@ -257,60 +297,19 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
         }),
       );
       this.own(() => mic.setJob(null));
-      this.own(mic.onJudged((e) => this.onJudged(e)));
     }
     this.setPhase(mic ? 'armed' : 'ready');
   }
 
   /** Count-in and bars start (first strum while armed, Space, or the start button). */
   private begin(): void {
-    const chord = this.params.mode === 'mute' ? undefined : this.params.chords?.[0];
-    this.ctx.audio?.setJob({
-      kind: 'onsets',
-      beta: {
-        direction: true,
-        palmMute: this.params.palmMute === true,
-        level: this.params.dynamics === true,
-        ...(chord ? { voicing: voicingById(voicingForClass(chord, this.ctx.content.gVoicing)) } : {}),
-      },
-    });
-    const metronome = this.ctx.output.metronome;
-    this.own(metronome.onEnd((t) => this.onBarsDone(t)));
-    this.own(() => metronome.stop());
-    const config = metronomeFor(
-      this.pattern,
-      this.params.bpm,
-      this.params.bars,
-      this.ctx.settings.visualOnlyMetronome,
-    );
     this.setPhase('countIn');
-    void metronome.start(config, { rttMs: this.ctx.calibration?.rttMs ?? 0 }).then(() => {
-      this.gridStart = metronome.gridStartTime();
-      this.publish();
-    });
-  }
-
-  private onJudged(event: JudgedEvent): void {
-    if (event.jobKind !== 'onsets' || this.gridStart === null) return;
-    if (event.time < this.gridStart - this.slotS) return;
-    if (this.endTime !== null && event.time > this.endTime + this.slotS) return;
-    this.recordDsp(event);
-    this.strums.push(event.time);
-    const beta = (
-      event.result as { beta?: { direction?: string; palmMute?: number; levelDb?: number } } | null
-    )?.beta;
-    if (beta) this.betaReadings.push({ time: event.time, ...beta });
-  }
-
-  private onBarsDone(time: number): void {
-    this.endTime = time;
-    this.position = null;
-    this.setPhase('review');
+    this.recorder.start(() => this.publish());
   }
 
   command(cmd: RunnerCommand): void {
     if (cmd === 'abort') {
-      this.ctx.output.metronome.stop();
+      this.recorder.stop();
       if (this.phase !== 'done') this.setPhase('done');
       return;
     }
@@ -383,8 +382,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       this.source === 'mic' &&
       !this.analyzing &&
       !this.analysis &&
-      this.endTime !== null &&
-      now >= this.endTime + SETTLE_S
+      this.recorder.settled(now)
     ) {
       this.score();
     }
