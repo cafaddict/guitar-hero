@@ -326,6 +326,7 @@ export function HomeScreen() {
           </section>
           <section className="rounded-lg bg-surface p-4">
             <h2 className="text-lg font-bold">{ko.home.weakPairs}</h2>
+            <p className="text-xs text-muted">{ko.home.weakPairsNote}</p>
             {weakPairs(data.skills, data.curriculum, data.progression.stage).length === 0 && (
               <p className="mt-1 text-sm text-muted">{ko.home.noPairs}</p>
             )}

@@ -41,6 +41,35 @@ export interface RuleEvaluation {
   progress: number;
   /** Subjects still missing (e.g. pair ids or chord classes). */
   missing: string[];
+  /** Pair rules: how far each missing pair is (D-084) — "D|E: 1 of 2 days at ≥ 30, best 36". */
+  pairs?: PairProgress[];
+}
+
+export interface PairProgress {
+  pairId: string;
+  /** Days whose best qualified run reached `value`. */
+  days: number;
+  needDays: number;
+  value: number;
+  /** Best qualified (≥ 55 s) changes per minute; null before the first full run. */
+  best: number | null;
+}
+
+function pairProgress(
+  skills: ReadonlyMap<string, SkillState>,
+  pairId: string,
+  value: number,
+  needDays: number,
+): PairProgress {
+  const [a, b] = parsePairId(pairId);
+  const skill = skills.get(pairKey(a, b));
+  return {
+    pairId,
+    days: daysReaching(skill, PAIR_METRIC, value),
+    needDays,
+    value,
+    best: skill?.metrics[PAIR_METRIC]?.best ?? null,
+  };
 }
 
 /** Per-minute criteria count only runs of at least 55 s (SPEC v1.1 §7.1). */
@@ -173,13 +202,22 @@ export function evaluateRule(rule: UnlockRule, ctx: RuleContext): RuleEvaluation
         const [a, b] = parsePairId(id);
         return daysReaching(ctx.skills.get(pairKey(a, b)), PAIR_METRIC, rule.value) < rule.days;
       });
-      return fromList(rule, pairs.length, missing);
+      return {
+        ...fromList(rule, pairs.length, missing),
+        pairs: missing.map((id) => pairProgress(ctx.skills, id, rule.value, rule.days)),
+      };
     }
     case 'pairsPassedAtLeast': {
       const missing = rule.pairs.filter((id) => !pairPassed(ctx.skills, id));
       const passed = rule.pairs.length - missing.length;
       const met = passed >= rule.minCount;
-      return { rule, met, progress: Math.min(1, passed / rule.minCount), missing: met ? [] : missing };
+      return {
+        rule,
+        met,
+        progress: Math.min(1, passed / rule.minCount),
+        missing: met ? [] : missing,
+        pairs: met ? [] : missing.map((id) => pairProgress(ctx.skills, id, PAIR_PASS_CPM, PAIR_PASS_DAYS)),
+      };
     }
     case 'recallPassed':
       return fromList(

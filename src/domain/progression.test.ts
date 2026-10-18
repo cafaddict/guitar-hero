@@ -82,6 +82,10 @@ describe('AC-R2 progression engine', () => {
     const ev = evaluateStage(def, ctx(oneDay));
     expect(ev.allMet).toBe(false);
     expect(ev.rules.find((r) => r.rule.kind === 'unlockedPairsAtLeast')?.missing).toEqual(['A|D']);
+    // D-084: how far the missing pair is — one of two days, best 33.
+    expect(ev.rules.find((r) => r.rule.kind === 'unlockedPairsAtLeast')?.pairs).toEqual([
+      { pairId: 'A|D', days: 1, needDays: 2, value: 30, best: 33 },
+    ]);
     const twoDays = [...oneDay, s('pair:A|D', 'cpmQualified', 30, NOW)];
     expect(evaluateStage(def, ctx(twoDays)).allMet).toBe(true);
     // Runs shorter than 55 s (pain-reduced 30 s runs) record `cpm` only and never count (§7.1, D-045 fix).

@@ -57,8 +57,21 @@ export function RuleChecklist({ rules }: { rules: readonly RuleEvaluation[] }) {
               />
             </span>
           )}
-          {!r.met && LISTS_MISSING.has(r.rule.kind) && r.missing.length > 0 && r.missing.length <= 8 && (
-            <span className="text-xs text-muted">{ko.rules.missing(r.missing.join(', '))}</span>
+          {!r.met && r.pairs && r.pairs.length > 0 ? (
+            <ul className="text-sm text-muted" data-testid="rule-pairs">
+              {r.pairs.map((p) => (
+                <li key={p.pairId} data-pair={p.pairId}>
+                  {ko.rules.pairProgress(p.pairId.replace('|', ' ↔ '), p.days, p.needDays, p.value, p.best)}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            !r.met &&
+            LISTS_MISSING.has(r.rule.kind) &&
+            r.missing.length > 0 &&
+            r.missing.length <= 8 && (
+              <span className="text-xs text-muted">{ko.rules.missing(r.missing.join(', '))}</span>
+            )
           )}
         </li>
       ))}

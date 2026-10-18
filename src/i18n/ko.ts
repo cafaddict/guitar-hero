@@ -78,6 +78,8 @@ export const ko = {
     stage: (stage: number, name: string) => `Stage ${stage} · ${name}`,
     checklist: '진급 체크리스트',
     weakPairs: '약한 체인지 Top 3',
+    weakPairsNote:
+      '최근 1분 체인지 기록의 가운데값이에요. 진급은 체크리스트 기준(55초 이상 실행, 날짜별 최고)으로 봐요.',
     notPracticed: '아직 안 함',
     noPairs: '코드를 두 개 배우면 체인지 쌍이 생겨요.',
     perMinute: (v: number) => `분당 ${v.toFixed(0)}회`,
@@ -208,6 +210,11 @@ export const ko = {
     sessionsInStageAtLeast: (count: number) => `이 단계에서 ${count}세션 이상 연습`,
     examPassed: '초급 1 졸업 시험 통과',
     missing: (items: string) => `남은 것: ${items}`,
+    pairProgress: (pair: string, days: number, needDays: number, value: number, best: number | null) =>
+      best === null
+        ? `${pair}: 아직 1분을 채운 실행이 없어요(55초 이상만 셈)`
+        : `${pair}: ${value}회 넘은 날 ${days}/${needDays}일 · 최고 ${best.toFixed(0)}회` +
+          (best >= value ? ' — 다른 날 한 번 더 넘기면 돼요' : ''),
     met: '달성:',
     notMet: '아직:',
   },
