@@ -4,6 +4,7 @@ import { ko } from '../../i18n/ko';
 import { LADDER_STEP_BPM, nextBpmFor, tempoRetry } from '../e5/runner';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { ArmedStart } from '../ui/ArmedStart';
+import { BigBpm } from '../ui/BigBpm';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
 import { SelfRating } from '../ui/SelfRating';
@@ -21,8 +22,8 @@ function E6ViewComponent({
   const live = ctx.audio !== null && phase !== 'armed' && phase !== 'ready' && phase !== 'done';
   return (
     <div className="flex flex-col gap-4" data-testid="e6-view" data-phase={phase}>
-      <div className="flex items-baseline justify-between">
-        <p className="text-3xl font-bold tabular-nums">{view.bpm} BPM</p>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <BigBpm bpm={view.bpm} />
         <p className="text-lg">
           {phase === 'countIn'
             ? ko.exercises.e5.countIn

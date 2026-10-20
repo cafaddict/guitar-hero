@@ -16,7 +16,7 @@ export function MicStatusPanel({
 }) {
   if (status.kind === 'interrupted') {
     return (
-      <div role="alert" className="card rounded-lg bg-surface p-4">
+      <div role="alert" className="card rounded-2xl border border-border bg-surface p-4">
         <p>{ko.mic.interrupted}</p>
         <Button className="mt-3" onClick={() => void audioEngine.resumeAfterInterruption()}>
           {ko.mic.resume}
@@ -28,7 +28,7 @@ export function MicStatusPanel({
   return (
     <div
       role="alert"
-      className="card rounded-lg bg-surface p-4"
+      className="card rounded-2xl border border-border bg-surface p-4"
       data-testid="mic-error"
       data-code={status.code}
     >

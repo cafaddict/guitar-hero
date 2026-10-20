@@ -132,7 +132,7 @@ export function RoutineEditorScreen() {
         <label className="flex flex-col gap-1">
           <span>{ko.routineEditor.addLabel}</span>
           <select
-            className="min-h-12 rounded-lg bg-surface-2 px-3 text-fg"
+            className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
             value={choice}
             onChange={(e) => setChoice(e.target.value)}
             data-testid="editor-add-choice"

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router';
+import { Navigate } from 'react-router';
 import { UpdateToast } from '../../app/pwa';
 import { repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
 import { loadStoredState } from '../../app/storedState';
 import { stageDef } from '../../content/curriculum';
+import type { RoutineBlock } from '../../content/schemas';
 import type { GVoicing } from '../../content/voicings';
 import { FINAL_STAGE, promote } from '../../domain/progression';
 import { startOfDay } from '../../domain/records';
@@ -12,8 +13,13 @@ import { generateRoutine, type RoutinePlan } from '../../domain/routine';
 import { prepareSession } from '../../domain/sessionPrep';
 import { dueReviews } from '../../domain/srs';
 import { ko } from '../../i18n/ko';
-import { Button } from '../../ui/Button';
+import { Badge } from '../../ui/Badge';
+import { Button, ButtonLink } from '../../ui/Button';
+import { Card, CardHeader } from '../../ui/Card';
+import { Icon } from '../../ui/icons';
+import { ProgressRing, percent } from '../../ui/ProgressRing';
 import { Screen } from '../../ui/Screen';
+import { Stat } from '../../ui/Stat';
 import { itemTitle } from '../session/itemTitle';
 import type { SplitResume } from '../session/sessionModel';
 import { pendingSplit } from '../session/splitResume';
@@ -37,7 +43,28 @@ import { subjectLabel } from './subjectLabel';
 /** The first-run redirect happens once per page load; "나중에 하기" then leaves the user on home. */
 let firstRunRedirectDone = false;
 
-const linkClass = 'inline-flex min-h-12 items-center rounded-lg px-4 font-semibold';
+/**
+ * Timeline dot per block family (decorative: the block name is written next to it). Warm-up and set-up
+ * blocks stay quiet; chord work takes the accent; rhythm and technique, and songs, get their own hue.
+ */
+const BLOCK_DOT: Record<RoutineBlock, string> = {
+  tuning: 'bg-muted',
+  warmup: 'bg-muted',
+  selfCheck: 'bg-muted',
+  knowledge: 'bg-muted',
+  rest: 'bg-muted',
+  chord: 'bg-accent',
+  changes: 'bg-accent',
+  recall: 'bg-accent',
+  drill: 'bg-accent',
+  stageReview: 'bg-accent',
+  review: 'bg-accent',
+  rhythm: 'bg-info',
+  technique: 'bg-info',
+  scale: 'bg-info',
+  song: 'bg-ok',
+  repertoire: 'bg-ok',
+};
 
 function RoutineCard({
   plan,
@@ -57,108 +84,128 @@ function RoutineCard({
   const now = Date.now();
   if (plan.kind === 'rest') {
     return (
-      <section className="rounded-lg bg-surface p-4" data-testid="routine-card" data-kind="rest">
-        <h2 className="text-xl font-bold">{ko.home.todayRoutine}</h2>
-        <p className="mt-2 text-retry">{ko.safety.restDay}</p>
-      </section>
+      <Card as="section" data-testid="routine-card" data-kind="rest">
+        <CardHeader title={ko.home.todayRoutine} />
+        <p className="text-retry">{ko.safety.restDay}</p>
+      </Card>
     );
   }
   const minutes = Math.round(plan.totalSec / 60);
   const done = practicedToday(state.sessions, now);
   return (
-    <section className="rounded-lg bg-surface p-4" data-testid="routine-card" data-kind="practice">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-xl font-bold">{ko.home.todayRoutine}</h2>
-        {!done && <span className="text-muted">{ko.home.totalTime(minutes)}</span>}
-      </div>
+    <Card as="section" data-testid="routine-card" data-kind="practice">
+      <CardHeader
+        title={ko.home.todayRoutine}
+        aside={
+          done ? undefined : (
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="clock" size={16} />
+              {ko.home.totalTime(minutes)}
+            </span>
+          )
+        }
+      />
       {done && (
         <>
           {doneItems.length > 0 && (
             <>
-              <h3 className="mt-2 font-semibold">{ko.home.doneItems}</h3>
-              <ul className="mt-1 divide-y divide-surface-2" data-testid="done-items">
+              <h3 className="font-semibold">{ko.home.doneItems}</h3>
+              <ul className="mt-2 space-y-1.5" data-testid="done-items">
                 {doneItems.map((line) => (
-                  <li key={line.key} className="flex justify-between gap-2 py-1">
-                    <span>
-                      <span aria-hidden="true" className="text-ok">
-                        ✓{' '}
-                      </span>
-                      {line.title}
+                  <li key={line.key} className="flex items-center gap-2.5">
+                    <span
+                      aria-hidden="true"
+                      className="grid size-5 shrink-0 place-items-center rounded-full bg-ok text-bg"
+                    >
+                      <Icon name="check" size={14} />
                     </span>
+                    <span className="min-w-0 flex-1">{line.title}</span>
                     {line.count > 1 && (
-                      <span className="tabular-nums text-muted">{ko.home.doneCount(line.count)}</span>
+                      <span className="shrink-0 tabular-nums text-muted">
+                        {ko.home.doneCount(line.count)}
+                      </span>
                     )}
                   </li>
                 ))}
               </ul>
             </>
           )}
-          <p className="mt-3 text-ok" data-testid="done-today">
+          <p className="mt-4 font-semibold text-ok" data-testid="done-today">
             {ko.home.doneToday}
           </p>
-          <div className="mt-4 flex items-baseline justify-between">
+          <div className="mt-5 flex items-baseline justify-between gap-3 border-t border-border pt-4">
             <h3 className="font-semibold">{ko.home.nextRoutine}</h3>
-            <span className="text-muted">{ko.home.totalTime(minutes)}</span>
+            <span className="shrink-0 whitespace-nowrap text-muted">{ko.home.totalTime(minutes)}</span>
           </div>
           <p className="text-sm text-muted" data-testid="rotation-note">
             {ko.home.rotationNote}
           </p>
         </>
       )}
-      <ul className="mt-2 space-y-1 text-sm">
-        {plan.notices.map((n) => (
-          <li key={n.code} className="text-info">
-            {routineNoticeText(n)}
-          </li>
-        ))}
-      </ul>
-      <ol className="mt-2 divide-y divide-surface-2" data-testid="routine-items">
-        {plan.items.map((item) => {
-          const reviews = reviewsServedBy(item, dueKeys).length;
-          return (
-            <li key={item.id} className="flex justify-between py-1">
-              <span>
-                <span className="text-muted">{ko.home.blocks[item.block]} · </span>
-                {itemTitle(item)}
-                {reviews > 0 && (
-                  <span
-                    className="ml-2 rounded bg-surface-2 px-1.5 text-xs text-info"
-                    data-testid="review-badge"
-                  >
-                    {ko.home.reviewBadge(reviews)}
-                  </span>
-                )}
-              </span>
-              <span className="tabular-nums text-muted">
-                {ko.home.itemMinutes(Math.max(1, Math.round(item.durationSec / 60)))}
-              </span>
+      {plan.notices.length > 0 && (
+        <ul className="mt-2 space-y-1 text-sm">
+          {plan.notices.map((n) => (
+            <li key={n.code} className="text-info">
+              {routineNoticeText(n)}
             </li>
-          );
-        })}
-      </ol>
+          ))}
+        </ul>
+      )}
       {plan.needsCapConfirmation && (
-        <div className="mt-3 rounded-lg bg-surface-2 p-3">
+        <Card tone="notice" className="mt-3">
           <p>
             {ko.safety.capConfirm(state.settings.sessionMinutes > 20 ? 20 : state.settings.sessionMinutes)}
           </p>
           <Button className="mt-2" variant="secondary" onClick={onLonger}>
             {ko.home.longer}
           </Button>
-        </div>
+        </Card>
       )}
+      {/* Above the list: on a phone the list fills the first screen, and the start must not hide behind the tab bar. */}
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link
+        <ButtonLink
           to="/session"
-          className={`${linkClass} min-h-16 bg-accent px-6 text-lg text-accent-fg`}
+          variant="primary"
+          large
+          className="grow sm:grow-0"
           data-testid="start-session"
         >
+          <Icon name="play" size={18} />
           {done ? ko.home.again : ko.home.start}
-        </Link>
-        <Link to="/routine/edit" className={`${linkClass} bg-surface-2`} data-testid="edit-routine">
+        </ButtonLink>
+        <ButtonLink to="/routine/edit" data-testid="edit-routine">
           {ko.home.editRoutine}
-        </Link>
+        </ButtonLink>
       </div>
-    </section>
+      <ol
+        className="relative mt-4 before:absolute before:bottom-4 before:left-[0.3125rem] before:top-4 before:w-px before:bg-border"
+        data-testid="routine-items"
+      >
+        {plan.items.map((item) => {
+          const reviews = reviewsServedBy(item, dueKeys).length;
+          return (
+            <li key={item.id} className="relative flex items-start gap-3 py-2">
+              <span
+                aria-hidden="true"
+                className={`mt-1.5 size-2.5 shrink-0 rounded-full ring-4 ring-surface ${BLOCK_DOT[item.block]}`}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium text-muted">{ko.home.blocks[item.block]}</span>
+                <span className="font-medium">{itemTitle(item)}</span>
+                {reviews > 0 && (
+                  <Badge tone="info" className="ml-2 align-middle" data-testid="review-badge">
+                    {ko.home.reviewBadge(reviews)}
+                  </Badge>
+                )}
+              </span>
+              <span className="shrink-0 whitespace-nowrap pt-4 text-sm tabular-nums text-muted">
+                {ko.home.itemMinutes(Math.max(1, Math.round(item.durationSec / 60)))}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </Card>
   );
 }
 
@@ -188,7 +235,7 @@ export function HomeScreen() {
   }, [redirect, reload]);
 
   if (redirect) return <Navigate to="/onboarding" replace />;
-  if (!data) return <Screen title={ko.app.title}>{null}</Screen>;
+  if (!data) return <Screen title={ko.home.title}>{null}</Screen>;
 
   const now = Date.now();
   // What the next session start will do (expired / new prescriptions, G switch) — shown, saved at session start.
@@ -217,38 +264,44 @@ export function HomeScreen() {
     reload();
   };
 
+  const weak = weakPairs(data.skills, data.curriculum, data.progression.stage);
+  const reviewsServed = plan.items.reduce((n, item) => n + reviewsServedBy(item, dueKeys).length, 0);
+
   return (
-    <Screen title={ko.app.title}>
+    <Screen title={ko.home.title} eyebrow={ko.home.date(now)} width="wide">
       <UpdateToast />
-      {needsOnboarding && (
-        <section className="mb-4 rounded-lg bg-surface p-4">
-          <p>{ko.home.firstRun}</p>
-          <Link className={`${linkClass} mt-3 bg-accent text-accent-fg`} to="/onboarding">
-            {ko.home.startOnboarding}
-          </Link>
-        </section>
-      )}
-      {backupReminderDue(data.lastBackupAt, data.sessions, now) && (
-        <section role="status" className="mb-4 rounded-lg bg-surface-2 p-4" data-testid="backup-reminder">
-          <p>{ko.home.backupReminder}</p>
-          <Link className={`${linkClass} mt-2 bg-surface`} to="/settings">
-            {ko.home.backupNow}
-          </Link>
-        </section>
-      )}
-      {split && (
-        <section className="mb-4 rounded-lg bg-surface p-4" data-testid="split-resume">
-          <p>{ko.home.splitResume}</p>
-          <Link
-            to="/session?resume=1"
-            className={`${linkClass} mt-2 min-h-16 bg-accent px-6 text-lg text-accent-fg`}
-            data-testid="resume-session"
+      <div className="mb-5 space-y-3 empty:hidden">
+        {split && (
+          <Card tone="accent" className="flex flex-wrap items-center gap-4" data-testid="split-resume">
+            <p className="min-w-0 flex-1 font-medium">{ko.home.splitResume}</p>
+            <ButtonLink to="/session?resume=1" variant="primary" large data-testid="resume-session">
+              <Icon name="play" size={18} />
+              {ko.home.resumeSession}
+            </ButtonLink>
+          </Card>
+        )}
+        {needsOnboarding && (
+          <Card tone="notice" className="flex flex-wrap items-center gap-4">
+            <p className="min-w-0 flex-1">{ko.home.firstRun}</p>
+            <ButtonLink to="/onboarding" variant="primary">
+              {ko.home.startOnboarding}
+            </ButtonLink>
+          </Card>
+        )}
+        {backupReminderDue(data.lastBackupAt, data.sessions, now) && (
+          <Card
+            as="section"
+            tone="retry"
+            role="status"
+            className="flex flex-wrap items-center gap-4"
+            data-testid="backup-reminder"
           >
-            {ko.home.resumeSession}
-          </Link>
-        </section>
-      )}
-      <div className="grid gap-4 lg:grid-cols-2">
+            <p className="min-w-0 flex-1">{ko.home.backupReminder}</p>
+            <ButtonLink to="/settings">{ko.home.backupNow}</ButtonLink>
+          </Card>
+        )}
+      </div>
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <RoutineCard
           plan={plan}
           state={data}
@@ -258,12 +311,32 @@ export function HomeScreen() {
             void updateSettings({ confirmedOverCap: true }).then(reload);
           }}
         />
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
+          <div className="grid grid-cols-3 gap-2" data-testid="week-card">
+            <Stat
+              label={ko.home.weekLabel}
+              value={ko.home.weekValue(weekPracticeMinutes(data.sessions, now))}
+              icon={<Icon name="clock" size={14} />}
+              testId="week-minutes"
+            />
+            <Stat
+              label={ko.home.streakLabel}
+              value={ko.home.streakValue(streakWeeks(data.sessions, now))}
+              icon={<Icon name="flame" size={14} />}
+            />
+            <Stat
+              label={ko.home.reviewsLabel}
+              value={ko.home.reviewsValue(reviewsServed)}
+              sub={dueKeys.size > reviewsServed ? ko.home.reviewsWaiting(dueKeys.size) : undefined}
+              icon={<Icon name="repeat" size={14} />}
+              testId="reviews-today"
+            />
+          </div>
           {(prep.gSuggestion !== null || prep.progression.prescriptions.length > 0) && (
-            <section className="rounded-lg bg-surface p-4" data-testid="recommendations">
-              <h2 className="text-lg font-bold">{ko.home.recommendations}</h2>
+            <Card as="section" tone="accent" data-testid="recommendations">
+              <CardHeader title={ko.home.recommendations} />
               {prep.gSuggestion !== null && (
-                <div className="mt-2" data-testid="g-switch">
+                <div data-testid="g-switch">
                   <p>{ko.home.gSwitch(prep.gSuggestion)}</p>
                   <Button
                     className="mt-2"
@@ -274,83 +347,89 @@ export function HomeScreen() {
                   </Button>
                 </div>
               )}
-              <ul className="mt-2 space-y-1 text-sm">
+              <ul className="mt-2 space-y-2 text-sm">
                 {prep.progression.prescriptions.map((p) => (
                   <li key={p.subjectKey} data-testid="prescription">
                     {ko.home.prescription[p.kind](subjectLabel(p.subjectKey))}
                   </li>
                 ))}
               </ul>
-            </section>
+            </Card>
           )}
-          <section className="rounded-lg bg-surface p-4" data-testid="stage-card">
-            <h2 className="text-lg font-bold">{ko.home.stage(data.progression.stage, def.name)}</h2>
+          <Card as="section" data-testid="stage-card">
+            <div className="flex items-center gap-4">
+              {checklist && !data.progression.completedBeginner2 && (
+                <ProgressRing
+                  value={checklist.progress}
+                  label={ko.home.stageProgress(percent(checklist.progress))}
+                  size={76}
+                >
+                  {percent(checklist.progress)}
+                </ProgressRing>
+              )}
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-accent">{ko.home.currentStage}</p>
+                <h2 className="text-lg font-bold">{ko.home.stage(data.progression.stage, def.name)}</h2>
+                <p className="mt-0.5 text-sm text-muted">{def.summary}</p>
+              </div>
+            </div>
             {data.progression.completedBeginner1 && (
-              <p className="text-ok" data-testid="beginner1-done">
+              <p className="mt-3 text-ok" data-testid="beginner1-done">
                 {ko.home.completedBeginner}
               </p>
             )}
             {data.progression.completedBeginner2 && (
-              <p className="text-ok font-bold" data-testid="beginner2-done">
+              <p className="mt-3 font-bold text-ok" data-testid="beginner2-done">
                 {ko.home.completedBeginner2(data.progression.beginner2CompletedAt ?? null)}
               </p>
             )}
             {checklist && !data.progression.completedBeginner2 && (
               <>
-                <h3 className="mt-2 text-sm text-muted">{ko.home.checklist}</h3>
+                <h3 className="mb-3 mt-5 text-sm font-semibold text-muted">{ko.home.checklist}</h3>
                 <RuleChecklist rules={checklist.rules} />
                 {checklist.allMet && (
-                  <div className="mt-3">
+                  <Card tone="accent" className="mt-4">
                     <p>
                       {data.progression.stage >= FINAL_STAGE
                         ? ko.home.completeBeginner2
                         : ko.home.promote(nextStage)}
                     </p>
-                    <Button className="mt-2" onClick={() => void promoteNow(false)} data-testid="promote-now">
+                    <Button className="mt-3" onClick={() => void promoteNow(false)} data-testid="promote-now">
                       {data.progression.stage >= FINAL_STAGE
                         ? ko.home.completeBeginner2Yes
                         : ko.home.promoteYes}
                     </Button>
-                  </div>
+                  </Card>
                 )}
                 {!checklist.allMet && checklist.conditionalAvailable && (
-                  <div className="mt-3">
+                  <Card tone="notice" className="mt-4">
                     <p>{ko.home.promoteConditional}</p>
-                    <Button className="mt-2" variant="secondary" onClick={() => void promoteNow(true)}>
+                    <Button className="mt-3" variant="secondary" onClick={() => void promoteNow(true)}>
                       {ko.home.promoteYes}
                     </Button>
-                  </div>
+                  </Card>
                 )}
               </>
             )}
-          </section>
-          <section className="rounded-lg bg-surface p-4">
-            <h2 className="text-lg font-bold">{ko.home.weakPairs}</h2>
+          </Card>
+          <Card as="section">
+            <CardHeader title={ko.home.weakPairs} className="mb-1" />
             <p className="text-xs text-muted">{ko.home.weakPairsNote}</p>
-            {weakPairs(data.skills, data.curriculum, data.progression.stage).length === 0 && (
-              <p className="mt-1 text-sm text-muted">{ko.home.noPairs}</p>
+            {weak.length === 0 ? (
+              <p className="mt-3 text-sm text-muted">{ko.home.noPairs}</p>
+            ) : (
+              <ul className="mt-3 divide-y divide-border">
+                {weak.map((p) => (
+                  <li key={p.pairId} className="flex items-baseline justify-between gap-3 py-2">
+                    <span className="min-w-0 font-medium">{p.pairId.replace('|', ' ↔ ')}</span>
+                    <span className="shrink-0 whitespace-nowrap tabular-nums text-muted">
+                      {p.median === null ? ko.home.notPracticed : ko.home.perMinute(p.median)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             )}
-            <ul className="mt-1">
-              {weakPairs(data.skills, data.curriculum, data.progression.stage).map((p) => (
-                <li key={p.pairId} className="flex justify-between">
-                  <span>{p.pairId.replace('|', ' ↔ ')}</span>
-                  <span className="text-muted">
-                    {p.median === null ? ko.home.notPracticed : ko.home.perMinute(p.median)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-          <section className="flex flex-wrap gap-4 rounded-lg bg-surface p-4" data-testid="week-card">
-            <span data-testid="week-minutes">{ko.home.week(weekPracticeMinutes(data.sessions, now))}</span>
-            <span>{ko.home.streak(streakWeeks(data.sessions, now))}</span>
-            <span data-testid="reviews-today">
-              {ko.home.reviewsDue(
-                plan.items.reduce((n, item) => n + reviewsServedBy(item, dueKeys).length, 0),
-                dueKeys.size,
-              )}
-            </span>
-          </section>
+          </Card>
         </div>
       </div>
     </Screen>

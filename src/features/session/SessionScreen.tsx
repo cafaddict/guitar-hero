@@ -18,8 +18,10 @@ import type { ContentContext } from '../../exercises/types';
 import { ExerciseHost } from '../../exercises/ui/ExerciseHost';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { Card } from '../../ui/Card';
 import { ChordDiagram } from '../../ui/ChordDiagram';
-import { Screen } from '../../ui/Screen';
+import { FocusScreen } from '../../ui/FocusScreen';
+import { Icon } from '../../ui/icons';
 import type { CustomSessionRequest } from '../curriculum/StagePractice';
 import { practiceOptions, stageContent, stageItems } from '../curriculum/stagePracticeModel';
 import { routineInputFrom } from '../home/homeModel';
@@ -102,12 +104,12 @@ function RestItem({ item, now, onDone }: { item: RoutineItem; now: () => number;
     return () => clearInterval(id);
   }, [endsAt, now, onDone]);
   return (
-    <section className="rounded-lg bg-surface p-6 text-center" data-testid="rest-item">
-      <p className="text-3xl font-bold">{ko.session.rest(left)}</p>
+    <Card as="section" className="py-10 text-center" data-testid="rest-item">
+      <p className="text-3xl font-bold tabular-nums">{ko.session.rest(left)}</p>
       <Button autoFocus className="mt-4" onClick={onDone}>
         {ko.session.restSkip}
       </Button>
-    </section>
+    </Card>
   );
 }
 
@@ -119,7 +121,7 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
   const toggle = (flag: SelfReport['dangerFlags'][number]) =>
     setFlags((f) => (f.includes(flag) ? f.filter((x) => x !== flag) : [...f, flag]));
   return (
-    <section className="flex flex-col gap-4 rounded-lg bg-surface p-4" data-testid="self-report">
+    <Card as="section" className="mx-auto flex w-full max-w-2xl flex-col gap-5" data-testid="self-report">
       <h2 className="text-xl font-bold">{ko.session.reportTitle}</h2>
       <label className="flex flex-col gap-1">
         <span>{ko.session.pain(pain)}</span>
@@ -129,6 +131,7 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
           max={10}
           value={pain}
           onChange={(e) => setPain(Number(e.target.value))}
+          className="accent-accent"
           data-testid="report-pain"
         />
       </label>
@@ -140,6 +143,7 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
           max={5}
           value={difficulty}
           onChange={(e) => setDifficulty(Number(e.target.value))}
+          className="accent-accent"
           data-testid="report-difficulty"
         />
       </label>
@@ -149,7 +153,7 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
           <label key={flag} className="flex min-h-12 items-center gap-2">
             <input
               type="checkbox"
-              className="h-6 w-6"
+              className="h-6 w-6 accent-accent"
               checked={flags.includes(flag)}
               onChange={() => toggle(flag)}
             />
@@ -161,7 +165,7 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
       <label className="flex flex-col gap-1">
         <span>{ko.session.note}</span>
         <textarea
-          className="min-h-20 rounded-lg bg-surface-2 p-2 text-fg"
+          className="min-h-20 rounded-xl border border-border bg-surface-2 p-3 text-fg"
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
@@ -173,7 +177,7 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
       >
         {ko.session.save}
       </Button>
-    </section>
+    </Card>
   );
 }
 
@@ -463,27 +467,38 @@ export function SessionScreen() {
     navigate('/');
   };
 
-  if (!loaded) return <Screen title={ko.session.title}>{null}</Screen>;
+  const toHome = { to: '/' };
+  if (!loaded)
+    return (
+      <FocusScreen title={ko.session.title} exit={toHome}>
+        {null}
+      </FocusScreen>
+    );
   if (loaded.rest) {
     return (
-      <Screen title={ko.session.title}>
+      <FocusScreen title={ko.session.title} exit={toHome}>
         <p className="text-retry">{ko.safety.restDay}</p>
-      </Screen>
+      </FocusScreen>
     );
   }
   if (custom && loaded.items.length === 0)
     return (
-      <Screen title={ko.session.title}>
+      <FocusScreen title={ko.session.title} exit={toHome}>
         <p data-testid="custom-session-empty">{ko.curriculum.practice.noneHint}</p>
-      </Screen>
+      </FocusScreen>
     );
-  if (!state || !sessionId) return <Screen title={ko.session.title}>{null}</Screen>;
+  if (!state || !sessionId)
+    return (
+      <FocusScreen title={ko.session.title} exit={toHome}>
+        {null}
+      </FocusScreen>
+    );
 
   if (ending || isFinished(state, items)) {
     return (
-      <Screen title={ko.session.title}>
+      <FocusScreen title={ko.session.title} exit={toHome}>
         <SelfReportForm onSave={(report) => void finishSession(report)} />
-      </Screen>
+      </FocusScreen>
     );
   }
 
@@ -493,65 +508,90 @@ export function SessionScreen() {
   const definition = item.exerciseType === 'REST' ? null : exerciseDefinition(item.exerciseType);
 
   return (
-    <Screen title={ko.session.title}>
+    // "나가기" is the session's own end (self report), like "세션 끝내기"; locked while a run is active.
+    <FocusScreen title={ko.session.title} exit={{ onExit: () => setEnding(true) }} exitDisabled={runActive}>
       <div
-        className="mb-3 flex flex-wrap items-baseline justify-between gap-2"
+        className="mb-5"
         data-testid="session-header"
         data-index={state.index}
         data-item-type={item.exerciseType}
         data-block={item.block}
         data-count={items.length}
       >
-        <h2 className="text-xl font-bold">
-          {ko.session.itemOf(state.index + 1, items.length)} · {itemTitle(item)}
-        </h2>
-        <p className={budget === 0 ? 'text-retry' : 'text-muted'}>
-          {budget === 0 ? ko.session.budgetOver : ko.session.itemBudget(budget)}
-        </p>
+        {/* Where the session is: done items filled, the current one half-lit. */}
+        <div aria-hidden="true" className="mb-4 flex gap-1">
+          {items.map((it, i) => (
+            <span
+              key={it.id}
+              className={`h-1.5 flex-1 rounded-full ${
+                i < state.index ? 'bg-accent' : i === state.index ? 'bg-accent/50' : 'bg-surface-2'
+              }`}
+            />
+          ))}
+        </div>
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-accent">{ko.home.blocks[item.block]}</p>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              <span className="tabular-nums text-muted">
+                {ko.session.itemOf(state.index + 1, items.length)}
+              </span>
+              {' · '}
+              {itemTitle(item)}
+            </h2>
+          </div>
+          <p
+            className={`inline-flex shrink-0 items-center gap-1.5 tabular-nums ${budget === 0 ? 'text-retry' : 'text-muted'}`}
+          >
+            <Icon name="clock" size={16} />
+            {budget === 0 ? ko.session.budgetOver : ko.session.itemBudget(budget)}
+          </p>
+        </div>
       </div>
       {showBreak && (
-        <div role="alert" className="mb-3 rounded-lg bg-surface-2 p-3">
+        <Card role="alert" tone="retry" className="mb-4">
           <p>{ko.session.breakReminder}</p>
-          <Button className="mt-2" variant="secondary" onClick={() => setShowBreak(false)}>
+          <Button className="mt-3" variant="secondary" onClick={() => setShowBreak(false)}>
             {ko.session.breakOk}
           </Button>
-        </div>
+        </Card>
       )}
       {blockEndedFor === item.id && transitionEndsAt === null && (
         <p
           role="status"
-          className="mb-3 rounded-lg bg-surface-2 p-4 text-center text-4xl font-black"
+          className="mb-4 rounded-2xl bg-accent-soft p-5 text-center text-4xl font-black text-fg"
           data-testid="block-end"
         >
           {ko.session.blockEnd}
         </p>
       )}
       {transitionEndsAt !== null ? (
-        <section
-          className="flex flex-col items-center gap-3 rounded-lg bg-surface p-6 text-center"
+        <Card
+          as="section"
+          className="flex flex-col items-center gap-4 py-10 text-center"
           data-testid="block-transition"
         >
           <p className="text-muted">{ko.session.transitionNext(ko.home.blocks[item.block])}</p>
-          <p className="text-3xl font-bold">{itemTitle(item)}</p>
+          <p className="text-3xl font-bold sm:text-4xl">{itemTitle(item)}</p>
           {item.exerciseType === 'E1' && typeof item.params.voicingId === 'string' && (
             <div className="w-40">
               <ChordDiagram voicing={voicingById(item.params.voicingId)} leftHanded={leftHanded} />
             </div>
           )}
-          <p className="tabular-nums">
+          <p className="tabular-nums text-muted">
             {ko.session.transitionIn(Math.max(0, Math.ceil((transitionEndsAt - now()) / 1000)))}
           </p>
           <Button large autoFocus onClick={endTransition} data-testid="transition-start">
             {ko.session.transitionStart}
           </Button>
-        </section>
+        </Card>
       ) : state.paused ? (
-        <section className="rounded-lg bg-surface p-6 text-center">
-          <p className="text-2xl">{ko.session.paused}</p>
-          <Button autoFocus className="mt-3" onClick={() => setState(resume(state, now()))}>
+        <Card as="section" className="py-10 text-center">
+          <p className="text-2xl font-bold">{ko.session.paused}</p>
+          <Button autoFocus className="mt-4" onClick={() => setState(resume(state, now()))}>
             {ko.session.resume}
           </Button>
-        </section>
+        </Card>
       ) : item.exerciseType === 'REST' ? (
         <RestItem key={item.id} item={item} now={now} onDone={advance} />
       ) : definition ? (
@@ -578,7 +618,7 @@ export function SessionScreen() {
             const repeatable = REPEATABLE_TYPES.has(item.exerciseType) && budget > 0 && attempt !== null;
             const suggestion = attempt ? repeatSuggestion(item, attempt, loaded.repertoire) : null;
             return (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-5 flex flex-wrap gap-3">
                 {repeatable && (
                   <Button
                     large
@@ -611,10 +651,10 @@ export function SessionScreen() {
       ) : (
         <Button onClick={() => go((s) => skipItem(s, items, now()))}>{ko.session.skip}</Button>
       )}
-      <p className="mt-4 text-sm text-muted">
+      <p className="mt-6 text-sm text-muted">
         {next ? ko.session.next(itemTitle(next)) : ko.session.lastItem}
       </p>
-      <div className="mt-4 flex flex-wrap gap-2 border-t border-surface-2 pt-4">
+      <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-4">
         <Button
           variant="secondary"
           disabled={runActive || state.index === 0}
@@ -645,7 +685,7 @@ export function SessionScreen() {
         </Button>
       </div>
       {!runActive && atSplitPoint(state, loaded.splitAfterIndex) && (
-        <div className="mt-4 rounded-lg bg-surface p-4" data-testid="split-point">
+        <Card tone="notice" className="mt-4" data-testid="split-point">
           <p>{ko.session.splitPoint}</p>
           <Button
             className="mt-2"
@@ -655,9 +695,9 @@ export function SessionScreen() {
           >
             {ko.session.splitHere}
           </Button>
-        </div>
+        </Card>
       )}
       {runActive && <p className="mt-2 text-sm text-muted">{ko.session.finishRunFirst}</p>}
-    </Screen>
+    </FocusScreen>
   );
 }

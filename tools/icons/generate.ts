@@ -12,10 +12,11 @@ type Shape =
   | { kind: 'rect'; x: number; y: number; w: number; h: number; r: number; color: Rgb }
   | { kind: 'circle'; cx: number; cy: number; r: number; color: Rgb };
 
-const BG: Rgb = [15, 23, 42];
-const STRING: Rgb = [203, 213, 225];
-const FRET: Rgb = [100, 116, 139];
-const DOT: Rgb = [56, 189, 248];
+// The dark theme's warm amp palette (D-087): --bg, --muted, a dimmed fret line, --accent.
+const BG: Rgb = [21, 17, 14];
+const STRING: Rgb = [205, 191, 175];
+const FRET: Rgb = [122, 106, 92];
+const DOT: Rgb = [245, 158, 11];
 const hex = (c: Rgb) => `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 
 /** Chord-diagram mark in a 512 × 512 design space. */

@@ -22,6 +22,8 @@ import { personalOffset } from '../../dsp/timing';
 import { MicStatusPanel } from '../../features/mic/MicStatusPanel';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { Card } from '../../ui/Card';
+import { Icon } from '../../ui/icons';
 import { createExerciseMic, createExerciseOutput } from '../audioAdapter';
 import { contentContextFor } from '../contentContext';
 import type { ExerciseDefinition } from '../registry';
@@ -157,22 +159,26 @@ function RunningExercise({
         <p className="mt-2 text-sm text-muted">{ko.exercises.common.noMic}</p>
       )}
       {confirmAbort && (
-        <div role="alertdialog" aria-label={ko.keys.confirmAbort} className="mt-4 rounded-lg bg-surface p-4">
-          <p>{ko.keys.confirmAbort}</p>
-          <div className="mt-2 flex gap-2">
+        <Card role="alertdialog" aria-label={ko.keys.confirmAbort} tone="retry" className="mt-4">
+          <p className="font-semibold">{ko.keys.confirmAbort}</p>
+          <div className="mt-3 flex gap-2">
             <Button onClick={() => runner.command('abort')}>{ko.keys.abortYes}</Button>
             <Button variant="secondary" onClick={() => setConfirmAbort(false)}>
               {ko.keys.abortNo}
             </Button>
           </div>
-        </div>
+        </Card>
       )}
       {showPause && paused && (
-        <p role="status" className="mt-4 text-lg font-semibold" data-testid="exercise-paused">
+        <p
+          role="status"
+          className="mt-4 inline-flex rounded-full bg-retry-soft px-4 py-2 text-lg font-semibold text-retry"
+          data-testid="exercise-paused"
+        >
           {ko.exercises.common.paused}
         </p>
       )}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-4">
         {showPause && (
           // Large (≥ 64 px, SPEC §12.3): it is tapped with a hand coming off the guitar mid-run.
           <Button
@@ -189,7 +195,7 @@ function RunningExercise({
         <Button variant="secondary" onClick={() => runner.command('abort')} data-testid="exercise-finish">
           {ko.exercises.common.finish}
         </Button>
-        <p className="text-xs text-muted">{ko.keys.hint(definition.pausable)}</p>
+        <p className="text-xs text-muted sm:ml-auto">{ko.keys.hint(definition.pausable)}</p>
       </div>
     </div>
   );
@@ -375,8 +381,15 @@ export function ExerciseHost({
   if (outcome?.kind === 'saved') {
     return (
       <section aria-live="polite" data-testid="exercise-summary">
-        <p className="mb-2 text-ok">{ko.exercises.common.saved}</p>
-        {definition.renderSummary({ result: outcome.attempt.result, params: outcome.attempt.params })}
+        <Card>
+          <p className="mb-4 flex items-center gap-2 font-semibold text-ok">
+            <span aria-hidden="true" className="grid size-6 place-items-center rounded-full bg-ok text-bg">
+              <Icon name="check" size={16} />
+            </span>
+            {ko.exercises.common.saved}
+          </p>
+          {definition.renderSummary({ result: outcome.attempt.result, params: outcome.attempt.params })}
+        </Card>
         {renderAfter?.(outcome.attempt)}
       </section>
     );
@@ -384,7 +397,9 @@ export function ExerciseHost({
   if (outcome?.kind === 'nothing') {
     return (
       <section aria-live="polite" data-testid="exercise-nothing">
-        <p>{ko.exercises.common.nothingToSave}</p>
+        <Card tone="notice">
+          <p>{ko.exercises.common.nothingToSave}</p>
+        </Card>
         {renderAfter?.(null)}
       </section>
     );
@@ -392,12 +407,12 @@ export function ExerciseHost({
   if (outcome?.kind === 'saveFailed') {
     const attempt = outcome.attempt;
     return (
-      <section role="alert">
+      <Card as="section" role="alert" tone="fail">
         <p className="text-fail">{ko.exercises.common.saveFailed}</p>
-        <Button className="mt-2" onClick={() => save(attempt)}>
+        <Button className="mt-3" onClick={() => save(attempt)}>
           {ko.common.retry}
         </Button>
-      </section>
+      </Card>
     );
   }
   if (running)
@@ -422,7 +437,7 @@ export function ExerciseHost({
         />
       )}
       {!micFailed && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           {wantsMic ? (
             <>
               <Button

@@ -94,7 +94,7 @@ export function TunerScreen() {
           })}
         </div>
       </fieldset>
-      <section className="mt-6 rounded-lg bg-surface p-4" aria-live="polite">
+      <section className="mt-6 card rounded-2xl border border-border bg-surface p-4" aria-live="polite">
         <p className="text-center text-5xl font-bold" data-testid="tuner-note">
           {display?.note ?? '—'}
         </p>

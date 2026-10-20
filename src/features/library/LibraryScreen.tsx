@@ -25,16 +25,16 @@ export function LibraryScreen() {
   }, []);
   const stages = [...new Set(SEED_VOICINGS.map((v) => v.stage))].sort((a, b) => a - b);
   return (
-    <Screen title={ko.library.title}>
+    <Screen title={ko.library.title} width="wide">
       {stages.map((stage) => (
-        <section key={stage} className="mb-4">
-          <h2 className="mb-2 font-bold">{ko.library.stage(stage)}</h2>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <section key={stage} className="mb-6">
+          <h2 className="mb-3 font-bold">{ko.library.stage(stage)}</h2>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
             {SEED_VOICINGS.filter((v) => v.stage === stage).map((v) => (
               <li key={v.id}>
                 <Link
                   to={`/library/${encodeURIComponent(v.id)}`}
-                  className="flex flex-col items-center rounded-lg bg-surface p-2"
+                  className="flex flex-col items-center rounded-xl border border-border bg-surface p-2 transition-[border-color] hover:border-accent"
                   data-testid={`library-${v.id}`}
                 >
                   <ChordDiagram voicing={v} leftHanded={settings?.leftHanded ?? false} />

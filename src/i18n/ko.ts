@@ -32,6 +32,7 @@ export const ko = {
     home: '오늘',
     curriculum: '커리큘럼',
     library: '코드',
+    tools: '도구',
     tuner: '튜너',
     metronome: '메트로놈',
     progress: '진도',
@@ -40,6 +41,17 @@ export const ko = {
     session: '연습',
     onboarding: '처음 설정',
     main: '주 메뉴',
+  },
+  focus: {
+    exit: '나가기',
+    exitWhileRunning: '연습 중에는 나갈 수 없어요. 끝내거나 Esc로 중단하세요.',
+  },
+  tools: {
+    title: '도구',
+    tunerText: '줄마다 맞추거나 크로매틱으로 음높이를 봐요.',
+    metronomeText: '탭 템포, 박자·세분, 카운트인, 템포 사다리.',
+    library: '코드 라이브러리',
+    libraryText: '다이어그램, 기대 음, 들어 보기.',
   },
   common: {
     next: '다음',
@@ -63,6 +75,9 @@ export const ko = {
     offlineReady: '이제 인터넷 없이도 쓸 수 있어요.',
   },
   home: {
+    title: '오늘',
+    date: (ms: number) =>
+      new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' }).format(ms),
     firstRun: '처음이라면 마이크와 튜닝부터 맞춰요.',
     startOnboarding: '처음 설정 시작',
     todayRoutine: '오늘의 루틴',
@@ -83,10 +98,16 @@ export const ko = {
     notPracticed: '아직 안 함',
     noPairs: '코드를 두 개 배우면 체인지 쌍이 생겨요.',
     perMinute: (v: number) => `분당 ${v.toFixed(0)}회`,
-    week: (minutes: number) => `이번 주 ${minutes}분`,
-    streak: (weeks: number) => `주간 스트릭 ${weeks}주`,
-    reviewsDue: (served: number, waiting: number) =>
-      waiting > served ? `오늘 복습 ${served}개 (대기 ${waiting}개)` : `오늘 복습 ${served}개`,
+    // Stat tiles: label + value read as one phrase ("이번 주 35분", "오늘 복습 2개 (대기 5개)").
+    weekLabel: '이번 주',
+    weekValue: (minutes: number) => `${minutes}분`,
+    streakLabel: '주간 스트릭',
+    streakValue: (weeks: number) => `${weeks}주`,
+    reviewsLabel: '오늘 복습',
+    reviewsValue: (served: number) => `${served}개`,
+    reviewsWaiting: (waiting: number) => `(대기 ${waiting}개)`,
+    currentStage: '지금 단계',
+    stageProgress: (percent: string) => `진급 기준 ${percent} 채움`,
     reviewBadge: (n: number) => (n > 1 ? `복습 ${n}` : '복습'),
     reviewKinds: {
       chord: '코드',
@@ -449,7 +470,11 @@ export const ko = {
     learn: '배울 것',
     tips: '팁',
     criteria: '진급 기준',
-    chords: (list: string) => `새 코드: ${list}`,
+    newChords: '새 코드',
+    /** Roadmap groups (D-087): Beginner 1 = Stage 0–7, Beginner 2 = Stage 8–11. */
+    group: (level: 1 | 2) => `초급 ${level}`,
+    groupRange: (from: number, to: number) => `Stage ${from}–${to}`,
+    examMilestone: '초급 1을 마무리하는 시험이에요. 통과하면 Stage 8로 올라가요.',
     /** "이 단계 연습" (D-072): pick exercises of any stage and play them now. */
     practice: {
       title: '이 단계 연습하기',
@@ -497,6 +522,10 @@ export const ko = {
     reviewIn: (days: number) => (days <= 1 ? '내일' : `${days}일 뒤`),
     sessions: '세션 기록',
     noData: '아직 기록이 없어요.',
+    weeklyEmpty: '연습을 마치면 주마다 막대가 쌓여요.',
+    goPractice: '오늘 연습하러 가기',
+    sessionsLabel: '마친 세션',
+    sessionsValue: (n: number) => `${n}회`,
     sessionRow: (date: string, minutes: number, done: number, planned: number) =>
       `${date} · ${minutes}분 · ${done}/${planned}항목`,
     mean: '평균',

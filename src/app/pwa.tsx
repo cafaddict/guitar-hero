@@ -40,7 +40,7 @@ export function UpdateToast() {
   return (
     <div
       role="status"
-      className="mb-4 flex flex-wrap items-center gap-3 rounded-lg bg-surface-2 p-3"
+      className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-surface-2 p-3"
       data-testid="update-toast"
     >
       <span>{ko.pwa.updateReady}</span>

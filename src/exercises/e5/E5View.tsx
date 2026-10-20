@@ -4,6 +4,7 @@ import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import type { ExerciseContext, ExerciseRunner } from '../types';
 import { ArmedStart } from '../ui/ArmedStart';
+import { BigBpm } from '../ui/BigBpm';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
@@ -49,8 +50,8 @@ export function E5ViewComponent({
   return (
     <div className="flex flex-col gap-4" data-testid="e5-view" data-phase={phase}>
       <BigTimer remainingMs={remainingMs} />
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-3xl font-bold tabular-nums">{view.bpm} BPM</p>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <BigBpm bpm={view.bpm} />
         <p className="text-lg" data-testid="e5-bar">
           {phase === 'countIn'
             ? ko.exercises.e5.countIn

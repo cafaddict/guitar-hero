@@ -3,21 +3,21 @@
  * (StagePracticeScreen) or picked, in order, for a session (SessionScreen's custom branch).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { loadStoredState } from '../../app/storedState';
 import { exerciseDefinition } from '../../exercises/registry';
 import { ExerciseHost } from '../../exercises/ui/ExerciseHost';
 import { ko } from '../../i18n/ko';
-import { Button } from '../../ui/Button';
-import { Screen } from '../../ui/Screen';
+import { Button, ButtonLink } from '../../ui/Button';
+import { Card, CardHeader } from '../../ui/Card';
+import { FocusScreen } from '../../ui/FocusScreen';
+import { Icon } from '../../ui/icons';
 import type { StoredState } from '../home/homeModel';
 import { routineNoticeText } from '../home/noticeText';
 import { slotLabel } from '../routineEditor/slotLabel';
 import { itemTitle } from '../session/itemTitle';
 import { pluginParamsFor } from '../session/routineParams';
 import { practiceOptions, stageContent, stageItems } from './stagePracticeModel';
-
-const linkClass = 'inline-flex min-h-12 items-center rounded-lg bg-surface-2 px-4 font-semibold';
 
 /** What SessionScreen receives in the navigation state to run a curriculum session. */
 export interface CustomSessionRequest {
@@ -48,11 +48,11 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
     setPicked((p) => (p.includes(index) ? p.filter((i) => i !== index) : [...p, index]));
   const request: CustomSessionRequest = { stage, options: picked };
   return (
-    <section className="mt-6" data-testid="stage-practice">
-      <h2 className="text-lg font-bold">{t.title}</h2>
+    <Card as="section" className="mt-5" data-testid="stage-practice">
+      <CardHeader title={t.title} className="mb-1" />
       <p className="text-sm text-muted">{t.intro}</p>
       {stage !== state.progression.stage && <p className="mt-1 text-sm text-info">{t.otherStage}</p>}
-      <ul className="mt-2 divide-y divide-surface-2">
+      <ul className="mt-3 divide-y divide-border">
         {options.map(({ option, index, label, available }) => {
           const order = picked.indexOf(index);
           return (
@@ -67,20 +67,17 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
                   <label className="flex min-h-12 items-center gap-2 px-2">
                     <input
                       type="checkbox"
-                      className="h-6 w-6"
+                      className="h-6 w-6 accent-accent"
                       checked={order >= 0}
                       onChange={() => toggle(index)}
                       data-testid="stage-practice-pick"
                     />
                     {order >= 0 ? t.order(order + 1) : t.add}
                   </label>
-                  <Link
-                    className={linkClass}
-                    to={`/curriculum/${stage}/practice/${index}`}
-                    data-testid="stage-practice-now"
-                  >
-                    ▶ {t.now}
-                  </Link>
+                  <ButtonLink to={`/curriculum/${stage}/practice/${index}`} data-testid="stage-practice-now">
+                    <Icon name="play" size={16} />
+                    {t.now}
+                  </ButtonLink>
                 </span>
               ) : (
                 <span className="text-sm text-muted">{t.none}</span>
@@ -90,7 +87,7 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
         })}
       </ul>
       <Button
-        className="mt-3"
+        className="mt-4"
         large
         disabled={picked.length === 0}
         onClick={() => navigate('/session', { state: { custom: request } })}
@@ -98,7 +95,7 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
       >
         {t.start(picked.length)}
       </Button>
-    </section>
+    </Card>
   );
 }
 
@@ -110,6 +107,7 @@ export function StagePracticeScreen() {
   const [state, setState] = useState<StoredState | null>(null);
   const [at, setAt] = useState(0);
   const [run, setRun] = useState(0);
+  const [runActive, setRunActive] = useState(false);
   useEffect(() => {
     void loadStoredState(Date.now()).then(setState);
   }, []);
@@ -122,26 +120,28 @@ export function StagePracticeScreen() {
     return { items, notices, content: stageContent(state, stageNo) };
   }, [state, stageNo, index]);
   const t = ko.curriculum.practice;
-  const back = (
-    <Link className={linkClass} to={`/curriculum/${stageNo}`}>
-      {t.back}
-    </Link>
-  );
-  if (!plan) return <Screen title={ko.curriculum.title}>{null}</Screen>;
+  const stagePath = `/curriculum/${stageNo}`;
+  const back = <ButtonLink to={stagePath}>{t.back}</ButtonLink>;
+  if (!plan)
+    return (
+      <FocusScreen title={ko.curriculum.title} exit={{ to: stagePath }}>
+        {null}
+      </FocusScreen>
+    );
   const item = plan.items[at];
   const definition = item ? exerciseDefinition(item.exerciseType) : undefined;
   if (!item || !definition) {
     return (
-      <Screen title={ko.curriculum.title}>
+      <FocusScreen title={ko.curriculum.title} exit={{ to: stagePath }}>
         <p data-testid="stage-practice-none">{t.noneHint}</p>
         <div className="mt-4">{back}</div>
-      </Screen>
+      </FocusScreen>
     );
   }
   return (
-    <Screen title={itemTitle(item)}>
+    <FocusScreen title={itemTitle(item)} exit={{ to: stagePath }} exitDisabled={runActive}>
       {plan.notices.map((n) => (
-        <p key={n.code} className="text-sm text-info">
+        <p key={n.code} className="mb-2 text-sm text-info">
           {routineNoticeText(n)}
         </p>
       ))}
@@ -150,8 +150,9 @@ export function StagePracticeScreen() {
         definition={definition}
         params={pluginParamsFor(item, definition, plan.content)}
         content={plan.content}
+        onActiveChange={setRunActive}
         renderAfter={() => (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-5 flex flex-wrap gap-3">
             <Button onClick={() => setRun((n) => n + 1)}>{ko.exercises.common.again}</Button>
             {at + 1 < plan.items.length && (
               <Button
@@ -167,6 +168,6 @@ export function StagePracticeScreen() {
           </div>
         )}
       />
-    </Screen>
+    </FocusScreen>
   );
 }

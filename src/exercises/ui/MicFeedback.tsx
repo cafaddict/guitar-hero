@@ -45,7 +45,7 @@ export function MicFeedback({ ctx }: { ctx: ExerciseContext }) {
   );
   if (!ctx.audio) return null;
   return (
-    <section className="mt-3 flex flex-col gap-1" data-testid="mic-feedback">
+    <section className="mt-4 flex flex-col gap-1.5 rounded-xl bg-surface p-3" data-testid="mic-feedback">
       <LevelMeter read={readLevel} label={ko.diagnostics.level} lines={lines} />
       <p aria-live="polite" className="text-sm" data-testid="judge-confidence" data-confidence={label ?? ''}>
         {label ? ko.micFeedback.confidence[label] : ko.micFeedback.waiting}

@@ -114,7 +114,7 @@ export function PermissionStep({
             <label className="mt-2 flex flex-col gap-1">
               <span className="text-sm text-muted">{ko.diagnostics.chooseDevice}</span>
               <select
-                className="min-h-12 rounded-lg bg-surface-2 px-3 text-fg"
+                className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
                 value={settings?.preferredInputDeviceId ?? ''}
                 onChange={(e) => void choose(e.target.value)}
               >
@@ -266,7 +266,7 @@ export function TuningStep({ onDone }: { onDone: (result: TuningResult) => void 
         ))}
       </ol>
       {!done ? (
-        <section className="mt-4 rounded-lg bg-surface p-4" aria-live="polite">
+        <section className="mt-4 card rounded-2xl border border-border bg-surface p-4" aria-live="polite">
           <p className="text-xl font-bold" data-testid="tuning-target" data-string={stringNumber(idx)}>
             {ko.onboarding.tuning.target(stringNumber(idx), noteOf(idx))}
           </p>
@@ -398,7 +398,7 @@ export function TemplateStep({
         ))}
       </ol>
       {!done ? (
-        <section className="mt-4 rounded-lg bg-surface p-4" aria-live="polite">
+        <section className="mt-4 card rounded-2xl border border-border bg-surface p-4" aria-live="polite">
           <p className="text-xl font-bold" data-testid="template-target" data-string={stringNumber(idx)}>
             {ko.onboarding.templates.target(stringNumber(idx), noteOf(idx))}
           </p>

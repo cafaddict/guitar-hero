@@ -1,5 +1,6 @@
 import type { RuleEvaluation } from '../../domain/progression';
 import { ko } from '../../i18n/ko';
+import { Icon } from '../../ui/icons';
 
 export function ruleText(evaluation: RuleEvaluation): string {
   const rule = evaluation.rule;
@@ -41,38 +42,47 @@ const LISTS_MISSING = new Set(['unlockedPairsAtLeast', 'pairsPassedAtLeast', 're
 /** Stage criteria with progress; met rules carry a check mark and text (not colour alone). */
 export function RuleChecklist({ rules }: { rules: readonly RuleEvaluation[] }) {
   return (
-    <ul className="space-y-2" data-testid="rule-checklist">
+    <ul className="space-y-3" data-testid="rule-checklist">
       {rules.map((r) => (
-        <li key={ruleText(r)} className="flex flex-col gap-1">
-          <span className={r.met ? 'text-ok' : ''}>
-            <span aria-hidden="true">{r.met ? '✓ ' : '○ '}</span>
-            <span className="sr-only">{r.met ? ko.rules.met : ko.rules.notMet} </span>
-            {ruleText(r)}
+        <li key={ruleText(r)} className="flex gap-3">
+          <span
+            aria-hidden="true"
+            className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ${
+              r.met ? 'bg-ok text-bg' : 'border-2 border-border'
+            }`}
+          >
+            {r.met && <Icon name="check" size={14} />}
           </span>
-          {!r.met && (
-            <span className="h-2 w-full overflow-hidden rounded bg-surface-2" aria-hidden="true">
-              <span
-                className="block h-full bg-accent"
-                style={{ width: `${Math.round(r.progress * 100)}%` }}
-              />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className={r.met ? 'text-muted' : ''}>
+              <span className="sr-only">{r.met ? ko.rules.met : ko.rules.notMet} </span>
+              {ruleText(r)}
             </span>
-          )}
-          {!r.met && r.pairs && r.pairs.length > 0 ? (
-            <ul className="text-sm text-muted" data-testid="rule-pairs">
-              {r.pairs.map((p) => (
-                <li key={p.pairId} data-pair={p.pairId}>
-                  {ko.rules.pairProgress(p.pairId.replace('|', ' ↔ '), p.days, p.needDays, p.value, p.best)}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            !r.met &&
-            LISTS_MISSING.has(r.rule.kind) &&
-            r.missing.length > 0 &&
-            r.missing.length <= 8 && (
-              <span className="text-xs text-muted">{ko.rules.missing(r.missing.join(', '))}</span>
-            )
-          )}
+            {!r.met && (
+              <span className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
+                <span
+                  className="block h-full rounded-full bg-accent"
+                  style={{ width: `${Math.round(r.progress * 100)}%` }}
+                />
+              </span>
+            )}
+            {!r.met && r.pairs && r.pairs.length > 0 ? (
+              <ul className="space-y-0.5 text-sm text-muted" data-testid="rule-pairs">
+                {r.pairs.map((p) => (
+                  <li key={p.pairId} data-pair={p.pairId}>
+                    {ko.rules.pairProgress(p.pairId.replace('|', ' ↔ '), p.days, p.needDays, p.value, p.best)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              !r.met &&
+              LISTS_MISSING.has(r.rule.kind) &&
+              r.missing.length > 0 &&
+              r.missing.length <= 8 && (
+                <span className="text-xs text-muted">{ko.rules.missing(r.missing.join(', '))}</span>
+              )
+            )}
+          </div>
         </li>
       ))}
     </ul>

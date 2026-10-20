@@ -93,7 +93,7 @@ function Select<T>({
       <span className="text-muted">{label}</span>
       <select
         data-testid={testId}
-        className="min-h-12 rounded-lg bg-surface-2 px-3 text-base text-fg"
+        className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-base text-fg"
         value={index}
         onChange={(e) => onChange(options[Number(e.target.value)]!)}
       >
@@ -164,7 +164,7 @@ export function MetronomeScreen() {
   const beats = beatsPerBar(config.meter);
   return (
     <Screen title={ko.metronome.title}>
-      <section className="rounded-lg bg-surface p-4">
+      <section className="card rounded-2xl border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center justify-center gap-2">
           {[-5, -1].map((d) => (
             <Button
@@ -298,7 +298,7 @@ export function MetronomeScreen() {
         </label>
       </section>
 
-      <section className="mt-4 rounded-lg bg-surface p-4">
+      <section className="mt-4 card rounded-2xl border border-border bg-surface p-4">
         <h2 className="font-semibold">{ko.metronome.ladder}</h2>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {(
@@ -315,7 +315,7 @@ export function MetronomeScreen() {
                 min={key === 'stepBpm' ? 1 : 30}
                 max={key === 'stepBpm' ? 20 : 240}
                 value={ladder[key]}
-                className="min-h-12 rounded-lg bg-surface-2 px-3 text-base text-fg"
+                className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-base text-fg"
                 onChange={(e) => setLadder({ ...ladder, [key]: Number(e.target.value) })}
               />
             </label>

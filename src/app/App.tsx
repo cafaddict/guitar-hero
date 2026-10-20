@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { createHashRouter, NavLink, Outlet, RouterProvider } from 'react-router';
+import { createHashRouter, Outlet, RouterProvider } from 'react-router';
 import { CurriculumScreen, StageScreen } from '../features/curriculum/CurriculumScreen';
 import { ExamScreen } from '../features/curriculum/ExamScreen';
 import { StagePracticeScreen } from '../features/curriculum/StagePractice';
@@ -14,22 +14,15 @@ import { RoutineEditorScreen } from '../features/routineEditor/RoutineEditorScre
 import { SessionScreen } from '../features/session/SessionScreen';
 import { DiagnosticsScreen } from '../features/settings/DiagnosticsScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
+import { ToolsScreen } from '../features/tools/ToolsScreen';
 import { TunerScreen } from '../features/tuner/TunerScreen';
 import { ko } from '../i18n/ko';
+import { AppNav } from './AppNav';
 import { PwaRegistration } from './pwa';
 import { useSettingsStore } from './settingsStore';
 
-const NAV = [
-  { to: '/', label: ko.nav.home },
-  { to: '/curriculum', label: ko.nav.curriculum },
-  { to: '/library', label: ko.nav.library },
-  { to: '/tuner', label: ko.nav.tuner },
-  { to: '/metronome', label: ko.nav.metronome },
-  { to: '/progress', label: ko.nav.progress },
-  { to: '/settings', label: ko.nav.settings },
-] as const;
-
-function AppLayout() {
+/** Theme and settings for every route; the skip control and the PWA worker live here once. */
+function RootLayout() {
   const settings = useSettingsStore((s) => s.settings);
   const load = useSettingsStore((s) => s.load);
   useEffect(() => {
@@ -44,7 +37,7 @@ function AppLayout() {
       {/* Hash routing owns the URL fragment, so the skip control moves focus instead of navigating. */}
       <button
         type="button"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:rounded focus:bg-accent focus:p-2 focus:text-accent-fg"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-30 focus:rounded focus:bg-accent focus:p-2 focus:text-accent-fg"
         onClick={() => {
           const main = document.getElementById('main');
           main?.setAttribute('tabindex', '-1');
@@ -53,49 +46,52 @@ function AppLayout() {
       >
         {ko.app.skipToContent}
       </button>
-      <header className="border-b border-surface-2">
-        <nav aria-label={ko.nav.main} className="mx-auto flex max-w-3xl flex-wrap gap-1 p-2">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                `inline-flex min-h-12 items-center rounded-lg px-3 ${isActive ? 'bg-surface-2 font-semibold' : ''}`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-      </header>
       <PwaRegistration />
       <Outlet />
     </>
   );
 }
 
+/** Screens with the app navigation; the bottom padding keeps content clear of the tab bar below `lg`. */
+function ShellLayout() {
+  return (
+    <div className="lg:flex">
+      <AppNav />
+      <div className="min-w-0 flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <Outlet />
+      </div>
+    </div>
+  );
+}
+
 const router = createHashRouter([
   {
-    element: <AppLayout />,
+    element: <RootLayout />,
     children: [
-      { path: '/', element: <HomeScreen /> },
-      { path: '/onboarding', element: <OnboardingScreen /> },
-      { path: '/tuner', element: <TunerScreen /> },
-      { path: '/metronome', element: <MetronomeScreen /> },
-      { path: '/settings', element: <SettingsScreen /> },
-      { path: '/settings/diagnostics', element: <DiagnosticsScreen /> },
-      { path: '/settings/recording', element: <RecordingKitScreen /> },
+      {
+        element: <ShellLayout />,
+        children: [
+          { path: '/', element: <HomeScreen /> },
+          { path: '/onboarding', element: <OnboardingScreen /> },
+          { path: '/tools', element: <ToolsScreen /> },
+          { path: '/tuner', element: <TunerScreen /> },
+          { path: '/metronome', element: <MetronomeScreen /> },
+          { path: '/settings', element: <SettingsScreen /> },
+          { path: '/settings/diagnostics', element: <DiagnosticsScreen /> },
+          { path: '/settings/recording', element: <RecordingKitScreen /> },
+          { path: '/routine/edit', element: <RoutineEditorScreen /> },
+          { path: '/curriculum', element: <CurriculumScreen /> },
+          { path: '/curriculum/:stage', element: <StageScreen /> },
+          { path: '/exam', element: <ExamScreen /> },
+          { path: '/progress', element: <ProgressScreen /> },
+          { path: '/library', element: <LibraryScreen /> },
+          { path: '/library/:id', element: <ChordDetailScreen /> },
+        ],
+      },
+      // Focus mode (D-087): practice screens bring their own slim header instead of the navigation.
       { path: '/practice/:type', element: <PracticeScreen /> },
       { path: '/session', element: <SessionScreen /> },
-      { path: '/routine/edit', element: <RoutineEditorScreen /> },
-      { path: '/curriculum', element: <CurriculumScreen /> },
-      { path: '/curriculum/:stage', element: <StageScreen /> },
       { path: '/curriculum/:stage/practice/:option', element: <StagePracticeScreen /> },
-      { path: '/exam', element: <ExamScreen /> },
-      { path: '/progress', element: <ProgressScreen /> },
-      { path: '/library', element: <LibraryScreen /> },
-      { path: '/library/:id', element: <ChordDetailScreen /> },
     ],
   },
 ]);

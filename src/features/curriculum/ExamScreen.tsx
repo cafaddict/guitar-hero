@@ -8,7 +8,9 @@ import { contentContextFor } from '../../exercises/contentContext';
 import { exerciseDefinition } from '../../exercises/registry';
 import { ExerciseHost } from '../../exercises/ui/ExerciseHost';
 import { ko } from '../../i18n/ko';
+import { Badge } from '../../ui/Badge';
 import { Button } from '../../ui/Button';
+import { Card } from '../../ui/Card';
 import { Screen } from '../../ui/Screen';
 import type { StoredState } from '../home/homeModel';
 import { EXAM_ITEMS } from '../home/homeModel';
@@ -148,35 +150,51 @@ export function ExamScreen() {
   return (
     <Screen title={ko.curriculum.exam}>
       <p className="text-muted">{ko.curriculum.examIntro}</p>
-      <ol className="mt-4 space-y-3">
+      <ol className="mt-5 space-y-4">
         {EXAM_ITEMS.map((item) => {
           const passedAt = state.progression.exam[item];
           return (
-            <li
+            <Card
+              as="li"
               key={item}
-              className="rounded-lg bg-surface p-4"
+              className="flex gap-4"
               data-testid={`exam-item-${item}`}
               data-passed={passedAt !== undefined}
             >
-              <p className="font-semibold">
-                {item}. {ko.curriculum.examItems[item]}
-              </p>
-              {passedAt !== undefined && (
-                <p className="text-ok">✓ {ko.curriculum.examPassedAt(dayKey(passedAt))}</p>
-              )}
-              {item === '5' && (
-                <p className="text-sm text-muted">{ko.curriculum.examSongs(exam5Songs(state.skills))}</p>
-              )}
-              {active === item ? (
-                <div className="mt-3">
-                  <ExamRun item={item} state={state} onDone={reload} />
-                </div>
-              ) : (
-                <Button className="mt-2" variant="secondary" onClick={() => setActive(item)}>
-                  {item === '5' ? ko.curriculum.examCheck : ko.curriculum.examStart}
-                </Button>
-              )}
-            </li>
+              <span
+                aria-hidden="true"
+                className={`grid size-9 shrink-0 place-items-center rounded-full font-bold tabular-nums ${
+                  passedAt !== undefined ? 'bg-ok text-bg' : 'bg-surface-2 text-muted'
+                }`}
+              >
+                {item}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">
+                  <span className="sr-only">{item}. </span>
+                  {ko.curriculum.examItems[item]}
+                </p>
+                {passedAt !== undefined && (
+                  <Badge tone="ok" className="mt-2">
+                    ✓ {ko.curriculum.examPassedAt(dayKey(passedAt))}
+                  </Badge>
+                )}
+                {item === '5' && (
+                  <p className="mt-1 text-sm text-muted">
+                    {ko.curriculum.examSongs(exam5Songs(state.skills))}
+                  </p>
+                )}
+                {active === item ? (
+                  <div className="mt-3">
+                    <ExamRun item={item} state={state} onDone={reload} />
+                  </div>
+                ) : (
+                  <Button className="mt-3" variant="secondary" onClick={() => setActive(item)}>
+                    {item === '5' ? ko.curriculum.examCheck : ko.curriculum.examStart}
+                  </Button>
+                )}
+              </div>
+            </Card>
           );
         })}
       </ol>

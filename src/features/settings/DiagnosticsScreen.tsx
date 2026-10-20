@@ -7,7 +7,7 @@ import type { CaptureDiagnostics } from '../../audio/devices';
 import type { Calibration } from '../../domain/records';
 import { DETECTOR_VERSION } from '../../dsp/version';
 import { ko } from '../../i18n/ko';
-import { Button } from '../../ui/Button';
+import { Button, buttonClass } from '../../ui/Button';
 import { EnvironmentGuide } from '../../ui/EnvironmentGuide';
 import { LevelMeter } from '../../ui/LevelMeter';
 import { Screen } from '../../ui/Screen';
@@ -99,7 +99,7 @@ export function DiagnosticsScreen() {
         <label className="mt-4 flex flex-col gap-1">
           <span className="text-sm text-muted">{ko.diagnostics.chooseDevice}</span>
           <select
-            className="min-h-12 rounded-lg bg-surface-2 px-3 text-fg"
+            className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
             value={settings?.preferredInputDeviceId ?? ''}
             onChange={(e) => void chooseDevice(e.target.value)}
           >
@@ -113,7 +113,10 @@ export function DiagnosticsScreen() {
         </label>
       )}
       {diagnostics && (
-        <section className="mt-4 rounded-lg bg-surface p-4" data-testid="diag-settings">
+        <section
+          className="mt-4 card rounded-2xl border border-border bg-surface p-4"
+          data-testid="diag-settings"
+        >
           <p>
             {ko.diagnostics.device}:{' '}
             <span data-testid="diag-label">{diagnostics.label || ko.common.unknown}</span>
@@ -145,7 +148,7 @@ export function DiagnosticsScreen() {
       <p className="mt-4 text-sm" data-testid="diag-detector">
         {ko.diagnostics.detectorVersion(DETECTOR_VERSION)}
       </p>
-      <section className="mt-4 rounded-lg bg-surface p-4">
+      <section className="mt-4 card rounded-2xl border border-border bg-surface p-4">
         <h2 className="font-semibold">{ko.diagnostics.calibration}</h2>
         <p className="mt-1" data-testid="diag-calibration">
           {calibration
@@ -156,10 +159,7 @@ export function DiagnosticsScreen() {
               )
             : ko.diagnostics.noCalibration}
         </p>
-        <Link
-          className="mt-3 inline-flex min-h-12 items-center rounded-lg bg-surface-2 px-4 font-semibold"
-          to="/onboarding"
-        >
+        <Link className={`mt-3 ${buttonClass('secondary')}`} to="/onboarding">
           {ko.diagnostics.rerunOnboarding}
         </Link>
       </section>

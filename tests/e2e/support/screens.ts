@@ -47,6 +47,8 @@ export const SCREENS: ScreenCase[] = [
   { name: 'stage', path: '/#/curriculum/3' },
   { name: 'stage-practice', path: '/#/curriculum/1/practice/0' },
   { name: 'exam', path: '/#/exam' },
+  // D-087: the 도구 tab's hub screen.
+  { name: 'tools', path: '/#/tools' },
   { name: 'library', path: '/#/library' },
   { name: 'chord', path: '/#/library/C' },
   { name: 'tuner', path: '/#/tuner' },

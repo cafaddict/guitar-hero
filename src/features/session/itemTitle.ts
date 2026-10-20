@@ -5,7 +5,7 @@ import { songById } from '../../content/songs';
 import { ko } from '../../i18n/ko';
 
 /** A pattern's strum letters ("D DU UDU"), not its internal id (SPEC v1.1 §12.4); an unknown id stays as it is. */
-function patternLabel(id: string): string {
+export function patternLabel(id: string): string {
   try {
     return patternById(id).label;
   } catch {

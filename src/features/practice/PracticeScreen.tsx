@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import { repo } from '../../app/services';
 import { hammerMinutesOn } from '../../app/storedState';
 import { dayKey } from '../../domain/records';
@@ -7,9 +7,12 @@ import { contentContextFor } from '../../exercises/contentContext';
 import { exerciseDefinition } from '../../exercises/registry';
 import { ExerciseHost } from '../../exercises/ui/ExerciseHost';
 import { ko } from '../../i18n/ko';
-import { Button } from '../../ui/Button';
-import { Screen } from '../../ui/Screen';
+import { Button, ButtonLink } from '../../ui/Button';
+import { FocusScreen } from '../../ui/FocusScreen';
 import { paramsFromQuery } from './practiceParams';
+
+/** Opened from the library, a stage page or a link: "나가기" returns there, or home on a cold start. */
+const BACK_HOME = { back: '/' };
 
 /** Standalone exercise (/practice/:type?param=value…): library "E1 시작", tests, and quick practice. */
 export function PracticeScreen() {
@@ -19,6 +22,7 @@ export function PracticeScreen() {
   const [params, setParams] = useState<unknown>(null);
   const [error, setError] = useState(false);
   const [run, setRun] = useState(0);
+  const [runActive, setRunActive] = useState(false);
   const queryKey = query.toString();
 
   useEffect(() => {
@@ -48,32 +52,28 @@ export function PracticeScreen() {
   );
   if (!definition || error) {
     return (
-      <Screen title={title}>
+      <FocusScreen title={title} exit={BACK_HOME}>
         <p>{ko.exercises.common.unknownExercise}</p>
-      </Screen>
+      </FocusScreen>
     );
   }
   return (
-    <Screen title={title}>
+    <FocusScreen title={title} exit={BACK_HOME} exitDisabled={runActive}>
       {params !== null && (
         <ExerciseHost
           // A different exercise or query is a different run: never reuse the previous host state.
           key={`${type}?${queryKey}#${run}`}
           definition={definition}
           params={params}
+          onActiveChange={setRunActive}
           renderAfter={() => (
-            <div className="mt-4 flex gap-2">
+            <div className="mt-5 flex flex-wrap gap-3">
               <Button onClick={() => setRun((n) => n + 1)}>{ko.exercises.common.again}</Button>
-              <Link
-                className="inline-flex min-h-12 items-center rounded-lg bg-surface-2 px-4 font-semibold"
-                to="/"
-              >
-                {ko.exercises.common.home}
-              </Link>
+              <ButtonLink to="/">{ko.exercises.common.home}</ButtonLink>
             </div>
           )}
         />
       )}
-    </Screen>
+    </FocusScreen>
   );
 }

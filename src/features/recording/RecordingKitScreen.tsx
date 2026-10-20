@@ -228,7 +228,7 @@ export function RecordingKitScreen() {
         {plan.map((clip) => (
           <li
             key={clip.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface p-3"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface p-3"
           >
             <span>
               {recordedIds.has(clip.id) ? '✓ ' : ''}
@@ -251,13 +251,13 @@ export function RecordingKitScreen() {
         ))}
       </ol>
       {pendingCount && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-surface-2 p-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-surface-2 p-3">
           <label className="flex items-center gap-2">
             {ko.recording.count}
             <input
               type="number"
               min={0}
-              className="min-h-12 w-24 rounded-lg bg-surface px-3 text-fg"
+              className="min-h-12 w-24 rounded-xl border border-border bg-surface px-3 text-fg"
               value={userCount}
               onChange={(e) => setUserCount(Number(e.target.value))}
             />

@@ -15,11 +15,11 @@ import {
 import { KEY_ACTIONS, type KeyAction, type Settings } from '../../data/settings';
 import { dayKey } from '../../domain/records';
 import { ko } from '../../i18n/ko';
-import { Button } from '../../ui/Button';
+import { Button, buttonClass } from '../../ui/Button';
 import { Screen } from '../../ui/Screen';
 import { removeAllFiles } from '../recording/opfs';
 
-const linkClass = 'inline-flex min-h-12 items-center rounded-lg bg-surface-2 px-4 font-semibold';
+const linkClass = buttonClass('secondary');
 
 function download(name: string, text: string): void {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
@@ -79,7 +79,7 @@ function MinutesInput({
         type="number"
         min={SESSION_MINUTES.min}
         max={SESSION_MINUTES.max}
-        className="min-h-12 w-32 rounded-lg bg-surface-2 px-3 text-fg"
+        className="min-h-12 w-32 rounded-xl border border-border bg-surface-2 px-3 text-fg"
         value={draft ?? String(value)}
         onChange={(e) => {
           setDraft(e.target.value);
@@ -143,7 +143,11 @@ function BackupSection() {
   };
 
   return (
-    <section className="rounded-lg bg-surface p-4" id="backup" data-testid="backup-section">
+    <section
+      className="card rounded-2xl border border-border bg-surface p-4"
+      id="backup"
+      data-testid="backup-section"
+    >
       <h2 className="text-lg font-bold">{ko.settingsScreen.backup}</h2>
       <p className="text-sm text-muted">
         {ko.settingsScreen.lastBackup(lastBackup === null ? null : dayKey(lastBackup))}
@@ -172,7 +176,7 @@ function BackupSection() {
         />
       </div>
       {preview && (
-        <div className="mt-3 rounded-lg bg-surface-2 p-3" data-testid="import-preview">
+        <div className="mt-3 rounded-xl bg-surface-2 p-3" data-testid="import-preview">
           <p>
             {ko.settingsScreen.importPreview(
               Object.entries(preview.counts)
@@ -244,7 +248,7 @@ function KeysSection() {
   const keyName = (key: string) => ko.keys.keyNames[key] ?? key;
   const custom = Object.entries(settings.customKeys);
   return (
-    <section className="rounded-lg bg-surface p-4" data-testid="keys-section">
+    <section className="card rounded-2xl border border-border bg-surface p-4" data-testid="keys-section">
       <h2 className="text-lg font-bold">{ko.settingsScreen.keys}</h2>
       <p className="text-sm text-muted">{ko.keys.pedalTip}</p>
       <table className="mt-2 w-full text-sm">
@@ -318,7 +322,7 @@ function ResetSection() {
     setDone(true);
   };
   return (
-    <section className="rounded-lg bg-surface p-4" data-testid="reset-section">
+    <section className="card rounded-2xl border border-border bg-surface p-4" data-testid="reset-section">
       <h2 className="text-lg font-bold">{ko.settingsScreen.reset}</h2>
       {step === 0 && (
         <Button variant="secondary" className="mt-2" onClick={() => setStep(1)} data-testid="reset-start">
@@ -374,8 +378,10 @@ export function SettingsScreen() {
             {ko.settingsScreen.recording}
           </Link>
         </section>
-        <p className="rounded-lg bg-surface p-3 text-info">{ko.settingsScreen.micNotice}</p>
-        <section className="flex flex-col gap-2 rounded-lg bg-surface p-4">
+        <p className="rounded-xl border border-border bg-surface p-3 text-info">
+          {ko.settingsScreen.micNotice}
+        </p>
+        <section className="flex flex-col gap-2 card rounded-2xl border border-border bg-surface p-4">
           <fieldset>
             <legend className="font-semibold">{ko.settingsScreen.theme}</legend>
             <div className="flex flex-wrap gap-2">
@@ -416,7 +422,7 @@ export function SettingsScreen() {
           <label className="flex flex-col gap-1">
             <span className="font-semibold">{ko.settingsScreen.strictness}</span>
             <select
-              className="min-h-12 rounded-lg bg-surface-2 px-3 text-fg"
+              className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
               value={settings.strictness}
               onChange={(e) => set({ strictness: e.target.value as Settings['strictness'] })}
             >
@@ -430,7 +436,7 @@ export function SettingsScreen() {
           <label className="flex flex-col gap-1">
             <span className="font-semibold">{ko.settingsScreen.sensitivity}</span>
             <select
-              className="min-h-12 rounded-lg bg-surface-2 px-3 text-fg"
+              className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
               value={settings.sensitivity}
               onChange={(e) => set({ sensitivity: e.target.value as Settings['sensitivity'] })}
               data-testid="setting-sensitivity"

@@ -2,35 +2,41 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/*
+ * Warm amp palette (D-087): charcoal grounds, amber pilot-light accent. Every text token reaches 4.5:1 on
+ * bg, surface, surface-2 and the soft tints below (checked per theme before these values were fixed).
+ */
 :root,
 [data-theme="dark"] {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --surface-2: #334155;
-  --fg: #f8fafc;
-  --muted: #cbd5e1;
-  --accent: #38bdf8;
-  --accent-fg: #082f49;
-  --ok: #4ade80;
-  --fail: #f87171;
-  --retry: #fbbf24;
-  --info: #a5b4fc;
-  --focus: #fde047;
+  --bg: #15110e;
+  --surface: #1f1a16;
+  --surface-2: #2e2721;
+  --border: #3d342c;
+  --fg: #f6f0e8;
+  --muted: #cdbfaf;
+  --accent: #f59e0b;
+  --accent-fg: #1f1300;
+  --ok: #5ee08f;
+  --fail: #ff8a8a;
+  --retry: #fde68a;
+  --info: #5eead4;
+  --focus: #7dd3fc;
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg: #f8fafc;
+  --bg: #faf6f0;
   --surface: #ffffff;
-  --surface-2: #e2e8f0;
-  --fg: #0f172a;
-  --muted: #334155;
-  --accent: #0369a1;
+  --surface-2: #efe6da;
+  --border: #d9cbb8;
+  --fg: #1e1813;
+  --muted: #574a3e;
+  --accent: #a3480a;
   --accent-fg: #ffffff;
-  --ok: #15803d;
+  --ok: #166534;
   --fail: #b91c1c;
-  --retry: #92400e;
-  --info: #4338ca;
+  --retry: #854d0e;
+  --info: #0f5e57;
   --focus: #1d4ed8;
   color-scheme: light;
 }
@@ -39,6 +45,7 @@
   --bg: #000000;
   --surface: #000000;
   --surface-2: #1a1a1a;
+  --border: #ffffff;
   --fg: #ffffff;
   --muted: #ffffff;
   --accent: #ffff00;
@@ -55,6 +62,7 @@
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
@@ -63,6 +71,12 @@
   --color-fail: var(--fail);
   --color-retry: var(--retry);
   --color-info: var(--info);
+  /* Tints over the card ground: highlighted cards, badges and status panels. */
+  --color-accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  --color-ok-soft: color-mix(in srgb, var(--ok) 16%, var(--surface));
+  --color-fail-soft: color-mix(in srgb, var(--fail) 16%, var(--surface));
+  --color-retry-soft: color-mix(in srgb, var(--retry) 16%, var(--surface));
+  --color-info-soft: color-mix(in srgb, var(--info) 16%, var(--surface));
 }
 
 html,
