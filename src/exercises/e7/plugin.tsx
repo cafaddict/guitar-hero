@@ -26,6 +26,11 @@ function E7ViewComponent({
       value={ko.exercises.e7.pain(view.pain)}
       confirmLabel={ko.exercises.e7.confirm}
       onCommand={(cmd) => runner.command(cmd)}
+      stepBack={
+        runner.canStepBack?.()
+          ? { label: ko.exercises.common.resumeTimer, onBack: () => runner.command('prev') }
+          : undefined
+      }
     >
       <p className="text-3xl font-bold">{ko.exercises.e7.startFret(view.startFret)}</p>
       <p className="text-xl">{ko.exercises.e7.how}</p>

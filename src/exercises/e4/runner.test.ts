@@ -46,4 +46,26 @@ describe('E4 anchor / air drill', () => {
     expect(partial.hasResult()).toBe(true);
     expect(partial.finish()).toMatchObject({ durationMs: 40_000, selfReportSuccess: null });
   });
+
+  it('prev after an early end continues the remaining time (D-096); impossible after time-up', () => {
+    const { ctx, clock } = testContext({ mic: false });
+    const runner = new AnchorDrillRunner(ctx, { from: 'C', to: 'G', durationMs: 90_000 }, voicingById);
+    runner.start();
+    runner.command('toggle');
+    clock.advance(30);
+    runner.command('next');
+    runner.command('inc');
+    expect(runner.canStepBack()).toBe(true);
+    clock.advance(5); // time spent in the review is not drill time
+    runner.command('prev');
+    expect(runner.snapshot()).toMatchObject({ phase: 'running', remainingMs: 60_000, view: { success: 6 } });
+    clock.advance(61);
+    runner.tick();
+    expect(runner.snapshot().phase).toBe('review');
+    expect(runner.canStepBack()).toBe(false);
+    runner.command('prev');
+    expect(runner.snapshot().phase).toBe('review');
+    runner.command('next');
+    expect(runner.finish()).toMatchObject({ durationMs: 90_000, selfReportSuccess: 6 });
+  });
 });

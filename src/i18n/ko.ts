@@ -766,7 +766,7 @@ export const ko = {
       E0: [
         '6번 줄(가장 굵은 줄)부터 1번 줄까지 차례로 맞춰요.',
         '줄을 한 번 튕기고, 화면 바늘이 가운데(맞음)에 오도록 그 줄의 줄감개를 천천히 돌려요. 화면이 조일지 풀지 알려 줘요.',
-        '맞으면 다음 줄로 저절로 넘어가요. 건너뛰려면 다음(→)을 눌러요.',
+        '맞으면 다음 줄로 저절로 넘어가요. 건너뛰려면 다음(→), 앞 줄로 돌아가려면 ←를 눌러요.',
         '마이크 없이 할 때는 다른 튜너로 맞추고 줄마다 Enter로 확인해요.',
       ],
       K1: [
@@ -940,6 +940,8 @@ export const ko = {
       pause: '일시정지 (P)',
       resume: '이어서 (P)',
       pausedRun: '일시정지한 실행이라 진급 기준에는 쓰지 않아요.',
+      /** Takes back an early "그만하기" while time is left (D-096). */
+      resumeTimer: '아직 안 끝났어요 · 이어서 하기 (←)',
     },
     /** Live per-bar feedback while playing (D-077). */
     live: {
@@ -991,6 +993,7 @@ export const ko = {
       clean: '깨끗해요!',
       suggestPluck: '스트럼으로는 판단이 어려워요. "한 줄씩" 모드로 줄마다 확인해 보세요.',
       skip: '이 줄 건너뛰기',
+      unskip: '건너뛴 줄 다시 (←)',
       notClean: '아직 깨끗하지 않은 줄이 있어요.',
       stats: (clean: number, total: number) => `깨끗한 시도 ${clean}/${total}`,
       cleanRatio: (ratio: number) => `깨끗한 비율 ${(ratio * 100).toFixed(0)}%`,
@@ -1104,6 +1107,7 @@ export const ko = {
       done: '1 됐어요',
       notYet: '2 아직',
       keys: '키 1 = 됐어요, 2 = 아직, ← = 이전 카드',
+      previous: '이전 카드 (←)',
     },
     e16: {
       intro: '2번 줄 1프렛(도)을 같은 가벼운 힘으로, 세 위치에서 두 번씩 튕겨 소리를 비교해요.',
@@ -1217,6 +1221,7 @@ export const ko = {
       clarityPrompt: '새끼손가락 음이 또렷했나요? 1 아니요 · 2 조금 · 3 또렷함',
       clarity: { 1: '1 아니요', 2: '2 조금', 3: '3 또렷함' } as Record<number, string>,
       stop: '그만하기',
+      backToClarity: '또렷함 다시 고르기 (←)',
     },
     e17: {
       tabLabel: (id: string) => `리프 ${id} TAB`,
@@ -1288,6 +1293,7 @@ export const ko = {
         `${stringNo}번 줄 (${note})을 다른 튜너로 맞춘 뒤 다음(Enter)`,
       skip: '이 줄 건너뛰기',
       next: '맞췄어요',
+      previous: '이전 줄 (←)',
       inTune: '맞음',
       done: (n: number) => `${n}/6줄 맞음`,
       complete: '6줄 모두 맞췄어요!',

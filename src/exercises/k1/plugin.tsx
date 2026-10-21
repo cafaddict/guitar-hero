@@ -40,6 +40,13 @@ function K1ViewComponent({ runner }: { runner: ExerciseRunner<SelfCheckResult, K
           </Button>
         </>
       }
+      secondary={
+        (runner.canStepBack?.() ?? false) && (
+          <Button variant="secondary" onClick={() => runner.command('prev')} data-testid="k1-previous">
+            {ko.exercises.k1.previous}
+          </Button>
+        )
+      }
       notes={<p className="text-muted">{ko.exercises.k1.keys}</p>}
     >
       <p className="text-lg text-muted tabular-nums">

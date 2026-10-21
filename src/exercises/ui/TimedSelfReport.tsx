@@ -20,6 +20,7 @@ export function TimedSelfReport({
   confirmLabel,
   onCommand,
   testId,
+  stepBack,
 }: {
   phase: RunnerPhase;
   remainingMs: number | null;
@@ -34,6 +35,8 @@ export function TimedSelfReport({
   confirmLabel: string;
   onCommand: (cmd: 'toggle' | 'next' | 'inc' | 'dec') => void;
   testId: string;
+  /** The touch twin of ← while the runner can take its last step back (D-096), beside the next step. */
+  stepBack?: { label: string; onBack: () => void } | undefined;
 }) {
   return (
     <PracticeStage
@@ -54,6 +57,13 @@ export function TimedSelfReport({
             {confirmLabel}
           </Button>
         ) : undefined
+      }
+      secondary={
+        stepBack && (
+          <Button variant="secondary" onClick={stepBack.onBack} data-testid={`${testId}-step-back`}>
+            {stepBack.label}
+          </Button>
+        )
       }
     >
       {phase !== 'review' && <BigTimer remainingMs={remainingMs} plannedMs={plannedMs} />}

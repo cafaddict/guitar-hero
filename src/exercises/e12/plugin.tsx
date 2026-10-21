@@ -17,6 +17,9 @@ function E12ViewComponent({
 }) {
   const { view, phase, remainingMs } = useRunnerSnapshot(runner);
   const t = ko.exercises.e12;
+  // ← steps back one question, or from clarity after an early end back into the block (D-096).
+  const back = () => runner.command('prev');
+  const canStepBack = runner.canStepBack?.() ?? false;
   const body = (
     <>
       <p className="text-xl">{t.how}</p>
@@ -38,6 +41,13 @@ function E12ViewComponent({
             {t.clarity[k + 1]}
           </Button>
         ))}
+        secondary={
+          canStepBack && (
+            <Button variant="secondary" onClick={back} data-testid="e12-view-step-back">
+              {ko.exercises.common.resumeTimer}
+            </Button>
+          )
+        }
       >
         <p aria-live="polite" className="text-xl" data-testid="e12-clarity">
           {t.clarityPrompt}
@@ -56,6 +66,7 @@ function E12ViewComponent({
       value={ko.exercises.e7.pain(view.pain)}
       confirmLabel={ko.exercises.e7.confirm}
       onCommand={(cmd) => runner.command(cmd)}
+      stepBack={canStepBack ? { label: t.backToClarity, onBack: back } : undefined}
     >
       {body}
     </TimedSelfReport>

@@ -138,6 +138,8 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
   private sounding: { idx: number; f0: number; time: number }[] = [];
   /** Muted-like NOT_STRING retries per string of this attempt (D-073). */
   private readonly notStringRetries = new Map<number, number>();
+  /** Strings skipped with Next in this attempt, latest last: prev undoes the latest (D-096). */
+  private skips: number[] = [];
 
   constructor(
     ctx: ExerciseContext,
@@ -228,6 +230,10 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
       this.selfJudge(self);
       return;
     }
+    if (cmd === 'prev') {
+      if (this.canStepBack()) this.unskip();
+      return;
+    }
     if (cmd !== 'next' && cmd !== 'toggle') return;
     if (this.step === 'place') this.beginJudging();
     else if (this.step === 'release') this.beginAttempt();
@@ -243,8 +249,32 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
     s.revealed = true;
     s.hint = null;
     this.retry = null;
+    this.skips.push(idx);
     this.take.disarm();
     this.activate(this.nextPending(idx));
+  }
+
+  /**
+   * A skip of this attempt can be taken back while its strings are still being judged. An attempt completed by
+   * a skip is final: E1 is a block of attempts, and the next attempt is the redo.
+   */
+  canStepBack(): boolean {
+    return this.phase === 'running' && this.step === 'strings' && this.skips.length > 0;
+  }
+
+  /** The latest skipped string is judged again; strings judged after it keep their verdicts. */
+  private unskip(): void {
+    const idx = this.skips.pop();
+    if (idx === undefined) return;
+    const s = this.strings[idx]!;
+    s.status = null;
+    s.revealed = false;
+    s.hint = null;
+    s.cents = null;
+    this.retry = null;
+    this.notStringRetries.delete(idx);
+    this.take.disarm();
+    this.activate(idx);
   }
 
   /** Placement done → strum (beta) or the first string. */
@@ -271,6 +301,7 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
     // Releasing the chord damps the strings: nothing from the previous attempt keeps ringing.
     this.sounding = [];
     this.notStringRetries.clear();
+    this.skips = [];
     this.step = 'place';
     this.activeIdx = null;
     this.retry = null;
@@ -483,6 +514,7 @@ export class ChordCheckRunner extends BaseRunner<ChordCheckResult, E1View> {
   private completeAttempt(): void {
     this.ctx.audio?.setJob(null);
     this.take.disarm();
+    this.skips = [];
     const judged = this.strings.filter((s) => !s.skipped);
     let clean: boolean;
     if (this.mode === 'manual') clean = judged.every((s) => s.selfStatus === 'clean');

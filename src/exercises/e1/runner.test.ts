@@ -279,6 +279,46 @@ describe('E1 — ear first, manual, strum beta, timer', () => {
     expect(runner.finish().attempts[0]!.perString[1]!.status).toBe('UNVERIFIABLE');
   });
 
+  it('prev takes the latest skip back (D-096): that string is judged again, later verdicts stay', () => {
+    const { runner, mic, strike, view } = setup();
+    runner.command('next');
+    expect(runner.canStepBack()).toBe(false);
+    runner.command('next'); // skip the 5th string
+    strike(pluck({})); // 4th string OK
+    expect(view().activeIdx).toBe(3);
+    expect(runner.canStepBack()).toBe(true);
+    runner.command('prev');
+    expect(view().activeIdx).toBe(1);
+    expect(view().strings[1]).toMatchObject({ status: null, revealed: false });
+    expect(view().strings[2]!.status).toBe('OK');
+    expect((mic.job as { expectedF0: number }).expectedF0).toBeCloseTo(130.81, 1);
+    expect(runner.canStepBack()).toBe(false);
+    strike(pluck({})); // 5th string judged now; the 4th is not asked again
+    expect(view().activeIdx).toBe(3);
+    for (let k = 0; k < 3; k++) strike(pluck({}));
+    expect(view().step).toBe('release');
+    expect(runner.finish().attempts[0]!.perString.map((s) => s.status)).toEqual([
+      'NOT_PLAYED',
+      'OK',
+      'OK',
+      'OK',
+      'OK',
+      'OK',
+    ]);
+  });
+
+  it('an attempt completed by a skip is final: prev is impossible after it', () => {
+    const { runner, strike, view } = setup();
+    runner.command('next');
+    for (let k = 0; k < 4; k++) strike(pluck({}));
+    runner.command('next'); // skip the 1st string: the attempt completes
+    expect(view().step).toBe('release');
+    expect(runner.canStepBack()).toBe(false);
+    runner.command('prev');
+    expect(view().step).toBe('release');
+    expect(runner.finish().attempts).toHaveLength(1);
+  });
+
   it('x-string check: total silence (no onset at all) is the expected result', async () => {
     const { runner, mic, view, clock } = setup({}, { xStringCheck: true });
     runner.command('next');

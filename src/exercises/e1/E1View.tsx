@@ -91,6 +91,9 @@ export function makeE1View(voicingOf: (id: string) => ChordVoicing) {
     const showSelfButtons =
       phase === 'running' && view.step === 'strings' && (view.mode === 'manual' || view.awaitingSelf);
     const running = phase === 'running';
+    const showSkip = running && view.step === 'strings' && view.mode !== 'manual';
+    // ← takes the latest skip of this attempt back (D-096).
+    const showUnskip = runner.canStepBack?.() ?? false;
     return (
       <PracticeStage
         data-testid="e1-view"
@@ -134,11 +137,20 @@ export function makeE1View(voicingOf: (id: string) => ChordVoicing) {
         }
         primaryLabel={showSelfButtons ? instruction : undefined}
         secondary={
-          running && view.step === 'strings' && view.mode !== 'manual' ? (
-            <Button variant="ghost" onClick={() => runner.command('next')}>
-              {ko.exercises.e1.skip}
-            </Button>
-          ) : undefined
+          (showSkip || showUnskip) && (
+            <>
+              {showSkip && (
+                <Button variant="ghost" onClick={() => runner.command('next')}>
+                  {ko.exercises.e1.skip}
+                </Button>
+              )}
+              {showUnskip && (
+                <Button variant="secondary" onClick={() => runner.command('prev')} data-testid="e1-unskip">
+                  {ko.exercises.e1.unskip}
+                </Button>
+              )}
+            </>
+          )
         }
         notes={
           (view.step === 'place' || view.step === 'release') && (

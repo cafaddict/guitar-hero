@@ -56,6 +56,10 @@ export class StretchRunner extends BaseRunner<StretchResult, E7View> {
       return;
     }
     if (this.phase !== 'review') return;
+    if (cmd === 'prev') {
+      if (this.canStepBack()) this.resume();
+      return;
+    }
     if (cmd === 'inc' || cmd === 'dec') {
       this.pain = Math.min(10, Math.max(0, this.pain + (cmd === 'inc' ? 1 : -1)));
       this.publish();
@@ -68,6 +72,17 @@ export class StretchRunner extends BaseRunner<StretchResult, E7View> {
   protected override onTimeUp(): void {
     this.pauseTimer();
     this.setPhase('review');
+  }
+
+  /** Ended early by Next (time was left): prev takes that back and the timer continues (D-096). */
+  canStepBack(): boolean {
+    return this.phase === 'review' && (this.remainingMs() ?? 0) > 0;
+  }
+
+  /** Back to the run where it stopped; the pain value chosen so far stays. */
+  private resume(): void {
+    this.resumeTimer();
+    this.setPhase('running');
   }
 
   /** Stopped before the timer ever started → nothing to record. */

@@ -1,7 +1,8 @@
 /**
  * E0 tuning at the start of a session (SPEC §11.2, §9.2): strings 6 → 1 with the string-mode tuner; a string
- * is done once the last 5 readings are within ±3 cents of standard pitch ("맞음"). Next skips a string. Without
- * a microphone the user tunes with any tuner and confirms each string (Enter).
+ * is done once the last 5 readings are within ±3 cents of standard pitch ("맞음"). Next skips a string, prev goes
+ * back to the string before (it is tuned again, D-096). Without a microphone the user tunes with any tuner and
+ * confirms each string (Enter).
  */
 import { z } from 'zod';
 import type { TuningResult } from '../../domain/exerciseResults';
@@ -92,6 +93,23 @@ export class TuningRunner extends BaseRunner<TuningResult, E0View> {
     this.publish();
   }
 
+  /** Back to the string before: its earlier verdict is cleared, so it has to be tuned (or confirmed) again. */
+  private back(): void {
+    this.advanceAt = null;
+    this.tracker.reset();
+    this.cents = null;
+    this.idx--;
+    this.inTune[this.idx] = false;
+    this.skipped[this.idx] = false;
+    this.finalCents[this.idx] = null;
+    this.ctx.audio?.setTuner(true, this.expected(this.idx));
+    this.publish();
+  }
+
+  canStepBack(): boolean {
+    return this.phase === 'running' && this.idx > 0;
+  }
+
   command(cmd: RunnerCommand): void {
     if (this.phase !== 'running') return;
     if (cmd === 'abort') {
@@ -102,7 +120,7 @@ export class TuningRunner extends BaseRunner<TuningResult, E0View> {
       if (this.ctx.audio === null) this.inTune[this.idx] = true;
       else if (!this.inTune[this.idx]) this.skipped[this.idx] = true;
       this.advance();
-    }
+    } else if (cmd === 'prev' && this.canStepBack()) this.back();
   }
 
   override tick(): void {

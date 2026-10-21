@@ -232,6 +232,44 @@ test('session: going back to an item already run shows its result again; Space r
   await expect(page.getByTestId('exercise-start')).toBeVisible();
 });
 
+test('← steps back inside an exercise: the string before, or an early end taken back (D-096)', async ({
+  page,
+}) => {
+  await page.goto('/#/settings');
+  await page.getByTestId('setting-mic-disabled').check();
+
+  // Tuning: a string confirmed by mistake is confirmed again (key and touch button).
+  await page.goto('/#/practice/E0');
+  await page.getByTestId('exercise-start').click();
+  await expect(page.getByTestId('e0-view')).toBeVisible();
+  const strings = page.getByTestId('e0-view').locator('ol > li');
+  await expect(page.getByTestId('e0-previous')).toBeHidden();
+  await page.keyboard.press('Enter');
+  await expect(strings.nth(0)).toContainText(ko.exercises.e0.inTune);
+  await page.keyboard.press('ArrowLeft');
+  await expect(strings.nth(0)).not.toContainText(ko.exercises.e0.inTune);
+  await page.keyboard.press('Enter');
+  await page.getByTestId('e0-previous').click();
+  await expect(strings.nth(0)).not.toContainText(ko.exercises.e0.inTune);
+  await expect(page.getByTestId('e0-previous')).toBeHidden();
+
+  // Stretching stopped early: the time left continues.
+  await page.goto('/#/practice/E7');
+  await page.getByTestId('exercise-start').click();
+  const view = page.getByTestId('e7-view');
+  await expect(view).toHaveAttribute('data-phase', 'ready');
+  await page.keyboard.press('Space');
+  await expect(view).toHaveAttribute('data-phase', 'running');
+  await page.keyboard.press('Enter');
+  await expect(view).toHaveAttribute('data-phase', 'review');
+  await page.getByTestId('e7-view-step-back').click();
+  await expect(view).toHaveAttribute('data-phase', 'running');
+  await page.keyboard.press('Enter');
+  await expect(view).toHaveAttribute('data-phase', 'review');
+  await page.keyboard.press('ArrowLeft');
+  await expect(view).toHaveAttribute('data-phase', 'running');
+});
+
 test('the settings key list has pause (P) and song start-over (R) rows (D-085)', async ({ page }) => {
   await page.goto('/#/settings');
   for (const [action, keys] of [

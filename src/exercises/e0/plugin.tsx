@@ -56,6 +56,13 @@ function E0ViewComponent({ runner }: { runner: ExerciseRunner<TuningResult, E0Vi
           </Button>
         ) : undefined
       }
+      secondary={
+        (runner.canStepBack?.() ?? false) && (
+          <Button variant="secondary" onClick={() => runner.command('prev')} data-testid="e0-previous">
+            {ko.exercises.e0.previous}
+          </Button>
+        )
+      }
     >
       {running && (
         <>

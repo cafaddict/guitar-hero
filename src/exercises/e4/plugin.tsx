@@ -37,6 +37,11 @@ function E4ViewComponent({
       value={ko.exercises.e4.success(view.success)}
       confirmLabel={ko.exercises.e4.confirm}
       onCommand={(cmd) => runner.command(cmd)}
+      stepBack={
+        runner.canStepBack?.()
+          ? { label: ko.exercises.common.resumeTimer, onBack: () => runner.command('prev') }
+          : undefined
+      }
     >
       <h2 className="text-xl font-bold" data-testid="e4-kind" data-kind={view.kind}>
         {view.kind === 'anchor' ? ko.exercises.e4.anchorTitle : ko.exercises.e4.airTitle}

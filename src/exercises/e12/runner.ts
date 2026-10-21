@@ -63,6 +63,10 @@ export class PinkyRunner extends BaseRunner<PinkyResult, E12View> {
       return;
     }
     if (this.phase !== 'review') return;
+    if (cmd === 'prev') {
+      if (this.canStepBack()) this.back();
+      return;
+    }
     if (this.question === 'clarity') {
       const value = cmd === 'manual1' ? 1 : cmd === 'manual2' ? 2 : cmd === 'manual3' ? 3 : null;
       if (value === null) return;
@@ -89,6 +93,24 @@ export class PinkyRunner extends BaseRunner<PinkyResult, E12View> {
 
   protected override onTimeUp(): void {
     this.endBlock(true);
+  }
+
+  /** The pain question goes back to clarity; the clarity question, after an early end, back to the block (D-096). */
+  canStepBack(): boolean {
+    if (this.phase !== 'review') return false;
+    return this.question === 'pain' || (!this.completed && (this.remainingMs() ?? 0) > 0);
+  }
+
+  private back(): void {
+    if (this.question === 'pain') {
+      this.question = 'clarity';
+      this.publish();
+      return;
+    }
+    this.question = null;
+    this.clarity = null;
+    this.resumeTimer();
+    this.setPhase('running');
   }
 
   hasResult(): boolean {

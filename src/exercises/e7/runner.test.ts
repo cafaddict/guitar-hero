@@ -36,4 +36,20 @@ describe('E7 stretching', () => {
     runner.command('abort');
     expect(runner.hasResult()).toBe(false);
   });
+
+  it('prev after an early end continues the remaining time (D-096); impossible after time-up', () => {
+    const { ctx, clock } = testContext({ mic: false });
+    const runner = new StretchRunner(ctx, { startFret: 5, durationMs: 60_000 });
+    runner.start();
+    expect(runner.canStepBack()).toBe(false);
+    runner.command('toggle');
+    clock.advance(20);
+    runner.command('next');
+    runner.command('prev');
+    expect(runner.snapshot()).toMatchObject({ phase: 'running', remainingMs: 40_000 });
+    clock.advance(41);
+    runner.tick();
+    expect(runner.snapshot().phase).toBe('review');
+    expect(runner.canStepBack()).toBe(false);
+  });
 });
