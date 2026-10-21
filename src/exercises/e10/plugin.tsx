@@ -29,25 +29,31 @@ function E10ViewComponent({ runner }: { runner: ExerciseRunner<ScaleResult, E10V
       title={t.title(view.scale.name, view.step)}
       tabLabel={t.tabLabel(view.scale.name, view.step)}
       testId="e10-view"
+      secondary={
+        view.withBacking &&
+        view.source === 'mic' &&
+        phase === 'ready' && (
+          <Button
+            variant="secondary"
+            aria-pressed={view.earphones}
+            onClick={() => runner.command('ear')}
+            data-testid="e10-earphones"
+            data-earphones={view.earphones}
+          >
+            {view.earphones ? ko.exercises.song.earphones : ko.exercises.song.speakers}
+          </Button>
+        )
+      }
+      status={
+        view.backingAudible && (
+          <p className="text-muted" data-testid="e10-reference">
+            {t.speakerReference}
+          </p>
+        )
+      }
     >
-      <p>{t.steps[view.step]}</p>
-      {view.withBacking && <p className="text-sm text-muted">{t.backingNote}</p>}
-      {view.withBacking && view.source === 'mic' && phase === 'ready' && (
-        <Button
-          variant="secondary"
-          aria-pressed={view.earphones}
-          onClick={() => runner.command('ear')}
-          data-testid="e10-earphones"
-          data-earphones={view.earphones}
-        >
-          {view.earphones ? ko.exercises.song.earphones : ko.exercises.song.speakers}
-        </Button>
-      )}
-      {view.backingAudible && (
-        <p className="text-sm text-muted" data-testid="e10-reference">
-          {t.speakerReference}
-        </p>
-      )}
+      <p className="text-lg">{t.steps[view.step]}</p>
+      {view.withBacking && <p className="text-muted">{t.backingNote}</p>}
     </SequenceStage>
   );
 }

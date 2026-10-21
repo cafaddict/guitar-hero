@@ -57,11 +57,11 @@ function Shape({ id }: { id: string }) {
   }
 }
 
-export function SelfCheckPicture({ id }: { id: string }) {
+export function SelfCheckPicture({ id, className = 'h-28 w-40' }: { id: string; className?: string }) {
   return (
     <svg
       viewBox="0 0 160 110"
-      className="h-28 w-40 text-accent"
+      className={`text-accent ${className}`}
       aria-hidden="true"
       data-testid="self-check-picture"
     >

@@ -6,7 +6,8 @@ import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { BigBpm } from '../ui/BigBpm';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
-import { SelfRating } from '../ui/SelfRating';
+import { PracticeStage } from '../ui/PracticeStage';
+import { selfRatingButtons } from '../ui/SelfRating';
 import {
   ALT_PICK_HIT_RATE,
   ALT_PICK_MAX_IOI_CV,
@@ -28,30 +29,33 @@ function E8ViewComponent({
   const { view, phase } = useRunnerSnapshot(runner);
   const live = ctx.audio !== null && phase !== 'done';
   return (
-    <div className="flex flex-col gap-4" data-testid="e8-view" data-phase={phase}>
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <BigBpm bpm={view.bpm} />
-        <p className="text-lg">
-          {phase === 'countIn'
-            ? ko.exercises.e5.countIn
-            : view.bar !== null
-              ? ko.exercises.e5.bar(view.bar + 1, view.bars)
-              : ''}
-        </p>
-      </div>
-      <p className="text-2xl font-semibold">{ko.exercises.e8.how(stringNumber(view.stringIdx))}</p>
-      {live && <LiveBars bars={view.bars} live={view.liveBars} current={view.bar} kind="counts" />}
-      <div aria-live="polite">
+    <PracticeStage
+      data-testid="e8-view"
+      data-phase={phase}
+      figure={
+        <div className="flex w-full flex-col gap-4">
+          <p className="text-2xl font-semibold">{ko.exercises.e8.how(stringNumber(view.stringIdx))}</p>
+          {live && <LiveBars bars={view.bars} live={view.liveBars} current={view.bar} kind="counts" />}
+        </div>
+      }
+      primary={
+        view.awaitingSelf ? selfRatingButtons(ko.exercises.e8.self, (cmd) => runner.command(cmd)) : undefined
+      }
+      primaryLabel={view.awaitingSelf ? ko.exercises.e8.selfPrompt : undefined}
+    >
+      <BigBpm bpm={view.bpm} />
+      <p className="text-xl">
+        {phase === 'countIn'
+          ? ko.exercises.e5.countIn
+          : view.bar !== null
+            ? ko.exercises.e5.bar(view.bar + 1, view.bars)
+            : ''}
+      </p>
+      <div aria-live="polite" className="text-xl">
         {view.analyzing && <p>{ko.exercises.e5.analyzing}</p>}
-        {view.awaitingSelf && (
-          <SelfRating
-            prompt={ko.exercises.e8.selfPrompt}
-            labels={ko.exercises.e8.self}
-            onPick={(cmd) => runner.command(cmd)}
-          />
-        )}
+        {view.awaitingSelf && <p>{ko.exercises.e8.selfPrompt}</p>}
       </div>
-    </div>
+    </PracticeStage>
   );
 }
 

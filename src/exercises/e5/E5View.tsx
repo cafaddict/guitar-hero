@@ -3,11 +3,12 @@ import type { StrumResult } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import type { ExerciseContext, ExerciseRunner } from '../types';
-import { ArmedStart } from '../ui/ArmedStart';
+import { ArmedPrompt, armedStartButton } from '../ui/ArmedStart';
 import { BigBpm } from '../ui/BigBpm';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
+import { PracticeStage } from '../ui/PracticeStage';
 import { type E5Beta, type E5Params, nextBpmFor, type E5View as View } from './runner';
 
 /** A slot's identity is its position in the bar (patterns repeat 'D'/'U' symbols). */
@@ -47,101 +48,119 @@ export function E5ViewComponent({
   const live = view.source === 'mic' && phase !== 'armed' && phase !== 'ready' && phase !== 'done';
   /** The bar judged last: its slot verdicts are shown under the pattern cells. */
   const lastBar = view.liveBars[view.liveBars.length - 1] ?? null;
+  const rating = (labels: Record<'manual1' | 'manual2' | 'manual3', string>) =>
+    (['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
+      <Button key={cmd} large variant="secondary" onClick={() => runner.command(cmd)}>
+        {k + 1} {labels[cmd]}
+      </Button>
+    ));
   return (
-    <div className="flex flex-col gap-4" data-testid="e5-view" data-phase={phase}>
-      <BigTimer remainingMs={remainingMs} />
-      <div className="flex flex-wrap items-end justify-between gap-2">
+    <PracticeStage
+      data-testid="e5-view"
+      data-phase={phase}
+      figure={
+        <div className="flex w-full flex-col gap-4">
+          <ol
+            className="grid gap-1.5"
+            style={{ gridTemplateColumns: `repeat(${view.pattern.slots.length}, minmax(0, 1fr))` }}
+            aria-label={view.pattern.label}
+          >
+            {view.pattern.slots.map(toSlotCell).map(({ slot, position }) => {
+              const active = !view.cuesHidden && view.slot === position;
+              const accent = view.pattern.accents.includes(position);
+              return (
+                <li
+                  key={position}
+                  className={`flex min-h-20 flex-col items-center justify-center rounded-xl ${active ? 'bg-accent text-accent-fg' : 'bg-surface'} ${accent ? 'font-black' : ''}`}
+                >
+                  <span className="text-4xl" aria-hidden="true">
+                    {view.cuesHidden ? '' : ko.exercises.e5.direction[slot]}
+                  </span>
+                  <span className="text-sm">
+                    {view.cuesHidden ? '' : ko.exercises.e5.directionLabel[slot]}
+                  </span>
+                  {live && lastBar && (
+                    <span
+                      className={`text-base font-bold ${{ hit: 'text-ok', miss: 'text-fail', extra: 'text-retry', empty: '' }[lastBar.judgements[position] ?? 'empty']}`}
+                      data-testid="e5-slot-judgement"
+                      data-judgement={lastBar.judgements[position] ?? 'empty'}
+                      aria-hidden="true"
+                    >
+                      {ko.exercises.live.slot[lastBar.judgements[position] ?? 'empty']}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+          <BeatCount beat={view.beat} beatsPerBar={view.beatsPerBar} />
+          <p className="text-center text-lg" data-testid="e5-count-hint">
+            {ko.exercises.e5.countAloud}
+            {ctx.content.stage === 2 && ` ${ko.exercises.e5.footTap}`}
+          </p>
+          {view.dynamics && (
+            <p
+              className="text-center text-2xl font-bold"
+              data-testid="e5-dynamics"
+              data-soft={view.soft ?? ''}
+            >
+              {view.soft === null
+                ? ko.exercises.e5.dynamicsHow
+                : view.soft
+                  ? ko.exercises.e5.soft
+                  : ko.exercises.e5.loud}
+            </p>
+          )}
+          {live && <LiveBars bars={view.bars} live={view.liveBars} current={view.bar} kind="counts" />}
+        </div>
+      }
+      primary={
+        armedStartButton(phase, () => runner.command('toggle')) ??
+        (view.awaitingDynamics
+          ? rating(ko.exercises.e5.dynamicsSelf)
+          : view.awaitingSelf
+            ? rating(ko.exercises.e5.self)
+            : undefined)
+      }
+      primaryLabel={
+        view.awaitingDynamics
+          ? ko.exercises.e5.dynamicsPrompt
+          : view.awaitingSelf
+            ? ko.exercises.e5.selfPrompt
+            : undefined
+      }
+      notes={
+        <>
+          {view.cuesHidden && <p className="text-muted">{ko.exercises.e5.cuesHidden}</p>}
+          <p className="text-muted">
+            {ko.exercises.e5.modes[view.mode]} · {ko.exercises.e5.keepGoing} {ko.exercises.e5.directionNote}
+          </p>
+          <p className="text-muted">{ko.exercises.e5.optionKeys}</p>
+        </>
+      }
+    >
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
         <BigBpm bpm={view.bpm} />
-        <p className="text-lg" data-testid="e5-bar">
+        <BigTimer remainingMs={remainingMs} />
+      </div>
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+        <p className="text-xl" data-testid="e5-bar">
           {phase === 'countIn'
             ? ko.exercises.e5.countIn
             : view.bar !== null
               ? ko.exercises.e5.bar(view.bar + 1, view.bars)
               : ''}
         </p>
-        {chord && <p className="text-3xl font-bold">{chord}</p>}
+        {chord && <p className="text-4xl font-bold">{chord}</p>}
       </div>
-      <ol
-        className="grid gap-1"
-        style={{ gridTemplateColumns: `repeat(${view.pattern.slots.length}, minmax(0, 1fr))` }}
-        aria-label={view.pattern.label}
-      >
-        {view.pattern.slots.map(toSlotCell).map(({ slot, position }) => {
-          const active = !view.cuesHidden && view.slot === position;
-          const accent = view.pattern.accents.includes(position);
-          return (
-            <li
-              key={position}
-              className={`flex min-h-16 flex-col items-center justify-center rounded-lg ${active ? 'bg-accent text-accent-fg' : 'bg-surface'} ${accent ? 'font-black' : ''}`}
-            >
-              <span className="text-3xl" aria-hidden="true">
-                {view.cuesHidden ? '' : ko.exercises.e5.direction[slot]}
-              </span>
-              <span className="text-xs">{view.cuesHidden ? '' : ko.exercises.e5.directionLabel[slot]}</span>
-              {live && lastBar && (
-                <span
-                  className={`text-sm font-bold ${{ hit: 'text-ok', miss: 'text-fail', extra: 'text-retry', empty: '' }[lastBar.judgements[position] ?? 'empty']}`}
-                  data-testid="e5-slot-judgement"
-                  data-judgement={lastBar.judgements[position] ?? 'empty'}
-                  aria-hidden="true"
-                >
-                  {ko.exercises.live.slot[lastBar.judgements[position] ?? 'empty']}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-      <BeatCount beat={view.beat} beatsPerBar={view.beatsPerBar} />
-      {live && <LiveBars bars={view.bars} live={view.liveBars} current={view.bar} kind="counts" />}
-      <p className="text-center" data-testid="e5-count-hint">
-        {ko.exercises.e5.countAloud}
-        {ctx.content.stage === 2 && ` ${ko.exercises.e5.footTap}`}
-      </p>
-      {view.dynamics && (
-        <p className="text-center text-2xl font-bold" data-testid="e5-dynamics" data-soft={view.soft ?? ''}>
-          {view.soft === null
-            ? ko.exercises.e5.dynamicsHow
-            : view.soft
-              ? ko.exercises.e5.soft
-              : ko.exercises.e5.loud}
-        </p>
-      )}
-      {view.cuesHidden && <p className="text-sm text-muted">{ko.exercises.e5.cuesHidden}</p>}
-      <p className="text-sm text-muted">{ko.exercises.e5.optionKeys}</p>
-      <p className="text-sm text-muted">
-        {ko.exercises.e5.modes[view.mode]} · {ko.exercises.e5.keepGoing} {ko.exercises.e5.directionNote}
-      </p>
-      <ArmedStart phase={phase} onStart={() => runner.command('toggle')} />
-      <div aria-live="polite">
+      <ArmedPrompt phase={phase} />
+      <div aria-live="polite" className="text-xl">
         {view.analyzing && <p>{ko.exercises.e5.analyzing}</p>}
         {view.analysisFailed && <p className="text-retry">{ko.exercises.e5.analysisFailed}</p>}
-        {view.awaitingDynamics && (
-          <div data-testid="e5-dynamics-rating">
-            <p>{ko.exercises.e5.dynamicsPrompt}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
-                <Button key={cmd} large variant="secondary" onClick={() => runner.command(cmd)}>
-                  {k + 1} {ko.exercises.e5.dynamicsSelf[cmd]}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-        {view.awaitingSelf && (
-          <div>
-            <p>{ko.exercises.e5.selfPrompt}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
-                <Button key={cmd} large variant="secondary" onClick={() => runner.command(cmd)}>
-                  {k + 1} {ko.exercises.e5.self[cmd]}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
+        {view.awaitingDynamics && <p data-testid="e5-dynamics-rating">{ko.exercises.e5.dynamicsPrompt}</p>}
+        {view.awaitingSelf && <p>{ko.exercises.e5.selfPrompt}</p>}
       </div>
-    </div>
+    </PracticeStage>
   );
 }
 

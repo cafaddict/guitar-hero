@@ -1,25 +1,18 @@
 import { Button } from '../../ui/Button';
 
-/** 1/2/3 self-rating buttons (also keys 1/2/3) used when no microphone judged the run. */
-export function SelfRating({
-  prompt,
-  labels,
-  onPick,
-}: {
-  prompt: string;
-  labels: Record<'manual1' | 'manual2' | 'manual3', string>;
-  onPick: (cmd: 'manual1' | 'manual2' | 'manual3') => void;
-}) {
-  return (
-    <div>
-      <p>{prompt}</p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {(['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
-          <Button key={cmd} large variant="secondary" onClick={() => onPick(cmd)}>
-            {k + 1} {labels[cmd]}
-          </Button>
-        ))}
-      </div>
-    </div>
-  );
+type ManualCommand = 'manual1' | 'manual2' | 'manual3';
+
+/**
+ * The 1/2/3 self-rating answers (also keys 1/2/3) used when no microphone judged the run: one decision, so
+ * the stage shows them together as its next step (D-090); the question goes in the panel.
+ */
+export function selfRatingButtons(
+  labels: Record<ManualCommand, string>,
+  onPick: (cmd: ManualCommand) => void,
+) {
+  return (['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
+    <Button key={cmd} large variant="secondary" onClick={() => onPick(cmd)}>
+      {k + 1} {labels[cmd]}
+    </Button>
+  ));
 }

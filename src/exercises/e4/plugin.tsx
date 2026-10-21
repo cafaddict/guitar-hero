@@ -38,7 +38,7 @@ function E4ViewComponent({
       <h2 className="text-xl font-bold" data-testid="e4-kind" data-kind={view.kind}>
         {view.kind === 'anchor' ? ko.exercises.e4.anchorTitle : ko.exercises.e4.airTitle}
       </h2>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <ChordDiagram voicing={view.from} leftHanded={ctx.settings.leftHanded} />
         <ChordDiagram voicing={view.to} leftHanded={ctx.settings.leftHanded} />
       </div>
@@ -54,8 +54,8 @@ function E4ViewComponent({
           </li>
         ))}
       </ul>
-      <p>{view.kind === 'anchor' ? ko.exercises.e4.anchorHow : ko.exercises.e4.airHow}</p>
-      <p className="text-sm text-muted">{ko.exercises.e4.noScore}</p>
+      <p className="text-xl">{view.kind === 'anchor' ? ko.exercises.e4.anchorHow : ko.exercises.e4.airHow}</p>
+      <p className="text-muted">{ko.exercises.e4.noScore}</p>
     </TimedSelfReport>
   );
 }

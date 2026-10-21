@@ -24,6 +24,7 @@ export interface ChordDiagramProps {
   highlight?: { idx: number; fret: number } | null;
   /** Mark the chord's root notes with a different shape and colour (SPEC v1.1 §12.1, research 03:87). */
   showRoot?: boolean;
+  /** Width limits (default `max-w-xs`); replaces the default rather than adding to it. */
   className?: string;
 }
 
@@ -61,7 +62,7 @@ export function ChordDiagram({
   marks,
   highlight = null,
   showRoot = true,
-  className = '',
+  className = 'max-w-xs',
 }: ChordDiagramProps) {
   const roots = new Set(showRoot ? rootStrings(voicing) : []);
   const width = 180;
@@ -93,7 +94,7 @@ export function ChordDiagram({
       viewBox={`0 0 ${width} ${height}`}
       role="img"
       aria-label={describe(voicing)}
-      className={`h-auto w-full max-w-xs ${className}`}
+      className={`h-auto w-full ${className}`}
       data-testid="chord-diagram"
     >
       <text x={width / 2} y={18} textAnchor="middle" fontSize={18} fontWeight={700} fill="var(--fg)">

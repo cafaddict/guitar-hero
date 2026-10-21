@@ -5,10 +5,10 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **U2 (연습 화면)** — 진행 중(공통 뼈대 `PracticeStage`, 뷰 이전 중)
+- 현재 마일스톤: **U3 (세션 러너)** — 시작(세션·U4·U5 작업분 일부가 이미 작업 트리에 있음)
 - 시작 지점: `cafaddict/ui`, 키트 커밋(D-088). 그 부모는 D-087 UI 개편 커밋.
 - 마지막 갱신: 2026-10-21 (goal 실행자)
-- 누적 턴(대략): 1
+- 누적 턴(대략): 3
 - 턴 상한: **400**
 - 막힌 점: 없음
 - 메모:
@@ -17,14 +17,15 @@
   - 같은 화면을 두 번 연달아 `openScreen`하면 같은 URL이라 다시 마운트되지 않는다. 다른 화면을 거쳐서 연다.
   - 빠른 촬영: `npx vite --mode e2e --port 5199 --strictPort`를 띄우고 `UI_SHOTS_BASE=http://localhost:5199`(필터와 함께)로 찍는다. 15초 안팎. 끝나면 서버를 끈다.
   - UQ 문제 수 세기: 로그에서 `UQ-n ` 접두 줄을 diff 기호·따옴표를 벗겨 중복 없이 센다(세 프로젝트 같은 줄은 1회).
-  - U2에서 쓸 문구(ko.ts, U1 커밋 뒤에 더함): `exercises.common.readyTitle/readyMic/readyKeys`, `exercises.sequence.start`, 시퀀스 준비 안내의 "시작 버튼이나 Space로", 꼬리 버튼 "마치기"→"중단"(D-090).
+  - U3·U4 작업분(세션·홈·단계·튜너·메트로놈·루틴 편집·온보딩·라이브러리)을 U2 게이트 동안 scratchpad `u34/`에 보관했다. U2 커밋 뒤 되돌려 놓고, ko.ts에 `curriculum.practice.quickTitle`('먼저 해 볼 연습')·`pickMany`('여러 개 골라 세션으로')·`tuner.idle`('튜너를 켜고 줄을 하나 튕겨 보세요.')를 더하고, 튜너의 `!` 눌림 클래스를 `Button selected`로 바꾼다.
+  - U5 할 일: F-36 고대비 `bg-surface` 칸 경계(styles.css 훅).
 
 ## 마일스톤
 
 | M | 이름 | 상태 | 커밋 | 비고 |
 |---|---|---|---|---|
 | U1 | 기반 | DONE | `UI U1: 기반` | UQ-4·5·6·10 0(7·8 유지), 기존 E2E 86 통과, 단위 1902 통과 |
-| U2 | 연습 화면 | TODO | | |
+| U2 | 연습 화면 | DONE | `UI U2: 연습 화면` | `PracticeStage`(D-090), UQ-1·3·9 0, 독립 리뷰 10건 처리(High 1: 일시정지 포커스 + 회귀 E2E), E2E 88 + 새 1개 통과 |
 | U3 | 세션 러너 | TODO | | |
 | U4 | 앱 화면 | TODO | | |
 | U5 | 폼·도구·테마 | TODO | | |
@@ -38,6 +39,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 키트 기준(D-087 + 키트) | 84 | 28 | 5 | 36 | 1093 | 162 | 0 | 0 | 8 | 24 | 통과 |
 | U1 끝 | 84 | 28 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 통과 |
+| U2 끝 | 0 | 28 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 통과 |
 
 기준 시점의 대표 문제:
 - UQ-1·UQ-2: `[data-primary-action]` 표식이 아직 없다. 표식을 달아도 첫 화면 밖인 곳이 있다.
@@ -74,3 +76,4 @@
 |---|---|---|
 | 0 | 키트 작성(SPEC, 고정 테스트, ui:shots, PROGRESS, UI_AUDIT 틀), 고정 전 독립 리뷰 반영(D-088). 기존 E2E 83개 + UQ-7·8 통과, UQ 게이트 5개는 기준 문제로 실패 | U1 시작: `UI_SHOTS_DIR=ui-shots/before npm run ui:shots` → 감사 초기 발견 → 기반 작업 |
 | 1 | `ui-shots/before/` 888장 촬영, 감사 초기 발견 F-01–F-32 등록. U1(D-089): keep-all·break-word, 문단 48em, `--field-border`와 `src/ui/Field.tsx`(Select·TextInput·TextArea·Field·Choice), 슬라이더, 고대비 포커스, `LoadingPlaceholder`. 필드 화면 3테마 × iPad 가로·iPhone 검토. 게이트: typecheck·lint·단위 1902·E2E 86 통과, UQ-4·5·6·7·8·9·10 0 | U2: `PracticeStage`(2단·sticky 행동 막대·RunControls), 뷰 전부 이전, 시퀀스 터치 시작, 핵심 숫자 18vh/16vh |
+| 2 | U2: `PracticeStage`로 E0–E17·K1·Q1–Q5·S·시작 화면 이전, 시퀀스 터치 시작, 핵심 숫자 18/16vh, TAB 확대 상한, 퀴즈 답 정렬, "중단" 문구(D-090). 독립 리뷰 → 일시정지 포커스 유실(High) 등 10건 처리, 회귀 E2E 추가. 게이트 3회(2회째 Q3 "pluck" 판정 사라짐 → 수정). 다크 4뷰포트 + 라이트·고대비 iPad 가로·iPhone 검토 | U3: 세션 상태(전환·일시정지·실행 뒤·자가 평가) 촬영 도구로 검토, 그다음 U4 |

@@ -3,11 +3,12 @@ import { extractMetrics, type OneBeatResult, oneBeatResultSchema } from '../../d
 import { ko } from '../../i18n/ko';
 import { LADDER_STEP_BPM, nextBpmFor, tempoRetry } from '../e5/runner';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
-import { ArmedStart } from '../ui/ArmedStart';
+import { ArmedPrompt, armedStartButton } from '../ui/ArmedStart';
 import { BigBpm } from '../ui/BigBpm';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
-import { SelfRating } from '../ui/SelfRating';
+import { PracticeStage } from '../ui/PracticeStage';
+import { selfRatingButtons } from '../ui/SelfRating';
 import { type E6Params, type E6View, e6ParamsSchema, ONE_BEAT_PASS_RATIO, OneBeatRunner } from './runner';
 
 function E6ViewComponent({
@@ -21,39 +22,48 @@ function E6ViewComponent({
   const { view, phase } = useRunnerSnapshot(runner);
   const live = ctx.audio !== null && phase !== 'armed' && phase !== 'ready' && phase !== 'done';
   return (
-    <div className="flex flex-col gap-4" data-testid="e6-view" data-phase={phase}>
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <BigBpm bpm={view.bpm} />
-        <p className="text-lg">
-          {phase === 'countIn'
-            ? ko.exercises.e5.countIn
-            : view.bar !== null
-              ? ko.exercises.e5.bar(view.bar + 1, view.bars)
-              : ''}
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-3 text-center">
-        <p className="rounded-lg bg-surface p-4 font-bold" style={{ fontSize: 'clamp(2.5rem, 12vh, 6rem)' }}>
-          {view.chord ?? '—'}
-        </p>
-        <p className="rounded-lg bg-surface-2 p-4 text-3xl text-muted">
-          {view.nextChord ? ko.exercises.e6.next(view.nextChord) : ''}
-        </p>
-      </div>
-      {live && <LiveBars bars={view.bars} live={view.liveBars} current={view.bar} kind="beatOne" />}
-      <p className="text-sm text-muted">{ko.exercises.e6.how}</p>
-      <ArmedStart phase={phase} onStart={() => runner.command('toggle')} />
-      <div aria-live="polite">
+    <PracticeStage
+      data-testid="e6-view"
+      data-phase={phase}
+      figure={
+        <div className="flex w-full flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <p
+              className="flex items-center justify-center rounded-2xl bg-surface p-4 font-bold"
+              style={{ fontSize: 'clamp(2.5rem, 12vh, 7rem)' }}
+            >
+              {view.chord ?? '—'}
+            </p>
+            <p className="flex items-center justify-center rounded-2xl bg-surface-2 p-4 text-3xl text-muted">
+              {view.nextChord ? ko.exercises.e6.next(view.nextChord) : ''}
+            </p>
+          </div>
+          {live && <LiveBars bars={view.bars} live={view.liveBars} current={view.bar} kind="beatOne" />}
+        </div>
+      }
+      primary={
+        armedStartButton(phase, () => runner.command('toggle')) ??
+        (view.awaitingSelf
+          ? selfRatingButtons(ko.exercises.e6.self, (cmd) => runner.command(cmd))
+          : undefined)
+      }
+      primaryLabel={view.awaitingSelf ? ko.exercises.e6.selfPrompt : undefined}
+      notes={<p className="text-lg">{ko.exercises.e6.how}</p>}
+    >
+      <BigBpm bpm={view.bpm} />
+      <p className="text-xl">
+        {phase === 'countIn'
+          ? ko.exercises.e5.countIn
+          : view.bar !== null
+            ? ko.exercises.e5.bar(view.bar + 1, view.bars)
+            : ''}
+      </p>
+      <ArmedPrompt phase={phase} />
+      <div aria-live="polite" className="text-xl">
         {view.analyzing && <p>{ko.exercises.e5.analyzing}</p>}
-        {view.awaitingSelf && (
-          <SelfRating
-            prompt={ko.exercises.e6.selfPrompt}
-            labels={ko.exercises.e6.self}
-            onPick={(cmd) => runner.command(cmd)}
-          />
-        )}
+        {view.awaitingSelf && <p>{ko.exercises.e6.selfPrompt}</p>}
       </div>
-    </div>
+    </PracticeStage>
   );
 }
 

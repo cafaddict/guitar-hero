@@ -7,6 +7,7 @@ import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { PracticeStage } from '../ui/PracticeStage';
 import {
   type E16Params,
   type E16View,
@@ -22,9 +23,22 @@ const DOT_X: Record<FretPosition, number> = { behind: 108, middle: 70, onFret: 1
  * One fret space as the player sees the neck: the headstock side (lower fret) on the left for a right-handed
  * player, mirrored for a left-handed one (like the chord diagrams, §12.1).
  */
-export function PositionPicture({ pos, leftHanded = false }: { pos: FretPosition; leftHanded?: boolean }) {
+export function PositionPicture({
+  pos,
+  leftHanded = false,
+  className = 'h-16 w-40',
+}: {
+  pos: FretPosition;
+  leftHanded?: boolean;
+  className?: string;
+}) {
   return (
-    <svg viewBox="0 0 160 60" className="h-16 w-40 text-fg" aria-hidden="true" data-mirrored={leftHanded}>
+    <svg
+      viewBox="0 0 160 60"
+      className={`text-fg ${className}`}
+      aria-hidden="true"
+      data-mirrored={leftHanded}
+    >
       <g transform={leftHanded ? 'translate(160 0) scale(-1 1)' : undefined}>
         <line x1="10" y1="30" x2="150" y2="30" stroke="currentColor" strokeWidth="2" />
         <line x1="20" y1="8" x2="20" y2="52" stroke="currentColor" strokeWidth="5" />
@@ -43,20 +57,30 @@ function Comparison({ positions }: { positions: E16View['positions'] }) {
   return (
     <table className="w-full text-left" data-testid="e16-table">
       <thead>
-        <tr>
-          <th scope="col">{ko.exercises.e16.position}</th>
-          <th scope="col">{ko.exercises.e16.result}</th>
-          <th scope="col">{ko.exercises.e16.clarity}</th>
-          <th scope="col">{ko.exercises.e16.buzzBeta}</th>
+        <tr className="border-b border-border text-sm text-muted">
+          <th scope="col" className="py-2 pr-3 font-semibold">
+            {ko.exercises.e16.position}
+          </th>
+          <th scope="col" className="py-2 pr-3 font-semibold">
+            {ko.exercises.e16.result}
+          </th>
+          <th scope="col" className="py-2 pr-3 font-semibold">
+            {ko.exercises.e16.clarity}
+          </th>
+          <th scope="col" className="py-2 font-semibold">
+            {ko.exercises.e16.buzzBeta}
+          </th>
         </tr>
       </thead>
-      <tbody>
+      <tbody className="divide-y divide-border">
         {positions.map((p) => (
           <tr key={p.pos}>
-            <th scope="row">{ko.exercises.e16.positions[p.pos]}</th>
-            <td>{p.statuses.map(statusText).join(' · ') || '—'}</td>
-            <td className="tabular-nums">{p.clarity === null ? '—' : p.clarity.toFixed(2)}</td>
-            <td className="tabular-nums" data-beta="true">
+            <th scope="row" className="py-2 pr-3 font-semibold">
+              {ko.exercises.e16.positions[p.pos]}
+            </th>
+            <td className="py-2 pr-3">{p.statuses.map(statusText).join(' · ') || '—'}</td>
+            <td className="py-2 pr-3 tabular-nums">{p.clarity === null ? '—' : p.clarity.toFixed(2)}</td>
+            <td className="py-2 tabular-nums" data-beta="true">
               {p.buzzSuspect === undefined ? '—' : p.buzzSuspect}
             </td>
           </tr>
@@ -76,41 +100,48 @@ function E16ViewComponent({
 }) {
   const { view } = useRunnerSnapshot(runner);
   return (
-    <section
-      className="flex flex-col gap-3"
+    <PracticeStage
       data-testid="e16-view"
       data-position={view.position ?? ''}
       data-step={view.positions.reduce((n, p) => n + p.statuses.length, 0)}
+      figure={
+        view.position && (
+          <div className="flex w-full flex-col items-center gap-4 rounded-2xl bg-surface p-5">
+            <PositionPicture
+              pos={view.position}
+              leftHanded={ctx.settings.leftHanded}
+              className="h-auto w-full max-w-sm"
+            />
+            <p className="text-center text-2xl font-bold">
+              {ko.exercises.e16.instruction(
+                ko.exercises.e16.positions[view.position],
+                view.pluck,
+                view.perPosition,
+              )}
+            </p>
+          </div>
+        )
+      }
+      primary={
+        view.source === 'self' && view.position ? (
+          <>
+            <Button large variant="secondary" onClick={() => runner.command('manual1')}>
+              {ko.exercises.e16.self.clean}
+            </Button>
+            <Button large variant="secondary" onClick={() => runner.command('manual2')}>
+              {ko.exercises.e16.self.muted}
+            </Button>
+            <Button large variant="secondary" onClick={() => runner.command('manual3')}>
+              {ko.exercises.e16.self.buzz}
+            </Button>
+          </>
+        ) : undefined
+      }
     >
-      <p>{ko.exercises.e16.intro}</p>
-      {view.position && (
-        <div className="flex flex-wrap items-center gap-4 rounded-lg bg-surface p-4">
-          <PositionPicture pos={view.position} leftHanded={ctx.settings.leftHanded} />
-          <p className="text-2xl font-bold">
-            {ko.exercises.e16.instruction(
-              ko.exercises.e16.positions[view.position],
-              view.pluck,
-              view.perPosition,
-            )}
-          </p>
-        </div>
-      )}
-      {view.retry && <p className="text-retry">{ko.exercises.e16.retry}</p>}
-      {view.source === 'self' && view.position && (
-        <div className="flex flex-wrap gap-2">
-          <Button large variant="secondary" onClick={() => runner.command('manual1')}>
-            {ko.exercises.e16.self.clean}
-          </Button>
-          <Button large variant="secondary" onClick={() => runner.command('manual2')}>
-            {ko.exercises.e16.self.muted}
-          </Button>
-          <Button large variant="secondary" onClick={() => runner.command('manual3')}>
-            {ko.exercises.e16.self.buzz}
-          </Button>
-        </div>
-      )}
+      <p className="text-lg">{ko.exercises.e16.intro}</p>
+      {view.retry && <p className="text-lg text-retry">{ko.exercises.e16.retry}</p>}
       <Comparison positions={view.positions} />
-    </section>
+    </PracticeStage>
   );
 }
 

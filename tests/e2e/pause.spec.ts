@@ -124,3 +124,25 @@ test('E2E-26: an exercise that cannot pause shows no pause button and no P in it
   await page.keyboard.press('p');
   await expect(view).toHaveAttribute('data-phase', 'running');
 });
+
+test('E2E-26: the focused pause button keeps the focus while the run pauses and resumes (D-090 stage)', async ({
+  page,
+}) => {
+  // A song has its own next step ("정지") while playing; paused, "이어서" becomes the next step. The button moves
+  // in the layout, never in the DOM: Space on it must keep working without the learner finding it again.
+  await page.goto('/#/practice/S?songId=s01&mode=perform&bpm=120&chartHidden=true');
+  await startWithoutMic(page);
+  const view = page.getByTestId('song-view');
+  await expect(view).toHaveAttribute('data-phase', 'ready');
+  await page.keyboard.press('Space');
+  await expect(view).toHaveAttribute('data-phase', /countIn|running/);
+  const pause = page.getByTestId('exercise-pause');
+  // WebKit does not focus a clicked button: focus it the way a keyboard user would have.
+  await pause.focus();
+  await page.keyboard.press('Space');
+  await expect(view).toHaveAttribute('data-phase', 'paused');
+  await expect(pause).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(view).toHaveAttribute('data-phase', /countIn|running/);
+  await expect(pause).toBeFocused();
+});

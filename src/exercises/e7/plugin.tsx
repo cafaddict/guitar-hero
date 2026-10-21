@@ -20,8 +20,8 @@ function E7ViewComponent({ runner }: { runner: ExerciseRunner<StretchResult, E7V
       onCommand={(cmd) => runner.command(cmd)}
     >
       <p className="text-3xl font-bold">{ko.exercises.e7.startFret(view.startFret)}</p>
-      <p>{ko.exercises.e7.how}</p>
-      <p role="note" className="rounded-lg bg-surface p-3 text-retry" data-testid="stretch-notice">
+      <p className="text-xl">{ko.exercises.e7.how}</p>
+      <p role="note" className="rounded-xl bg-retry-soft p-4 text-lg text-retry" data-testid="stretch-notice">
         {ko.safety.stretchNotice}
       </p>
     </TimedSelfReport>

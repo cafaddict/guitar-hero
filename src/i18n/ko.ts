@@ -362,7 +362,7 @@ export const ko = {
     end: '세션 끝내기',
     splitPoint: '앞 절반 끝 — 30분 루틴은 여기서 나눠 해도 돼요. 오늘 안에 홈에서 이어서 할 수 있어요.',
     splitHere: '여기서 나눠 하기',
-    finishRunFirst: '연습이 끝나면 이동할 수 있어요. 지금 그만두려면 Esc를 두 번 누르거나 "마치기"를 눌러요.',
+    finishRunFirst: '연습이 끝나면 이동할 수 있어요. 지금 그만두려면 Esc를 두 번 누르거나 "중단"을 눌러요.',
     rest: (seconds: number) => `잠깐 쉬어요 · ${seconds}초`,
     restSkip: '바로 다음으로',
     breakReminder: '30분 동안 연습했어요. 잠깐 손을 쉬고 스트레칭해요.',
@@ -907,7 +907,11 @@ export const ko = {
     common: {
       start: '시작',
       startWithMic: '마이크 켜고 시작',
-      finish: '마치기',
+      /** The run's stop control (Esc): what was done so far is kept (D-090). */
+      finish: '중단',
+      readyTitle: '준비되면 시작해요',
+      readyMic: '마이크를 켜면 앱이 소리를 듣고 판정해요. 마이크 없이 쓰면 스스로 판정해요.',
+      readyKeys: 'Space나 Enter로도 시작할 수 있어요.',
       remaining: '남은 시간',
       saved: '기록했어요.',
       nothingToSave: '시작 전에 멈췄거나 채점할 수 없어서 기록하지 않았어요.',
@@ -1106,12 +1110,14 @@ export const ko = {
     },
     sequence: {
       bpm: (bpm: number) => `${bpm} BPM`,
+      start: '시작',
       tabTopLine: 'TAB의 맨 위 선이 1번 줄, 왼쪽 숫자가 줄 번호예요.',
       fingerRow: '손',
       countIn: '한 마디 세고 시작해요…',
-      readyMic: 'Space로 메트로놈을 켜고 클릭에 맞춰 쳐요. 한 바퀴가 끝날 때마다 마이크가 음을 확인해요.',
+      readyMic:
+        '시작 버튼이나 Space로 메트로놈을 켜고 클릭에 맞춰 쳐요. 한 바퀴가 끝날 때마다 마이크가 음을 확인해요.',
       readySelf:
-        'Space로 메트로놈을 켜고 클릭에 맞춰 쳐요. 한 바퀴가 끝날 때마다 1(실수 없음) 또는 2(실수 있음)를 눌러요.',
+        '시작 버튼이나 Space로 메트로놈을 켜고 클릭에 맞춰 쳐요. 한 바퀴가 끝날 때마다 1(실수 없음) 또는 2(실수 있음)를 눌러요.',
       cycles: (n: number, flawless: number, streak: number) =>
         `${n}바퀴 · 실수 없음 ${flawless} · 연속 ${streak}`,
       cycleNumber: (n: number) => `${n}바퀴째`,

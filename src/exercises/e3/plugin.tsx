@@ -14,6 +14,7 @@ import { ChordDiagram } from '../../ui/ChordDiagram';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { PRACTICE_DIAGRAM, PracticeStage } from '../ui/PracticeStage';
 import { type E3Params, type E3View, e3ParamsSchema, PfcRunner } from './runner';
 
 function E3ViewComponent({
@@ -29,59 +30,61 @@ function E3ViewComponent({
   const next = voicingById(voicingForClass(view.nextChord, ctx.content.gVoicing));
   const waiting = phase === 'ready' || phase === 'armed';
   return (
-    <div className="grid gap-4 md:grid-cols-2" data-testid="e3-view" data-phase={phase}>
-      <div className="flex flex-col items-center gap-2">
-        <ChordDiagram voicing={next} leftHanded={ctx.settings.leftHanded} />
-        <p className="text-lg">{ko.exercises.e2.next(view.nextChord)}</p>
-      </div>
-      <div className="flex flex-col gap-3">
-        <BigTimer remainingMs={remainingMs} />
-        <p className="text-2xl font-bold tabular-nums" data-testid="e3-count" data-arrivals={view.arrivals}>
-          {t.arrivals(view.arrivals, view.clean)}
-        </p>
-        <p>{t.how}</p>
-        <p className="text-sm text-muted">{t.normal}</p>
-        {view.source === 'mic' && view.lastStrumBeta && (
-          <p className="text-sm" data-testid="e3-beta" data-beta="true">
-            {t.strumBeta(t.verdict[view.lastStrumBeta] ?? '')}
-          </p>
-        )}
-        {view.source === 'mic' && view.arrivals > 0 && view.lastMark === null && phase === 'running' && (
-          <p aria-live="polite">{t.unmarked}</p>
-        )}
-        <p aria-live="polite" className="min-h-6">
-          {waiting && (phase === 'armed' ? ko.exercises.e2.armed(view.from) : ko.exercises.e2.ready)}
-          {phase === 'review' && t.review}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {waiting && (
-            <Button large onClick={() => runner.command('toggle')}>
-              {ko.exercises.e2.start}
+    <PracticeStage
+      data-testid="e3-view"
+      data-phase={phase}
+      figure={
+        <>
+          <ChordDiagram voicing={next} leftHanded={ctx.settings.leftHanded} className={PRACTICE_DIAGRAM} />
+          <p className="text-xl font-semibold">{ko.exercises.e2.next(view.nextChord)}</p>
+        </>
+      }
+      primary={
+        waiting ? (
+          <Button large onClick={() => runner.command('toggle')}>
+            {ko.exercises.e2.start}
+          </Button>
+        ) : phase === 'running' ? (
+          <>
+            <Button large onClick={() => runner.command('next')} data-testid="e3-clean">
+              {t.clean}
             </Button>
-          )}
-          {phase === 'running' && (
-            <>
-              <Button large onClick={() => runner.command('next')} data-testid="e3-clean">
-                {t.clean}
-              </Button>
-              <Button
-                large
-                variant="secondary"
-                onClick={() => runner.command('dec')}
-                data-testid="e3-unclean"
-              >
-                {t.unclean}
-              </Button>
-            </>
-          )}
-          {phase === 'review' && (
-            <Button large onClick={() => runner.command('next')}>
-              {ko.exercises.e2.confirm}
+            <Button large variant="secondary" onClick={() => runner.command('dec')} data-testid="e3-unclean">
+              {t.unclean}
             </Button>
-          )}
-        </div>
-      </div>
-    </div>
+          </>
+        ) : phase === 'review' ? (
+          <Button large onClick={() => runner.command('next')}>
+            {ko.exercises.e2.confirm}
+          </Button>
+        ) : undefined
+      }
+      notes={
+        <>
+          <p className="text-lg">{t.how}</p>
+          <p className="text-muted">{t.normal}</p>
+        </>
+      }
+    >
+      <BigTimer remainingMs={remainingMs} />
+      <p className="text-3xl font-bold tabular-nums" data-testid="e3-count" data-arrivals={view.arrivals}>
+        {t.arrivals(view.arrivals, view.clean)}
+      </p>
+      {view.source === 'mic' && view.lastStrumBeta && (
+        <p className="text-muted" data-testid="e3-beta" data-beta="true">
+          {t.strumBeta(t.verdict[view.lastStrumBeta] ?? '')}
+        </p>
+      )}
+      {view.source === 'mic' && view.arrivals > 0 && view.lastMark === null && phase === 'running' && (
+        <p aria-live="polite" className="text-lg">
+          {t.unmarked}
+        </p>
+      )}
+      <p aria-live="polite" className="min-h-7 text-xl">
+        {waiting && (phase === 'armed' ? ko.exercises.e2.armed(view.from) : ko.exercises.e2.ready)}
+        {phase === 'review' && t.review}
+      </p>
+    </PracticeStage>
   );
 }
 

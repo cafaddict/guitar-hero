@@ -1,13 +1,15 @@
-/** The tempo of a metronome exercise, sized with the viewport like the timer (SPEC §12.2: 15–25 % for the key number). */
+/**
+ * The tempo of a metronome exercise, its key number: 16 % of the viewport height (UQ-3: 15–25 %), a little
+ * under the timer so the two fit side by side. The unit is a fixed step of the type scale, not a fraction of
+ * the number.
+ */
 export function BigBpm({ bpm }: { bpm: number }) {
   return (
-    <p
-      className="font-black tabular-nums leading-none tracking-tight"
-      data-core-number
-      style={{ fontSize: 'clamp(2.5rem, 10vh, 5rem)' }}
-    >
-      {bpm}
-      <span className="text-[0.35em] font-bold text-muted"> BPM</span>
+    <p className="flex items-baseline gap-2 tabular-nums leading-none" data-core-number>
+      <span className="font-black tracking-tight" style={{ fontSize: 'clamp(2.75rem, 16vh, 13rem)' }}>
+        {bpm}
+      </span>{' '}
+      <span className="text-3xl font-bold text-muted">BPM</span>
     </p>
   );
 }

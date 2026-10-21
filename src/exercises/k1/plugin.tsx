@@ -5,6 +5,7 @@ import { Button } from '../../ui/Button';
 import { SelfCheckPicture } from '../../ui/SelfCheckPicture';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { PracticeStage } from '../ui/PracticeStage';
 import { type K1Params, type K1View, k1ParamsSchema, SelfCheckRunner } from './runner';
 
 function cardText(id: string): { title: string; body: string } {
@@ -16,25 +17,37 @@ function K1ViewComponent({ runner }: { runner: ExerciseRunner<SelfCheckResult, K
   if (view.itemId === null) return null;
   const card = cardText(view.itemId);
   return (
-    <section
-      className="flex flex-col gap-3 rounded-lg bg-surface p-4"
+    <PracticeStage
       data-testid="k1-view"
       data-item={view.itemId}
+      figure={
+        <div className="flex w-full justify-center rounded-2xl bg-surface p-6">
+          <SelfCheckPicture id={view.itemId} className="h-auto w-full max-w-sm" />
+        </div>
+      }
+      primary={
+        <>
+          <Button large onClick={() => runner.command('manual1')} data-testid="k1-done">
+            {ko.exercises.k1.done}
+          </Button>
+          <Button
+            large
+            variant="secondary"
+            onClick={() => runner.command('manual2')}
+            data-testid="k1-not-yet"
+          >
+            {ko.exercises.k1.notYet}
+          </Button>
+        </>
+      }
+      notes={<p className="text-muted">{ko.exercises.k1.keys}</p>}
     >
-      <p className="text-sm text-muted">{ko.exercises.k1.progress(view.index + 1, view.total)}</p>
-      <SelfCheckPicture id={view.itemId} />
-      <h2 className="text-2xl font-bold">{card.title}</h2>
-      <p className="text-lg">{card.body}</p>
-      <div className="flex flex-wrap gap-2">
-        <Button large onClick={() => runner.command('manual1')} data-testid="k1-done">
-          {ko.exercises.k1.done}
-        </Button>
-        <Button large variant="secondary" onClick={() => runner.command('manual2')} data-testid="k1-not-yet">
-          {ko.exercises.k1.notYet}
-        </Button>
-      </div>
-      <p className="text-sm text-muted">{ko.exercises.k1.keys}</p>
-    </section>
+      <p className="text-lg text-muted tabular-nums">
+        {ko.exercises.k1.progress(view.index + 1, view.total)}
+      </p>
+      <h2 className="text-3xl font-bold">{card.title}</h2>
+      <p className="text-xl">{card.body}</p>
+    </PracticeStage>
   );
 }
 

@@ -2,8 +2,12 @@ import type { ReactNode } from 'react';
 import { Button } from '../../ui/Button';
 import type { RunnerPhase } from '../types';
 import { BigTimer } from './BigTimer';
+import { PracticeStage } from './PracticeStage';
 
-/** Shared frame for timer + self-report exercises (E4, E7): start/stop, then an n/10 report. */
+/**
+ * Shared stage of the timer + self-report exercises (E4, E7, E12): the drill on the left, the timer and
+ * start / stop on the right, then an n/10 report (− value +, confirm).
+ */
 export function TimedSelfReport({
   phase,
   remainingMs,
@@ -18,6 +22,7 @@ export function TimedSelfReport({
 }: {
   phase: RunnerPhase;
   remainingMs: number | null;
+  /** The drill: what to play and how (the stage's figure). */
   children: ReactNode;
   startLabel: string;
   stopLabel: string;
@@ -28,41 +33,58 @@ export function TimedSelfReport({
   testId: string;
 }) {
   return (
-    <div className="flex flex-col gap-4" data-testid={testId} data-phase={phase}>
-      {children}
+    <PracticeStage
+      data-testid={testId}
+      data-phase={phase}
+      figure={<div className="flex w-full flex-col gap-4">{children}</div>}
+      primary={
+        phase === 'ready' ? (
+          <Button large onClick={() => onCommand('toggle')}>
+            {startLabel}
+          </Button>
+        ) : phase === 'running' ? (
+          <Button large variant="secondary" onClick={() => onCommand('next')}>
+            {stopLabel}
+          </Button>
+        ) : phase === 'review' ? (
+          <Button large onClick={() => onCommand('next')}>
+            {confirmLabel}
+          </Button>
+        ) : undefined
+      }
+    >
       {phase !== 'review' && <BigTimer remainingMs={remainingMs} />}
-      {phase === 'ready' && (
-        <Button large onClick={() => onCommand('toggle')}>
-          {startLabel}
-        </Button>
-      )}
-      {phase === 'running' && (
-        <Button large variant="secondary" onClick={() => onCommand('next')}>
-          {stopLabel}
-        </Button>
-      )}
       {phase === 'review' && (
-        <div aria-live="polite">
-          <p>{reviewPrompt}</p>
-          <div className="mt-2 flex items-center gap-3">
-            <Button large variant="secondary" onClick={() => onCommand('dec')} aria-label="−">
+        <div aria-live="polite" className="flex flex-col gap-3">
+          <p className="text-xl">{reviewPrompt}</p>
+          <div className="flex items-center gap-3">
+            <Button
+              large
+              variant="secondary"
+              className="min-w-16"
+              onClick={() => onCommand('dec')}
+              aria-label="−"
+            >
               −
             </Button>
             <span
-              className="min-w-20 text-center text-4xl font-bold tabular-nums"
+              className="min-w-24 text-center text-5xl font-bold tabular-nums"
               data-testid={`${testId}-value`}
             >
               {value}
             </span>
-            <Button large variant="secondary" onClick={() => onCommand('inc')} aria-label="+">
+            <Button
+              large
+              variant="secondary"
+              className="min-w-16"
+              onClick={() => onCommand('inc')}
+              aria-label="+"
+            >
               +
-            </Button>
-            <Button large onClick={() => onCommand('next')}>
-              {confirmLabel}
             </Button>
           </div>
         </div>
       )}
-    </div>
+    </PracticeStage>
   );
 }

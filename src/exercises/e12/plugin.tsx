@@ -3,6 +3,7 @@ import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { PracticeStage } from '../ui/PracticeStage';
 import { TimedSelfReport } from '../ui/TimedSelfReport';
 import { type E12Params, type E12View, e12ParamsSchema, PinkyRunner } from './runner';
 
@@ -11,28 +12,30 @@ function E12ViewComponent({ runner }: { runner: ExerciseRunner<PinkyResult, E12V
   const t = ko.exercises.e12;
   const body = (
     <>
-      <p>{t.how}</p>
-      <p className="text-sm text-muted">{t.notSpeed}</p>
-      <p role="note" className="rounded-lg bg-surface p-3 text-retry" data-testid="pinky-notice">
+      <p className="text-xl">{t.how}</p>
+      <p className="text-muted">{t.notSpeed}</p>
+      <p role="note" className="rounded-xl bg-retry-soft p-4 text-lg text-retry" data-testid="pinky-notice">
         {t.safety}
       </p>
     </>
   );
   if (phase === 'review' && view.question === 'clarity')
     return (
-      <div className="flex flex-col gap-4" data-testid="e12-view" data-phase={phase}>
-        {body}
-        <div aria-live="polite" data-testid="e12-clarity">
-          <p>{t.clarityPrompt}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {(['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
-              <Button key={cmd} large variant="secondary" onClick={() => runner.command(cmd)}>
-                {t.clarity[k + 1]}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <PracticeStage
+        data-testid="e12-view"
+        data-phase={phase}
+        figure={<div className="flex w-full flex-col gap-4">{body}</div>}
+        primaryLabel={t.clarityPrompt}
+        primary={(['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
+          <Button key={cmd} large variant="secondary" onClick={() => runner.command(cmd)}>
+            {t.clarity[k + 1]}
+          </Button>
+        ))}
+      >
+        <p aria-live="polite" className="text-xl" data-testid="e12-clarity">
+          {t.clarityPrompt}
+        </p>
+      </PracticeStage>
     );
   return (
     <TimedSelfReport

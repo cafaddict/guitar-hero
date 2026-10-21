@@ -14,6 +14,11 @@ const PAD = 14;
 /** Room left of the lines for the string numbers. */
 const LABEL_W = 18;
 const FINGER_ROW_GAP = 20;
+/**
+ * The most a TAB is scaled up: a short cycle (four notes) would otherwise fill a wide screen with 100 px digits.
+ * At 2.5 the numbers are about 32 px, readable from a music stand.
+ */
+const MAX_SCALE = 2.5;
 
 export function Tab({
   notes,
@@ -51,6 +56,7 @@ export function Tab({
       aria-label={label}
       viewBox={`0 0 ${width} ${height}`}
       className="h-auto w-full max-w-full text-fg"
+      style={{ maxWidth: `min(100%, ${width * MAX_SCALE}px)` }}
       data-testid="tab"
     >
       {[1, 2, 3, 4, 5, 6].map((s) => (

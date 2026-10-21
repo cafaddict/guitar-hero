@@ -7,9 +7,11 @@ import type { ReactNode } from 'react';
 import { sequenceHints } from '../../domain/coaching';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { Icon } from '../../ui/icons';
 import { Tab } from '../../ui/Tab';
 import type { ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { PracticeStage } from '../ui/PracticeStage';
 import type { SequenceView } from './runner';
 
 export function SequenceStage<R, V extends SequenceView>({
@@ -19,6 +21,11 @@ export function SequenceStage<R, V extends SequenceView>({
   testId,
   barSize,
   children,
+  status,
+  primary,
+  primaryLabel,
+  secondary,
+  words,
 }: {
   runner: ExerciseRunner<R, V>;
   title: string;
@@ -26,7 +33,18 @@ export function SequenceStage<R, V extends SequenceView>({
   testId: string;
   /** Notes per bar, for bar lines in the TAB (riffs). */
   barSize?: number;
+  /** How to play it (the stage's notes). */
   children?: ReactNode;
+  /** Extra live lines under the cycle status (legato reading, speaker reference). */
+  status?: ReactNode;
+  /** The next step when the view asks something of its own (E11's evenness rating). */
+  primary?: ReactNode;
+  /** The question that `primary` answers. */
+  primaryLabel?: string | undefined;
+  /** Controls of the view beside the next step (들어 보기, earphones). */
+  secondary?: ReactNode;
+  /** The TAB in words before the run (riffs): first of the notes, beside the status on a wide screen. */
+  words?: ReactNode;
 }) {
   const { view, phase } = useRunnerSnapshot(runner);
   const t = ko.exercises.sequence;
@@ -48,29 +66,87 @@ export function SequenceStage<R, V extends SequenceView>({
         )
       : [];
   const firstWrong = last?.faults?.find((f) => f.status === 'WRONG_NOTE');
+  const playing = phase === 'running' || phase === 'countIn';
   return (
-    <section className="flex flex-col gap-3" data-testid={testId} data-phase={phase}>
-      <p className="text-3xl font-bold tabular-nums">
-        {title} · {t.bpm(view.bpm)}
-      </p>
-      <Tab
-        notes={view.cycleNotes.map((n) => ({ string: n.string, fret: n.fret }))}
-        current={view.noteIndex}
-        hidden={view.tabHidden}
-        label={tabLabel}
-        {...(barSize ? { barSize } : {})}
-        {...(view.cycleNotes.some((n) => n.finger !== undefined)
-          ? { fingers: view.cycleNotes.map((n) => n.finger ?? 0) }
-          : {})}
-      />
-      <p className="text-sm text-muted">{t.tabTopLine}</p>
-      {children}
-      <p className="text-sm text-muted">{view.source === 'mic' ? t.micNote : t.selfNote}</p>
-      {phase === 'ready' && <p>{view.source === 'mic' ? t.readyMic : t.readySelf}</p>}
-      {view.countIn && <p aria-live="polite">{t.countIn}</p>}
-      {(phase === 'running' || phase === 'countIn' || phase === 'review' || phase === 'done') && (
+    <PracticeStage
+      data-testid={testId}
+      data-phase={phase}
+      figureSpan="full"
+      figure={
+        <div className="flex w-full flex-col items-center gap-2">
+          <p className="self-start text-3xl font-bold">
+            {title} <span className="whitespace-nowrap tabular-nums">· {t.bpm(view.bpm)}</span>
+          </p>
+          <Tab
+            notes={view.cycleNotes.map((n) => ({ string: n.string, fret: n.fret }))}
+            current={view.noteIndex}
+            hidden={view.tabHidden}
+            label={tabLabel}
+            {...(barSize ? { barSize } : {})}
+            {...(view.cycleNotes.some((n) => n.finger !== undefined)
+              ? { fingers: view.cycleNotes.map((n) => n.finger ?? 0) }
+              : {})}
+          />
+          <p className="self-start text-muted">{t.tabTopLine}</p>
+        </div>
+      }
+      primary={
+        primary !== undefined ? (
+          primary
+        ) : phase === 'ready' ? (
+          // Space starts it too; the button is the touch way in (an iPad on a music stand, SPEC §4.2).
+          <Button large onClick={() => runner.command('toggle')} data-testid="seq-start">
+            <Icon name="play" />
+            {t.start}
+          </Button>
+        ) : view.source === 'self' && phase === 'running' ? (
+          <>
+            <Button large onClick={() => runner.command('manual1')} data-testid="seq-flawless">
+              {t.flawless}
+            </Button>
+            <Button
+              large
+              variant="secondary"
+              onClick={() => runner.command('manual2')}
+              data-testid="seq-mistake"
+            >
+              {t.mistake}
+            </Button>
+          </>
+        ) : undefined
+      }
+      primaryLabel={primaryLabel}
+      secondary={secondary}
+      tools={
+        playing && (
+          <>
+            <Button variant="secondary" onClick={() => runner.command('hide')} data-testid="seq-hide">
+              {view.tabHidden ? t.showTab : t.hideTab}
+            </Button>
+            <Button variant="secondary" onClick={() => runner.command('toggle')} data-testid="seq-finish">
+              {t.finish}
+            </Button>
+          </>
+        )
+      }
+      notes={
+        <>
+          {words}
+          {children}
+          <p className="text-muted">{view.source === 'mic' ? t.micNote : t.selfNote}</p>
+        </>
+      }
+    >
+      {phase === 'ready' && <p className="text-xl">{view.source === 'mic' ? t.readyMic : t.readySelf}</p>}
+      {view.countIn && (
+        <p aria-live="polite" className="text-xl font-semibold">
+          {t.countIn}
+        </p>
+      )}
+      {(playing || phase === 'review' || phase === 'done' || phase === 'paused') && (
         <p
           aria-live="polite"
+          className="text-xl tabular-nums"
           data-testid="seq-cycles"
           data-streak={view.streak}
           data-count={view.cycles.length}
@@ -81,13 +157,17 @@ export function SequenceStage<R, V extends SequenceView>({
       {last && (
         <div
           aria-live="polite"
+          className="flex flex-col gap-1 text-lg"
           data-testid="seq-last"
           data-flawless={last.flawless}
           data-uncertain={last.uncertain}
           data-fault-position={firstWrong ? firstWrong.index + 1 : ''}
           data-fault-semitones={firstWrong?.semitones ?? ''}
         >
-          <p className={last.flawless ? 'text-ok' : last.uncertain ? 'text-muted' : 'text-retry'}>
+          <p
+            className={`flex items-center gap-2 font-semibold ${last.flawless ? 'text-ok' : last.uncertain ? 'text-muted' : 'text-retry'}`}
+          >
+            <span aria-hidden="true">{last.flawless ? '✓' : last.uncertain ? '–' : '!'}</span>
             {last.flawless
               ? t.lastCycle.flawless
               : last.uncertain
@@ -102,32 +182,12 @@ export function SequenceStage<R, V extends SequenceView>({
           ))}
         </div>
       )}
-      {view.analyzing && <p aria-live="polite">{t.analyzing}</p>}
-      {(phase === 'running' || phase === 'countIn') && (
-        <div className="flex flex-wrap gap-2">
-          {view.source === 'self' && phase === 'running' && (
-            <>
-              <Button large onClick={() => runner.command('manual1')} data-testid="seq-flawless">
-                {t.flawless}
-              </Button>
-              <Button
-                large
-                variant="secondary"
-                onClick={() => runner.command('manual2')}
-                data-testid="seq-mistake"
-              >
-                {t.mistake}
-              </Button>
-            </>
-          )}
-          <Button variant="secondary" onClick={() => runner.command('hide')} data-testid="seq-hide">
-            {view.tabHidden ? t.showTab : t.hideTab}
-          </Button>
-          <Button variant="secondary" onClick={() => runner.command('toggle')} data-testid="seq-finish">
-            {t.finish}
-          </Button>
-        </div>
+      {view.analyzing && (
+        <p aria-live="polite" className="text-lg">
+          {t.analyzing}
+        </p>
       )}
-    </section>
+      {status}
+    </PracticeStage>
   );
 }

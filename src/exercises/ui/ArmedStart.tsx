@@ -2,15 +2,24 @@ import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import type { RunnerPhase } from '../types';
 
-/** "Armed" (first strum starts, SPEC §12.3) or "ready" (button/Space starts) prompt for metronome exercises. */
-export function ArmedStart({ phase, onStart }: { phase: RunnerPhase; onStart: () => void }) {
-  if (phase !== 'armed' && phase !== 'ready') return null;
+const waiting = (phase: RunnerPhase) => phase === 'armed' || phase === 'ready';
+
+/** "Armed" (the first strum starts, SPEC §12.3) or "ready" (the button or Space starts) prompt. */
+export function ArmedPrompt({ phase }: { phase: RunnerPhase }) {
+  if (!waiting(phase)) return null;
   return (
-    <div className="flex flex-wrap items-center gap-3" data-testid="armed-start" data-phase={phase}>
-      <p>{phase === 'armed' ? ko.exercises.e5.armed : ko.exercises.e5.ready}</p>
-      <Button large onClick={onStart}>
-        {ko.exercises.e5.start}
-      </Button>
-    </div>
+    <p className="text-xl" data-testid="armed-start" data-phase={phase}>
+      {phase === 'armed' ? ko.exercises.e5.armed : ko.exercises.e5.ready}
+    </p>
+  );
+}
+
+/** The start button of an armed or ready metronome exercise: the stage's next step (D-090). */
+export function armedStartButton(phase: RunnerPhase, onStart: () => void) {
+  if (!waiting(phase)) return undefined;
+  return (
+    <Button large onClick={onStart}>
+      {ko.exercises.e5.start}
+    </Button>
   );
 }

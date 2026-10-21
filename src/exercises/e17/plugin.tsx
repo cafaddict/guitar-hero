@@ -35,36 +35,41 @@ function E17ViewComponent({ runner }: { runner: ExerciseRunner<RiffResult, E17Vi
       tabLabel={`${t.tabLabel(view.riff.id)}. ${spelled.join('. ')}`}
       testId="e17-view"
       barSize={view.riff.value === 'e' ? 8 : 4}
-    >
-      {view.riff.palmMute && <p>{t.palmMute}</p>}
-      {phase === 'ready' && (
-        <>
-          <section className="rounded-lg bg-surface p-3" data-testid="e17-spelled">
-            <h3 className="text-sm font-semibold">{t.spelledTitle}</h3>
-            <ol className="mt-1 space-y-1 text-sm">
+      words={
+        phase === 'ready' && (
+          <section className="w-full rounded-2xl bg-surface p-4" data-testid="e17-spelled">
+            <h3 className="font-semibold">{t.spelledTitle}</h3>
+            <ol className="mt-2 space-y-1 text-lg">
               {spelled.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ol>
           </section>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              large
-              variant="secondary"
-              onClick={() => runner.command('mark')}
-              data-testid="e17-listen"
-              data-listening={view.listening}
-            >
-              {t.listen}
-            </Button>
-            {view.listening && (
-              <p aria-live="polite" className="text-sm text-muted">
-                {t.listening}
-              </p>
-            )}
-          </div>
-        </>
-      )}
+        )
+      }
+      secondary={
+        phase === 'ready' && (
+          <Button
+            large
+            variant="secondary"
+            onClick={() => runner.command('mark')}
+            data-testid="e17-listen"
+            data-listening={view.listening}
+          >
+            {t.listen}
+          </Button>
+        )
+      }
+      status={
+        phase === 'ready' &&
+        view.listening && (
+          <p aria-live="polite" className="text-muted">
+            {t.listening}
+          </p>
+        )
+      }
+    >
+      {view.riff.palmMute && <p className="text-lg">{t.palmMute}</p>}
     </SequenceStage>
   );
 }

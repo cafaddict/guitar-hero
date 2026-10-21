@@ -9,6 +9,7 @@ import {
 } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { Card } from '../../ui/Card';
 import { LADDER_STEP_BPM } from '../e5/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
@@ -21,9 +22,9 @@ function E11ViewComponent({ runner }: { runner: ExerciseRunner<HammerResult, E11
   const [a, b] = view.pair.split('-') as [string, string];
   if (view.capped)
     return (
-      <p className="text-xl" data-testid="e11-capped">
-        {t.capped}
-      </p>
+      <Card tone="notice" data-testid="e11-capped">
+        <p className="text-xl">{t.capped}</p>
+      </Card>
     );
   return (
     <SequenceStage
@@ -31,26 +32,33 @@ function E11ViewComponent({ runner }: { runner: ExerciseRunner<HammerResult, E11
       title={t.title(view.pair)}
       tabLabel={t.tabLabel(view.pair)}
       testId="e11-view"
-    >
-      <p>{t.how(a, b)}</p>
-      <p className="text-sm text-muted">{t.daily}</p>
-      {view.legato && view.legato.total > 0 && (
-        <p data-testid="e11-legato" data-beta="true">
-          {t.legato(view.legato.heard, view.legato.total)}
-        </p>
-      )}
-      {view.awaitingRating && (
-        <div aria-live="polite" data-testid="e11-rating">
-          <p>{t.ratePrompt}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {(['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
+      primaryLabel={view.awaitingRating ? t.ratePrompt : undefined}
+      primary={
+        view.awaitingRating
+          ? (['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
               <Button key={cmd} large variant="secondary" onClick={() => runner.command(cmd)}>
                 {t.rate[k + 1]}
               </Button>
-            ))}
-          </div>
-        </div>
-      )}
+            ))
+          : undefined
+      }
+      status={
+        <>
+          {view.legato && view.legato.total > 0 && (
+            <p className="text-lg" data-testid="e11-legato" data-beta="true">
+              {t.legato(view.legato.heard, view.legato.total)}
+            </p>
+          )}
+          {view.awaitingRating && (
+            <p aria-live="polite" className="text-xl" data-testid="e11-rating">
+              {t.ratePrompt}
+            </p>
+          )}
+        </>
+      }
+    >
+      <p className="text-lg">{t.how(a, b)}</p>
+      <p className="text-muted">{t.daily}</p>
     </SequenceStage>
   );
 }

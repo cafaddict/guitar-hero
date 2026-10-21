@@ -23,8 +23,8 @@ function E9ViewComponent({ runner }: { runner: ExerciseRunner<ChromaticResult, E
       tabLabel={t.tabLabel(view.startFret)}
       testId="e9-view"
     >
-      <p>{t.how}</p>
-      <p className="text-sm text-muted">{t.goal}</p>
+      <p className="text-lg">{t.how}</p>
+      <p className="text-muted">{t.goal}</p>
     </SequenceStage>
   );
 }

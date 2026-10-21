@@ -1,14 +1,17 @@
 import { formatClock } from '../../audio/timer';
 import { ko } from '../../i18n/ko';
 
-/** Remaining time at 15–25% of the viewport height (SPEC §12.2). */
+/**
+ * Remaining time, the key number of a timed run: 18 % of the viewport height (SPEC §12.2, UI SPEC UQ-3 wants
+ * 15–25 %). The clamp only guards very short or very tall windows; the four reference screens get exactly 18vh.
+ */
 export function BigTimer({ remainingMs }: { remainingMs: number | null }) {
   if (remainingMs === null) return null;
   return (
     <p
-      className="text-center font-bold tabular-nums leading-none"
+      className="font-bold tabular-nums leading-none tracking-tight"
       data-core-number
-      style={{ fontSize: 'clamp(3rem, 18vh, 10rem)' }}
+      style={{ fontSize: 'clamp(3rem, 18vh, 15rem)' }}
     >
       <span className="sr-only">{ko.exercises.common.remaining} </span>
       <span data-testid="timer-remaining">{formatClock(remainingMs)}</span>

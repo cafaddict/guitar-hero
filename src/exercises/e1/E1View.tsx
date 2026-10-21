@@ -3,11 +3,13 @@ import type { ChordCheckResult } from '../../domain/exerciseResults';
 import { stringNumber } from '../../domain/strings';
 import type { ChordVoicing } from '../../domain/voicing';
 import { ko } from '../../i18n/ko';
+import { Badge } from '../../ui/Badge';
 import { Button } from '../../ui/Button';
 import { ChordDiagram, type DiagramMark } from '../../ui/ChordDiagram';
 import type { ExerciseContext, ExerciseRunner } from '../types';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { PRACTICE_DIAGRAM, PracticeStage } from '../ui/PracticeStage';
 import type { E1Params, E1StringView, E1View as View } from './runner';
 import { stringTendencies } from './tendency';
 
@@ -86,120 +88,122 @@ export function makeE1View(voicingOf: (id: string) => ChordVoicing) {
     }
     const showSelfButtons =
       phase === 'running' && view.step === 'strings' && (view.mode === 'manual' || view.awaitingSelf);
+    const running = phase === 'running';
     return (
-      <div
-        className="grid gap-4 md:grid-cols-2"
+      <PracticeStage
         data-testid="e1-view"
         data-step={view.step}
         data-mode={view.mode}
-      >
-        <div className="flex flex-col items-center gap-2">
-          <ChordDiagram
-            voicing={voicing}
-            leftHanded={ctx.settings.leftHanded}
-            activeIdx={active}
-            marks={view.strings.map(markOf)}
-          />
-          <p className="text-sm text-muted">
-            {ko.exercises.e1.modes[view.mode]}
-            {view.mode === 'strum' && (
-              <span
-                className="ml-2 rounded bg-info px-2 py-0.5 text-xs font-bold text-bg"
-                data-testid="beta-badge"
-              >
-                {ko.exercises.common.beta}
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="flex flex-col gap-3">
-          <BigTimer remainingMs={remainingMs} />
-          <p
-            className="text-xl font-semibold"
-            data-testid="e1-instruction"
-            data-active-string={active === null ? '' : stringNumber(active)}
-          >
-            {instruction}
-          </p>
-          <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6" aria-label={ko.exercises.titles.E1}>
-            {view.strings.map((s) => {
-              const t = statusText(s);
-              return (
-                <li
-                  key={s.idx}
-                  data-testid={`e1-string-${stringNumber(s.idx)}`}
-                  data-status={s.revealed || s.skipped ? (s.skipped ? 'SKIPPED' : (s.status ?? '')) : ''}
-                  className={`rounded-lg border-2 p-2 text-center ${active === s.idx ? 'border-accent' : 'border-transparent'} bg-surface`}
-                >
-                  <span className="block text-sm text-muted">{stringNumber(s.idx)}</span>
-                  <span className={`block text-2xl font-bold ${t.tone}`} aria-hidden="true">
-                    {t.icon}
-                  </span>
-                  <span className={`block text-xs ${t.tone}`}>{t.label}</span>
-                </li>
-              );
-            })}
-          </ul>
-          <div aria-live="polite" className="min-h-6">
-            {view.retry && <p className="text-retry">{ko.verdict.retry(view.retry)}</p>}
-            {view.suggestPluck && (
-              <p className="text-info" data-testid="e1-suggest-pluck">
-                {ko.exercises.e1.suggestPluck}
-              </p>
-            )}
-            {view.step === 'release' && view.lastClean !== null && (
-              <p
-                className={`text-lg font-bold ${view.lastClean ? 'text-ok' : 'text-fail'}`}
-                data-testid="e1-attempt-verdict"
-              >
-                {view.lastClean ? ko.exercises.e1.clean : ko.exercises.e1.notClean}
-              </p>
-            )}
-            {view.step === 'release' && view.hints.length > 0 && (
-              <ul className="mt-1 space-y-1" data-testid="e1-hints">
-                {view.hints.map((hint) => (
-                  <li key={`${hint.code}-${'stringNo' in hint ? hint.stringNo : ''}`}>
-                    {hintLine(hint, view.strings)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          {phase === 'running' && (
-            <div className="flex flex-wrap gap-2">
-              {view.step === 'place' && (
-                <Button large onClick={() => runner.command('next')}>
-                  {ko.exercises.e1.placeReady}
-                </Button>
+        figure={
+          <>
+            <ChordDiagram
+              voicing={voicing}
+              leftHanded={ctx.settings.leftHanded}
+              activeIdx={active}
+              marks={view.strings.map(markOf)}
+              className={PRACTICE_DIAGRAM}
+            />
+            <p className="flex items-center gap-2 text-muted">
+              {ko.exercises.e1.modes[view.mode]}
+              {view.mode === 'strum' && (
+                <Badge tone="info" data-testid="beta-badge">
+                  {ko.exercises.common.beta}
+                </Badge>
               )}
-              {view.step === 'release' && (
-                <Button large onClick={() => runner.command('next')}>
-                  {ko.exercises.e1.nextAttempt}
-                </Button>
-              )}
-              {view.step === 'strings' && view.mode !== 'manual' && (
-                <Button variant="ghost" onClick={() => runner.command('next')}>
-                  {ko.exercises.e1.skip}
-                </Button>
-              )}
-              {showSelfButtons &&
-                (['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
-                  <Button key={cmd} large variant="secondary" onClick={() => runner.command(cmd)}>
-                    {k + 1} {ko.exercises.selfStatus[(['clean', 'muted', 'buzz'] as const)[k]!]}
-                  </Button>
-                ))}
-            </div>
-          )}
-          {(view.step === 'place' || view.step === 'release') && (
-            <p className="text-sm text-muted" data-testid="e1-option-keys">
+            </p>
+          </>
+        }
+        primary={
+          running && view.step === 'place' ? (
+            <Button large onClick={() => runner.command('next')}>
+              {ko.exercises.e1.placeReady}
+            </Button>
+          ) : running && view.step === 'release' ? (
+            <Button large onClick={() => runner.command('next')}>
+              {ko.exercises.e1.nextAttempt}
+            </Button>
+          ) : showSelfButtons ? (
+            (['manual1', 'manual2', 'manual3'] as const).map((cmd, k) => (
+              <Button key={cmd} large variant="secondary" onClick={() => runner.command(cmd)}>
+                {k + 1} {ko.exercises.selfStatus[(['clean', 'muted', 'buzz'] as const)[k]!]}
+              </Button>
+            ))
+          ) : undefined
+        }
+        primaryLabel={showSelfButtons ? instruction : undefined}
+        secondary={
+          running && view.step === 'strings' && view.mode !== 'manual' ? (
+            <Button variant="ghost" onClick={() => runner.command('next')}>
+              {ko.exercises.e1.skip}
+            </Button>
+          ) : undefined
+        }
+        notes={
+          (view.step === 'place' || view.step === 'release') && (
+            <p className="text-muted" data-testid="e1-option-keys">
               {ko.exercises.e1.optionKeys}
             </p>
+          )
+        }
+      >
+        <BigTimer remainingMs={remainingMs} />
+        <p
+          className="text-2xl font-semibold"
+          data-testid="e1-instruction"
+          data-active-string={active === null ? '' : stringNumber(active)}
+        >
+          {instruction}
+        </p>
+        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6" aria-label={ko.exercises.titles.E1}>
+          {view.strings.map((s) => {
+            const t = statusText(s);
+            return (
+              <li
+                key={s.idx}
+                data-testid={`e1-string-${stringNumber(s.idx)}`}
+                data-status={s.revealed || s.skipped ? (s.skipped ? 'SKIPPED' : (s.status ?? '')) : ''}
+                className={`rounded-xl border-2 bg-surface p-2 text-center ${active === s.idx ? 'border-accent' : 'border-transparent'}`}
+              >
+                <span className="block text-sm text-muted">{stringNumber(s.idx)}</span>
+                <span className={`block text-2xl font-bold ${t.tone}`} aria-hidden="true">
+                  {t.icon}
+                </span>
+                <span className={`block text-sm ${t.tone}`}>{t.label}</span>
+              </li>
+            );
+          })}
+        </ul>
+        <div aria-live="polite" className="min-h-6 text-lg">
+          {view.retry && <p className="text-retry">{ko.verdict.retry(view.retry)}</p>}
+          {view.suggestPluck && (
+            <p className="text-info" data-testid="e1-suggest-pluck">
+              {ko.exercises.e1.suggestPluck}
+            </p>
           )}
-          <p className="text-sm text-muted" data-testid="e1-stats">
-            {ko.exercises.e1.stats(view.cleanAttempts, view.attempts)}
-          </p>
+          {view.step === 'release' && view.lastClean !== null && (
+            <div
+              className={`flex items-center gap-2 text-xl font-bold ${view.lastClean ? 'text-ok' : 'text-fail'}`}
+            >
+              <span aria-hidden="true">{view.lastClean ? '✓' : '✗'}</span>
+              <p data-testid="e1-attempt-verdict">
+                {view.lastClean ? ko.exercises.e1.clean : ko.exercises.e1.notClean}
+              </p>
+            </div>
+          )}
+          {view.step === 'release' && view.hints.length > 0 && (
+            <ul className="mt-1 space-y-1" data-testid="e1-hints">
+              {view.hints.map((hint) => (
+                <li key={`${hint.code}-${'stringNo' in hint ? hint.stringNo : ''}`}>
+                  {hintLine(hint, view.strings)}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      </div>
+        <p className="text-muted" data-testid="e1-stats">
+          {ko.exercises.e1.stats(view.cleanAttempts, view.attempts)}
+        </p>
+      </PracticeStage>
     );
   };
 }

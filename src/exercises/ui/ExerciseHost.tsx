@@ -31,6 +31,7 @@ import type { ContentContext, ExerciseContext, ExerciseRunner } from '../types';
 import { HowToPanel } from './HowToPanel';
 import { useRunnerSnapshot } from './hooks';
 import { MicFeedback } from './MicFeedback';
+import { PracticeStage, RunControlsContext } from './PracticeStage';
 
 export interface ExerciseHostProps {
   definition: ExerciseDefinition;
@@ -109,7 +110,15 @@ function RunningExercise({
   const snapshot = useRunnerSnapshot(runner);
   const settings = useSettingsStore((s) => s.settings);
   const [confirmAbort, setConfirmAbort] = useState(false);
+  const confirmRef = useRef<HTMLDivElement>(null);
   useAnimationTick(runner);
+  // The question appears above the stage: bring it into view and give it the focus (the dialog itself, not its
+  // "yes" button — Space would then click it, where the run's keys read Space as "keep going").
+  useEffect(() => {
+    if (!confirmAbort) return;
+    confirmRef.current?.scrollIntoView({ block: 'nearest' });
+    confirmRef.current?.focus();
+  }, [confirmAbort]);
 
   useEffect(() => {
     if (snapshot.phase === 'done') onDone();
@@ -148,56 +157,60 @@ function RunningExercise({
   }, [runner, confirmAbort, settings?.customKeys, definition.pausable]);
 
   const showPause = definition.pausable && PAUSE_PHASES.has(snapshot.phase);
+  // Large (≥ 64 px, SPEC §12.3): it is tapped with a hand coming off the guitar mid-run. The view's stage places
+  // it: the next step while paused, beside the view's own controls while running (D-090).
+  const pauseButton = showPause ? (
+    <Button
+      large
+      variant={paused ? 'primary' : 'secondary'}
+      aria-pressed={paused}
+      onClick={() => runner.command('pause')}
+      data-testid="exercise-pause"
+      {...{ [NATIVE_KEYS_ATTR]: '' }}
+    >
+      <Icon name={paused ? 'play' : 'pause'} />
+      {paused ? ko.exercises.common.resume : ko.exercises.common.pause}
+    </Button>
+  ) : null;
 
   const howTo = definition.howTo(params);
   return (
-    <div>
-      {howTo && <HowToPanel howTo={howTo} open={false} />}
-      {definition.renderView({ runner, params, ctx })}
-      {definition.usesMicrophone && <MicFeedback ctx={ctx} />}
-      {!ctx.audio && definition.usesMicrophone && (
-        <p className="mt-2 text-sm text-muted">{ko.exercises.common.noMic}</p>
-      )}
+    <RunControlsContext.Provider
+      value={{
+        pause: pauseButton,
+        paused: showPause && paused,
+        feedback: definition.usesMicrophone ? <MicFeedback ctx={ctx} /> : null,
+      }}
+    >
+      {howTo && <HowToPanel howTo={howTo} open={false} className="mb-5" />}
       {confirmAbort && (
-        <Card role="alertdialog" aria-label={ko.keys.confirmAbort} tone="retry" className="mt-4">
-          <p className="font-semibold">{ko.keys.confirmAbort}</p>
-          <div className="mt-3 flex gap-2">
-            <Button onClick={() => runner.command('abort')}>{ko.keys.abortYes}</Button>
-            <Button variant="secondary" onClick={() => setConfirmAbort(false)}>
-              {ko.keys.abortNo}
-            </Button>
-          </div>
-        </Card>
-      )}
-      {showPause && paused && (
-        <p
-          role="status"
-          className="mt-4 inline-flex rounded-full bg-retry-soft px-4 py-2 text-lg font-semibold text-retry"
-          data-testid="exercise-paused"
+        <div
+          ref={confirmRef}
+          role="alertdialog"
+          aria-label={ko.keys.confirmAbort}
+          tabIndex={-1}
+          className="mb-5"
         >
-          {ko.exercises.common.paused}
-        </p>
+          <Card tone="retry">
+            <p className="text-lg font-semibold">{ko.keys.confirmAbort}</p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <Button onClick={() => runner.command('abort')}>{ko.keys.abortYes}</Button>
+              <Button variant="secondary" onClick={() => setConfirmAbort(false)}>
+                {ko.keys.abortNo}
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
-      <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-4">
-        {showPause && (
-          // Large (≥ 64 px, SPEC §12.3): it is tapped with a hand coming off the guitar mid-run.
-          <Button
-            large
-            variant={paused ? 'primary' : 'secondary'}
-            aria-pressed={paused}
-            onClick={() => runner.command('pause')}
-            data-testid="exercise-pause"
-            {...{ [NATIVE_KEYS_ATTR]: '' }}
-          >
-            {paused ? ko.exercises.common.resume : ko.exercises.common.pause}
-          </Button>
-        )}
+      {definition.renderView({ runner, params, ctx })}
+      <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-border pt-4">
         <Button variant="secondary" onClick={() => runner.command('abort')} data-testid="exercise-finish">
           {ko.exercises.common.finish}
         </Button>
-        <p className="text-xs text-muted sm:ml-auto">{ko.keys.hint(definition.pausable)}</p>
+        {!ctx.audio && definition.usesMicrophone && <p className="text-muted">{ko.exercises.common.noMic}</p>}
+        <p className="text-muted sm:ml-auto">{ko.keys.hint(definition.pausable)}</p>
       </div>
-    </div>
+    </RunControlsContext.Provider>
   );
 }
 
@@ -426,46 +439,53 @@ export function ExerciseHost({
       />
     );
   const howTo = definition.howTo(params);
+  const t = ko.exercises.common;
+  // The start screen on the practice skeleton (D-090): the open "하는 법" is what the learner reads first, the
+  // start choice is the next step.
+  const start = wantsMic ? (
+    <>
+      <Button
+        large
+        disabled={starting}
+        autoFocus={autoFocusStart}
+        onClick={() => void begin(true)}
+        data-testid="exercise-start"
+      >
+        {t.startWithMic}
+      </Button>
+      <Button large variant="secondary" disabled={starting} onClick={() => void begin(false)}>
+        {ko.common.withoutMic}
+      </Button>
+    </>
+  ) : (
+    <Button
+      large
+      disabled={starting}
+      autoFocus={autoFocusStart}
+      onClick={() => void begin(false)}
+      data-testid="exercise-start"
+    >
+      {t.start}
+    </Button>
+  );
   return (
-    <section>
-      {howTo && <HowToPanel howTo={howTo} open />}
-      {micFailed && (
+    <PracticeStage
+      data-testid="exercise-ready"
+      figure={howTo ? <HowToPanel howTo={howTo} open className="w-full" /> : null}
+      primary={micFailed ? undefined : start}
+    >
+      {micFailed ? (
         <MicStatusPanel
           status={status}
           onRetry={() => void begin(true)}
           onWithoutMic={() => void withoutMic()}
         />
-      )}
-      {!micFailed && (
-        <div className="flex flex-wrap gap-3">
-          {wantsMic ? (
-            <>
-              <Button
-                large
-                disabled={starting}
-                autoFocus={autoFocusStart}
-                onClick={() => void begin(true)}
-                data-testid="exercise-start"
-              >
-                {ko.exercises.common.startWithMic}
-              </Button>
-              <Button large variant="secondary" disabled={starting} onClick={() => void begin(false)}>
-                {ko.common.withoutMic}
-              </Button>
-            </>
-          ) : (
-            <Button
-              large
-              disabled={starting}
-              autoFocus={autoFocusStart}
-              onClick={() => void begin(false)}
-              data-testid="exercise-start"
-            >
-              {ko.exercises.common.start}
-            </Button>
-          )}
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="text-xl font-semibold">{t.readyTitle}</p>
+          <p className="text-muted">{wantsMic ? t.readyMic : t.readyKeys}</p>
         </div>
       )}
-    </section>
+    </PracticeStage>
   );
 }
