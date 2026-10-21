@@ -16,6 +16,7 @@ import {
 import { wakeLock } from '../../audio/wakeLock';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { Choice, Field, Select, TextInput } from '../../ui/Field';
 import { Screen } from '../../ui/Screen';
 
 const MUTED_OPTIONS: (MetronomeConfig['mutedBars'] | null)[] = [
@@ -69,7 +70,7 @@ function usePulse(running: boolean): ScheduledClick | null {
   return click;
 }
 
-function Select<T>({
+function OptionSelect<T>({
   label,
   options,
   value,
@@ -89,21 +90,15 @@ function Select<T>({
     options.findIndex((o) => JSON.stringify(o) === JSON.stringify(value)),
   );
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="text-muted">{label}</span>
-      <select
-        data-testid={testId}
-        className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-base text-fg"
-        value={index}
-        onChange={(e) => onChange(options[Number(e.target.value)]!)}
-      >
+    <Field label={label}>
+      <Select data-testid={testId} value={index} onChange={(e) => onChange(options[Number(e.target.value)]!)}>
         {options.map((o, i) => (
           <option key={render(o)} value={i}>
             {render(o)}
           </option>
         ))}
-      </select>
-    </label>
+      </Select>
+    </Field>
   );
 }
 
@@ -247,7 +242,7 @@ export function MetronomeScreen() {
       </section>
 
       <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Select
+        <OptionSelect
           testId="metronome-meter"
           label={ko.metronome.meter}
           options={['4/4', '3/4', '6/8'] as Meter[]}
@@ -255,7 +250,7 @@ export function MetronomeScreen() {
           render={(m) => m}
           onChange={(meter) => update({ meter })}
         />
-        <Select
+        <OptionSelect
           testId="metronome-subdivision"
           label={ko.metronome.subdivision}
           options={[1, 2, 3, 4] as Subdivision[]}
@@ -263,7 +258,7 @@ export function MetronomeScreen() {
           render={(s) => ko.metronome.subdivisionNames[s] ?? String(s)}
           onChange={(subdivision) => update({ subdivision })}
         />
-        <Select
+        <OptionSelect
           testId="metronome-countin"
           label={ko.metronome.countIn}
           options={[0, 1, 2] as const}
@@ -271,7 +266,7 @@ export function MetronomeScreen() {
           render={ko.metronome.countInBars}
           onChange={(countInBars) => update({ countInBars })}
         />
-        <Select
+        <OptionSelect
           testId="metronome-muted"
           label={ko.metronome.mutedBars}
           options={MUTED_OPTIONS}
@@ -279,7 +274,7 @@ export function MetronomeScreen() {
           render={(m) => (m ? ko.metronome.mutedPattern(m.play, m.mute) : ko.metronome.mutedOff)}
           onChange={(mutedBars) => update({ mutedBars })}
         />
-        <Select
+        <OptionSelect
           testId="metronome-limit"
           label={ko.metronome.limit}
           options={LIMIT_OPTIONS}
@@ -287,15 +282,13 @@ export function MetronomeScreen() {
           render={limitLabel}
           onChange={setLimit}
         />
-        <label className="flex min-h-12 items-center gap-3">
-          <input
-            type="checkbox"
-            className="h-6 w-6"
-            checked={config.visualOnly}
-            onChange={(e) => update({ visualOnly: e.target.checked })}
-          />
-          <span>{ko.metronome.visualOnly}</span>
-        </label>
+        <Choice
+          type="checkbox"
+          label={ko.metronome.visualOnly}
+          className="self-end"
+          checked={config.visualOnly}
+          onChange={(e) => update({ visualOnly: e.target.checked })}
+        />
       </section>
 
       <section className="mt-4 card rounded-2xl border border-border bg-surface p-4">
@@ -308,17 +301,16 @@ export function MetronomeScreen() {
               ['stepBpm', ko.metronome.ladderStep],
             ] as const
           ).map(([key, label]) => (
-            <label key={key} className="flex flex-col gap-1 text-sm">
-              <span className="text-muted">{label}</span>
-              <input
+            <Field key={key} label={label}>
+              <TextInput
                 type="number"
                 min={key === 'stepBpm' ? 1 : 30}
                 max={key === 'stepBpm' ? 20 : 240}
                 value={ladder[key]}
-                className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-base text-fg"
+                className="w-full min-w-0"
                 onChange={(e) => setLadder({ ...ladder, [key]: Number(e.target.value) })}
               />
-            </label>
+            </Field>
           ))}
         </div>
         <div className="mt-2 flex gap-2">

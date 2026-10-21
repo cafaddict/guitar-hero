@@ -7,6 +7,7 @@ import type { RoutineItem } from '../../content/schemas';
 import { generateRoutine } from '../../domain/routine';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { Field, Select } from '../../ui/Field';
 import { Screen } from '../../ui/Screen';
 import { routineInputFrom, userTemplateFor } from '../home/homeModel';
 import { itemTitle } from '../session/itemTitle';
@@ -60,12 +61,7 @@ export function RoutineEditorScreen() {
     void load();
   }, [load]);
 
-  if (!loaded)
-    return (
-      <Screen title={ko.routineEditor.title} busy>
-        {null}
-      </Screen>
-    );
+  if (!loaded) return <Screen title={ko.routineEditor.title} busy />;
   const totalMin = Math.round(items.reduce((sum, i) => sum + i.durationSec, 0) / 60);
   const option = loaded.options.find((o) => o.id === choice);
 
@@ -134,21 +130,15 @@ export function RoutineEditorScreen() {
         ))}
       </ol>
       <div className="mt-4 flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1">
-          <span>{ko.routineEditor.addLabel}</span>
-          <select
-            className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
-            value={choice}
-            onChange={(e) => setChoice(e.target.value)}
-            data-testid="editor-add-choice"
-          >
+        <Field label={ko.routineEditor.addLabel}>
+          <Select value={choice} onChange={(e) => setChoice(e.target.value)} data-testid="editor-add-choice">
             {loaded.options.map((o) => (
               <option key={o.id} value={o.id}>
                 {slotLabel(o)}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
         <Button
           variant="secondary"
           disabled={!option}

@@ -13,6 +13,7 @@ import { stringNumber } from '../../domain/strings';
 import { encodeWav } from '../../dsp/wav';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { TextInput } from '../../ui/Field';
 import { Screen } from '../../ui/Screen';
 import { MicStatusPanel } from '../mic/MicStatusPanel';
 import { fileExists, opfsSupported, readFile, saveFile } from './opfs';
@@ -252,16 +253,15 @@ export function RecordingKitScreen() {
       </ol>
       {pendingCount && (
         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-surface-2 p-3">
-          <label className="flex items-center gap-2">
-            {ko.recording.count}
-            <input
-              type="number"
-              min={0}
-              className="min-h-12 w-24 rounded-xl border border-border bg-surface px-3 text-fg"
-              value={userCount}
-              onChange={(e) => setUserCount(Number(e.target.value))}
-            />
-          </label>
+          <label htmlFor="recording-count">{ko.recording.count}</label>
+          <TextInput
+            id="recording-count"
+            type="number"
+            min={0}
+            className="w-24"
+            value={userCount}
+            onChange={(e) => setUserCount(Number(e.target.value))}
+          />
           <Button
             onClick={() => {
               const p = pendingCount;

@@ -20,6 +20,7 @@ import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { Card } from '../../ui/Card';
 import { ChordDiagram } from '../../ui/ChordDiagram';
+import { Choice, Field, TextArea } from '../../ui/Field';
 import { FocusScreen } from '../../ui/FocusScreen';
 import { Icon } from '../../ui/icons';
 import type { CustomSessionRequest } from '../curriculum/StagePractice';
@@ -131,7 +132,6 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
           max={10}
           value={pain}
           onChange={(e) => setPain(Number(e.target.value))}
-          className="accent-accent"
           data-testid="report-pain"
         />
       </label>
@@ -143,33 +143,26 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
           max={5}
           value={difficulty}
           onChange={(e) => setDifficulty(Number(e.target.value))}
-          className="accent-accent"
           data-testid="report-difficulty"
         />
       </label>
       <fieldset className="flex flex-wrap gap-3">
         <legend className="mb-1 w-full">{ko.session.dangerLegend}</legend>
         {(['sharp', 'numbness', 'joint'] as const).map((flag) => (
-          <label key={flag} className="flex min-h-12 items-center gap-2">
-            <input
-              type="checkbox"
-              className="h-6 w-6 accent-accent"
-              checked={flags.includes(flag)}
-              onChange={() => toggle(flag)}
-            />
-            {ko.session.danger[flag]}
-          </label>
+          <Choice
+            key={flag}
+            type="checkbox"
+            label={ko.session.danger[flag]}
+            className="pr-3"
+            checked={flags.includes(flag)}
+            onChange={() => toggle(flag)}
+          />
         ))}
       </fieldset>
       <p className="text-sm text-muted">{ko.safety.notMedicalAdvice}</p>
-      <label className="flex flex-col gap-1">
-        <span>{ko.session.note}</span>
-        <textarea
-          className="min-h-20 rounded-xl border border-border bg-surface-2 p-3 text-fg"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-      </label>
+      <Field label={ko.session.note}>
+        <TextArea className="min-h-24" value={note} onChange={(e) => setNote(e.target.value)} />
+      </Field>
       <Button
         large
         onClick={() => onSave({ pain, difficulty, dangerFlags: flags, note })}
@@ -468,12 +461,7 @@ export function SessionScreen() {
   };
 
   const toHome = { to: '/' };
-  if (!loaded)
-    return (
-      <FocusScreen title={ko.session.title} exit={toHome} busy>
-        {null}
-      </FocusScreen>
-    );
+  if (!loaded) return <FocusScreen title={ko.session.title} exit={toHome} busy />;
   if (loaded.rest) {
     return (
       <FocusScreen title={ko.session.title} exit={toHome}>
@@ -487,12 +475,7 @@ export function SessionScreen() {
         <p data-testid="custom-session-empty">{ko.curriculum.practice.noneHint}</p>
       </FocusScreen>
     );
-  if (!state || !sessionId)
-    return (
-      <FocusScreen title={ko.session.title} exit={toHome} busy>
-        {null}
-      </FocusScreen>
-    );
+  if (!state || !sessionId) return <FocusScreen title={ko.session.title} exit={toHome} busy />;
 
   if (ending || isFinished(state, items)) {
     return (

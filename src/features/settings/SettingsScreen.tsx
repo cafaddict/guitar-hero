@@ -16,6 +16,7 @@ import { KEY_ACTIONS, type KeyAction, type Settings } from '../../data/settings'
 import { dayKey } from '../../domain/records';
 import { ko } from '../../i18n/ko';
 import { Button, buttonClass } from '../../ui/Button';
+import { Choice, Field, Select, TextInput } from '../../ui/Field';
 import { Screen } from '../../ui/Screen';
 import { removeAllFiles } from '../recording/opfs';
 
@@ -42,16 +43,13 @@ function Toggle({
   testId?: string;
 }) {
   return (
-    <label className="flex min-h-12 items-center gap-3">
-      <input
-        type="checkbox"
-        className="h-6 w-6"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        data-testid={testId}
-      />
-      <span>{label}</span>
-    </label>
+    <Choice
+      type="checkbox"
+      label={label}
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      data-testid={testId}
+    />
   );
 }
 
@@ -73,13 +71,12 @@ function MinutesInput({
     return Number.isInteger(v) && v >= SESSION_MINUTES.min && v <= SESSION_MINUTES.max ? v : null;
   };
   return (
-    <label className="flex flex-col gap-1">
-      <span className="font-semibold">{label}</span>
-      <input
+    <Field label={label}>
+      <TextInput
         type="number"
         min={SESSION_MINUTES.min}
         max={SESSION_MINUTES.max}
-        className="min-h-12 w-32 rounded-xl border border-border bg-surface-2 px-3 text-fg"
+        className="w-32"
         value={draft ?? String(value)}
         onChange={(e) => {
           setDraft(e.target.value);
@@ -88,7 +85,7 @@ function MinutesInput({
         }}
         onBlur={() => setDraft(null)}
       />
-    </label>
+    </Field>
   );
 }
 
@@ -166,6 +163,8 @@ function BackupSection() {
           type="file"
           accept="application/json,.json"
           className="sr-only"
+          // Reached through the "가져오기" button: a 1 px focus stop would show no ring.
+          tabIndex={-1}
           aria-label={ko.settingsScreen.importData}
           data-testid="import-file"
           onChange={(e) => {
@@ -362,12 +361,7 @@ function ResetSection() {
 export function SettingsScreen() {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
-  if (!settings)
-    return (
-      <Screen title={ko.settingsScreen.title} busy>
-        {null}
-      </Screen>
-    );
+  if (!settings) return <Screen title={ko.settingsScreen.title} busy />;
   const set = (patch: Partial<Settings>) => void update(patch);
   return (
     <Screen title={ko.settingsScreen.title}>
@@ -391,15 +385,15 @@ export function SettingsScreen() {
             <legend className="font-semibold">{ko.settingsScreen.theme}</legend>
             <div className="flex flex-wrap gap-2">
               {(['dark', 'light', 'contrast'] as const).map((theme) => (
-                <label key={theme} className="flex min-h-12 items-center gap-2">
-                  <input
-                    type="radio"
-                    name="theme"
-                    checked={settings.theme === theme}
-                    onChange={() => set({ theme })}
-                  />
-                  {ko.settingsScreen.themes[theme]}
-                </label>
+                <Choice
+                  key={theme}
+                  type="radio"
+                  name="theme"
+                  label={ko.settingsScreen.themes[theme]}
+                  className="pr-3"
+                  checked={settings.theme === theme}
+                  onChange={() => set({ theme })}
+                />
               ))}
             </div>
           </fieldset>
@@ -412,22 +406,20 @@ export function SettingsScreen() {
             <legend className="font-semibold">{ko.settingsScreen.headStyle}</legend>
             <div className="flex flex-wrap gap-2">
               {(['3+3', 'inline6'] as const).map((head) => (
-                <label key={head} className="flex min-h-12 items-center gap-2">
-                  <input
-                    type="radio"
-                    name="headStyle"
-                    checked={settings.headStyle === head}
-                    onChange={() => set({ headStyle: head })}
-                  />
-                  {ko.settingsScreen.headStyles[head]}
-                </label>
+                <Choice
+                  key={head}
+                  type="radio"
+                  name="headStyle"
+                  label={ko.settingsScreen.headStyles[head]}
+                  className="pr-3"
+                  checked={settings.headStyle === head}
+                  onChange={() => set({ headStyle: head })}
+                />
               ))}
             </div>
           </fieldset>
-          <label className="flex flex-col gap-1">
-            <span className="font-semibold">{ko.settingsScreen.strictness}</span>
-            <select
-              className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
+          <Field label={ko.settingsScreen.strictness}>
+            <Select
               value={settings.strictness}
               onChange={(e) => set({ strictness: e.target.value as Settings['strictness'] })}
             >
@@ -436,12 +428,10 @@ export function SettingsScreen() {
                   {ko.settingsScreen.strictnessNames[s]}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="font-semibold">{ko.settingsScreen.sensitivity}</span>
-            <select
-              className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
+            </Select>
+          </Field>
+          <Field label={ko.settingsScreen.sensitivity} help={ko.settingsScreen.sensitivityHelp}>
+            <Select
               value={settings.sensitivity}
               onChange={(e) => set({ sensitivity: e.target.value as Settings['sensitivity'] })}
               data-testid="setting-sensitivity"
@@ -451,9 +441,8 @@ export function SettingsScreen() {
                   {ko.settingsScreen.sensitivityNames[s]}
                 </option>
               ))}
-            </select>
-            <span className="text-sm text-muted">{ko.settingsScreen.sensitivityHelp}</span>
-          </label>
+            </Select>
+          </Field>
           <Toggle
             label={ko.settingsScreen.visualOnly}
             checked={settings.visualOnlyMetronome}

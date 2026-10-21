@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ko } from '../i18n/ko';
 import { Icon } from './icons';
+import { LoadingPlaceholder } from './LoadingPlaceholder';
 
 /** Where "나가기" goes: back in the app's history (or a fallback on a cold start), a route, or a handler. */
 export type FocusExit = { back: string } | { to: string } | { onExit: () => void };
@@ -25,7 +26,8 @@ export function FocusScreen({
   aside?: ReactNode;
   /** Drawn while the screen's data loads (`aria-busy`, see Screen). */
   busy?: boolean;
-  children: ReactNode;
+  /** Left out while `busy`: the screen then shows the loading placeholder. */
+  children?: ReactNode;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,7 +59,7 @@ export function FocusScreen({
         <h1 className="min-w-0 flex-1 truncate text-lg font-bold">{title}</h1>
         {aside !== undefined && <div className="shrink-0 text-sm text-muted">{aside}</div>}
       </header>
-      {children}
+      {busy && children == null ? <LoadingPlaceholder /> : children}
     </main>
   );
 }

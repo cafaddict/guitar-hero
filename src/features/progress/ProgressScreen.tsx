@@ -23,6 +23,7 @@ import { ko } from '../../i18n/ko';
 import { ButtonLink } from '../../ui/Button';
 import { CardHeader, Card as Panel } from '../../ui/Card';
 import { EmptyState } from '../../ui/EmptyState';
+import { Select } from '../../ui/Field';
 import { Icon } from '../../ui/icons';
 import { Screen } from '../../ui/Screen';
 import { Stat } from '../../ui/Stat';
@@ -113,12 +114,7 @@ export function ProgressScreen() {
   }, []);
   const pairs = useMemo(() => practicedPairs(attempts), [attempts]);
   const selectedPair = pair ?? pairs[0] ?? null;
-  if (!state)
-    return (
-      <Screen title={ko.progressScreen.title} busy>
-        {null}
-      </Screen>
-    );
+  if (!state) return <Screen title={ko.progressScreen.title} busy />;
   const now = Date.now();
   const weeks = weeklyMinutes(state.sessions, now);
   const trend = selectedPair ? pairTrend(attempts, selectedPair) : [];
@@ -185,8 +181,8 @@ export function ProgressScreen() {
             noData
           ) : (
             <>
-              <select
-                className="mb-3 min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
+              <Select
+                className="mb-3 w-fit"
                 value={selectedPair ?? ''}
                 onChange={(e) => setPair(e.target.value)}
                 aria-label={ko.progressScreen.pairs}
@@ -196,7 +192,7 @@ export function ProgressScreen() {
                     {p.replace('|', ' ↔ ')}
                   </option>
                 ))}
-              </select>
+              </Select>
               <div className="h-48" aria-hidden="true">
                 <ResponsiveContainer>
                   <ComposedChart data={trend.map((p, i) => ({ ...p, n: i + 1 }))} accessibilityLayer={false}>

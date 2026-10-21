@@ -20,3 +20,35 @@
 
 | ID | 화면 | 뷰포트/테마 | 휴리스틱 | 심각도 | 내용 | 조치 | 상태 | 커밋 |
 |---|---|---|---|---|---|---|---|---|
+| F-01 | practice-E9·E10·E11·E17 | ipad-landscape, macbook / 3테마 | H1 H11 | High | TAB 그림이 화면 너비 전체로 커져(한 칸 100 px 이상) 진행 중 자가 평가 버튼(`seq-flawless`)이 첫 화면 밖이다 |  | OPEN |  |
+| F-02 | practice-E17-ready (시퀀스 준비 상태 E9·E10·E11·E17) | 전 뷰포트 / 3테마 | H1 H7 | High | 준비 상태가 Space로만 시작된다. 터치(iPad·iPhone)로는 시작할 수 없다(SPEC §4.2) |  | OPEN |  |
+| F-03 | stage, stage-10 | 전 뷰포트 / 3테마 | H1 H2 | High | 연습을 시작하는 조작(바로 하기·세션 시작)이 배울 것·팁·진급 기준 아래 페이지 맨 끝에 있다. iPhone에서 2,000 px 아래 |  | OPEN |  |
+| F-04 | routine-edit | ipad-landscape, iphone / 3테마 | H1 H9 | High | 저장 버튼이 첫 화면 밖이다. iPhone에서 항목의 분이 "2 / 분"으로 줄바꿈된다 |  | OPEN |  |
+| F-05 | practice-E1·E2·E3·S-perform | iphone / 3테마 | H1 | High | 주 버튼(준비됐어요·시작)이 첫 화면 밖이다(그림·안내 아래) |  | OPEN |  |
+| F-06 | practice-E5 | 전 뷰포트 / 3테마 | H4 H2 | High | BPM이 화면 높이의 7–10 %다(기준 15–25 %). 시작 버튼이 안내 문장 사이에 끼어 있다 |  | OPEN |  |
+| F-07 | practice-E1 | ipad-portrait / 3테마 | H4 | High | 남은 시간이 화면 높이의 13.6 %다(`BigTimer` 상한 10rem) |  | OPEN |  |
+| F-08 | metronome, settings, routine-edit, progress, diagnostics, onboarding | ipad·iphone(WebKit) / 3테마 | H8 | High | WebKit의 기본 셀렉트가 min-height를 무시해 23 px이다. 메트로놈 BPM 슬라이더는 16 px이다(UQ-4) | `Select`(appearance none + 셰브런, 48 px)로 6개 화면 교체, 슬라이더 44 px 히트 영역(D-089). UQ-4 0 | FIXED | U1 |
+| F-09 | 전 화면 | iphone / 3테마 | H9 | High | `word-break: normal`이라 낱말 가운데서 줄이 바뀐다("튜닝부/터", "치지 않/는 줄") | `body`에 keep-all + break-word, 제목 balance·문단 pretty(D-089). UQ-5 0 | FIXED | U1 |
+| F-10 | 전 화면 | 3뷰포트 / contrast | H10 | High | 고대비 테마의 `button { outline: 1px }`가 포커스 outline을 덮어 포커스가 1 px로 보인다(WCAG 2.4.7, UQ-6) | 고대비 훅을 `:where()`로 낮추고 포커스 링을 `:root :focus-visible`로(D-089). UQ-6 0 | FIXED | U1 |
+| F-11 | settings, metronome, routine-edit, session 자가 평가 등 필드 화면 | 전 뷰포트 / dark·light | H3 | High | 입력·셀렉트 경계가 바탕과 1.4–1.5:1이다(WCAG 1.4.11, UQ-10) | `--field-border` 토큰(다크 4.18:1, 라이트 4.13:1 on surface)과 `FIELD_CLASS`(D-089). UQ-10 0 | FIXED | U1 |
+| F-12 | practice-K1·E9·E11·S-paused 등 | macbook, ipad-landscape / 3테마 | H4 | Medium | 넓은 화면에서 안내 문단 한 줄이 52–55em이다(UQ-9) | `p { max-inline-size: 48em }`(base 레이어). UQ-9 0 | FIXED | U1 |
+| F-13 | metronome, session 자가 평가 | 전 뷰포트 / light | H3 H10 | Medium | 슬라이더가 시스템 파란색이다(팔레트 밖) | 슬라이더를 토큰 색(트랙 field-border, 손잡이 accent)으로 직접 그림 | FIXED | U1 |
+| F-14 | 연습 화면 전부 | ipad-landscape·macbook / ipad-portrait | H11 | Medium | 2단은 E1·E2·E3·Q1뿐이고(`md`), 그마저 iPad 세로(820)에서도 2단이라 좁다. 나머지 연습은 넓은 화면에서 한 줄로 길게 늘어진다(AC-UX3) |  | OPEN |  |
+| F-15 | practice-S-perform | 전 뷰포트 / 3테마 | H2 | Medium | 반주 켜기 토글이 주 버튼(앰버) 모양이라 시작 버튼과 경쟁한다 |  | OPEN |  |
+| F-16 | tuner | 전 뷰포트 / 3테마 | H2 H3 | Medium | 선택된 줄 칩(자동)이 주 조작 "튜너 켜기"와 같은 앰버 버튼 모양이다. 켜기 전 cents 표시는 빈 막대뿐이다 |  | OPEN |  |
+| F-17 | 연습 화면 전부 | 전 뷰포트 / 3테마 | H4 | Low | 키 안내가 12 px(`text-xs`)이고 60–80 cm에서 읽기 어렵다 |  | OPEN |  |
+| F-18 | stage, stage-10 | iphone / 3테마 | H9 H11 | Medium | 연습 목록의 이름 칸이 좁아 "스트러밍 패턴 사다리 · D DU D D · 60 BPM"이 4–5줄로 쪼개진다 |  | OPEN |  |
+| F-19 | progress | macbook / 3테마 | H11 | Low | 코드 × 줄 표의 코드 이름 칸이 너무 넓어 숫자 칸이 오른쪽으로 밀린다 |  | OPEN |  |
+| F-20 | practice-E5·E1 등 | 전 뷰포트 / 3테마 | H2 | Low | "마이크 없이 진행해요" 같은 상태 안내와 키 안내가 무대와 떨어진 맨 아래에 흩어져 있다 |  | OPEN |  |
+| F-21 | chord | 전 뷰포트 / 3테마 | H2 H3 | Medium | "코드 목록" 돌아가기 링크가 버튼이 아닌 넓은 회색 막대로 보이고, h1 "C"와 다이어그램 제목 "C"가 겹친다. 기대 음·스트럼 확인 줄은 작은 글자로 흩어져 있다 |  | OPEN |  |
+| F-22 | practice-K1 | macbook, ipad-landscape / 3테마 | H4 H11 | Medium | 자세 그림이 120 px로 작고, 1,100 px 넓이 카드에 문장 한 줄과 버튼만 있어 휑하다 |  | OPEN |  |
+| F-23 | diagnostics, recording | 전 뷰포트 / 3테마 | H2 H3 | Medium | 환경 안내 상자·마이크 상태·레벨·캘리브레이션 카드가 서로 다른 모양(테두리 없는 회색 상자, 카드 밖 맨 줄, 카드)으로 흩어져 있다 |  | OPEN |  |
+| F-24 | exam | ipad-landscape, macbook / 3테마 | H11 | Low | 좁은 단(3xl) 안에 항목마다 작은 "시작" 버튼이 따로 놓여 넓은 화면의 오른쪽이 비고 시선이 길다 |  | OPEN |  |
+| F-25 | settings | 전 뷰포트 / 3테마 | H2 H8 | Medium | 테마·판정·메트로놈·세션 설정이 한 카드에 섞여 있고, 라디오가 13 px 기본 모양이다. 키 표는 "페달 학습" 밑줄 링크 17개가 같은 무게로 늘어서 있다 |  | OPEN |  |
+| F-26 | practice-Q1·Q3·Q4·Q5 | 전 뷰포트 / 3테마 | H2 | Low | 답 선택지가 가운데 정렬이라 "1. …" 번호가 줄마다 다른 위치에서 시작한다 |  | OPEN |  |
+| F-27 | library | macbook, ipad-landscape / 3테마 | H11 | Medium | 단계마다 코드 카드 1–2장이 한 줄을 차지해 넓은 화면의 3/4가 비고, 첫 화면에 코드 4개만 보인다 |  | OPEN |  |
+| F-28 | recording | 전 뷰포트 / 3테마 | H5 | Low | 14개 녹음 항목의 진행(몇 개 했는지)이 보이지 않는다 |  | OPEN |  |
+| F-29 | home | 전 뷰포트 / 3테마 | H2 H9 | Medium | 첫 설정 배너의 "처음 설정 시작"과 "연습 시작"이 둘 다 앰버 주 버튼이라 다음 할 일이 둘로 보인다. iPhone에서 "60 / BPM"처럼 숫자와 단위가 갈라진다 |  | OPEN |  |
+| F-30 | stage-10 | 전 뷰포트 / 3테마 | H9 | Medium | 진급 기준에 내부 id "am-pent-pos1"이 그대로 보인다(이름은 "Am 펜타토닉 1포지션") |  | OPEN |  |
+| F-31 | practice-E9·E10·E11·E17 | 전 뷰포트 / 3테마 | H3 H7 | Medium | 진행 중 "마치기"가 두 개(`seq-finish`, `exercise-finish`) 보이고, "마이크 없이 스스로 판단해요"와 "마이크 없이 진행해요"가 겹친다 |  | OPEN |  |
+| F-32 | practice-Q4 | 전 뷰포트 / 3테마 | H2 | Low | "다시 듣기"가 답 선택지와 같은 모양·같은 줄에 있어 답처럼 보인다 |  | OPEN |  |

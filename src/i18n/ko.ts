@@ -27,6 +27,7 @@ export const ko = {
   app: {
     title: '기타 연습',
     skipToContent: '본문으로 건너뛰기',
+    loading: '불러오는 중이에요',
   },
   nav: {
     home: '오늘',

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { LoadingPlaceholder } from './LoadingPlaceholder';
 
 export type ScreenWidth = 'narrow' | 'wide';
 
@@ -24,7 +25,8 @@ export function Screen({
   eyebrow?: ReactNode;
   width?: ScreenWidth;
   busy?: boolean;
-  children: ReactNode;
+  /** Left out while `busy`: the screen then shows the loading placeholder. */
+  children?: ReactNode;
 }) {
   return (
     <main
@@ -36,7 +38,7 @@ export function Screen({
         {eyebrow !== undefined && <p className="mb-1 text-sm font-medium text-muted">{eyebrow}</p>}
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
       </header>
-      {children}
+      {busy && children == null ? <LoadingPlaceholder /> : children}
     </main>
   );
 }

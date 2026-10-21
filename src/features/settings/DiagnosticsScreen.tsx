@@ -9,6 +9,7 @@ import { DETECTOR_VERSION } from '../../dsp/version';
 import { ko } from '../../i18n/ko';
 import { Button, buttonClass } from '../../ui/Button';
 import { EnvironmentGuide } from '../../ui/EnvironmentGuide';
+import { Field, Select } from '../../ui/Field';
 import { LevelMeter } from '../../ui/LevelMeter';
 import { Screen } from '../../ui/Screen';
 import { CaptureWarnings, MicStatusPanel } from '../mic/MicStatusPanel';
@@ -96,10 +97,8 @@ export function DiagnosticsScreen() {
         )}
       </div>
       {running && devices.length > 0 && (
-        <label className="mt-4 flex flex-col gap-1">
-          <span className="text-sm text-muted">{ko.diagnostics.chooseDevice}</span>
-          <select
-            className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
+        <Field label={ko.diagnostics.chooseDevice} className="mt-4">
+          <Select
             value={settings?.preferredInputDeviceId ?? ''}
             onChange={(e) => void chooseDevice(e.target.value)}
           >
@@ -109,8 +108,8 @@ export function DiagnosticsScreen() {
                 {d.label || d.deviceId}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       )}
       {diagnostics && (
         <section

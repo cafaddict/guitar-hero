@@ -19,7 +19,10 @@ export type IconName =
   | 'repeat'
   | 'check'
   | 'play'
-  | 'flag';
+  | 'flag'
+  | 'chevronDown'
+  | 'pause'
+  | 'alert';
 
 const PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -100,6 +103,20 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M5 21V4" />
       <path d="M5 4h11l-2 4 2 4H5" />
+    </>
+  ),
+  chevronDown: <path d="m6 9 6 6 6-6" />,
+  pause: (
+    <>
+      <path d="M9 5v14" />
+      <path d="M15 5v14" />
+    </>
+  ),
+  alert: (
+    <>
+      <path d="M12 3 2 20h20L12 3Z" />
+      <path d="M12 10v4" />
+      <path d="M12 17h.01" />
     </>
   ),
 };

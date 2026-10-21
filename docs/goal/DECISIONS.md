@@ -797,3 +797,21 @@ v1.1 goal(M9–M15)이 끝난 뒤 사용자가 실제로 써 보며 요청한 �
   - 스크린샷은 `ui-shots/`(E2E가 비우는 `test-results/` 밖)에 둔다. 빌드는 `dist-shots/`에 해서 E2E 빌드와 겹치지 않게 했다. 시작 전 그림은 `ui-shots/before/`다.
   - 리뷰 중 찾은 실제 사용 결함: 시퀀스 연습(E9·E10·E11·E17)의 준비 상태는 Space로만 시작된다. iPad 터치로는 시작할 수 없다. `practice-E17-ready`의 UQ-1이 터치 시작 조작을 요구한다(SPEC §4.2).
 - **검사**: 키트 기준 측정값은 PROGRESS 표에 있다. UQ-7·8과 UR-1·2는 통과, 나머지는 위 문제를 잡는다. D-087 커밋에서 기존 E2E 83개가 통과했다.
+
+## D-089 UI 마감 U1 기반: 한국어 줄바꿈, 필드, 포커스, 로딩 자리표시
+- **맥락**: UI 마감 goal(`docs/goal/ui/SPEC.md` §4.1, §7 U1). 키트 기준 측정에서 UQ-4 36, UQ-5 1093, UQ-6 162, UQ-10 24개 문제(PROGRESS 표). 시작 전 그림은 `ui-shots/before/`, 초기 발견은 `UI_AUDIT.md` §3 F-01–F-20.
+- **한국어 줄바꿈**(UQ-5): `body`에 `word-break: keep-all`과 `overflow-wrap: break-word`. 어절 사이에서만 줄이 바뀌고, 한 줄보다 긴 어절만 쪼갠다.
+  - `anywhere`를 고르지 않은 이유: min-content 너비까지 줄여서 flex 안의 버튼·칸이 낱말 가운데서 쪼개지며 좁아진다. `break-word`는 낱말 너비를 지킨 채 다음 줄로 넘긴다.
+  - 제목·legend·summary는 `text-wrap: balance`, 문단·목록은 `text-wrap: pretty`(한 글자 고아 줄 방지). 둘 다 base 레이어라 유틸리티가 이긴다.
+- **문단 폭**(UQ-9): `p { max-inline-size: 48em }`(base 레이어). em은 그 문단 자신의 글자 크기라 큰 글자 문단도 48자 폭에서 끊긴다.
+- **타이포 단계**: Tailwind 기본 단계(12·14·16·18·20·24·30·36·48 px)만 쓰고, 그 밖의 크기는 연습 화면의 핵심 숫자(vh 기반 clamp)뿐이다. 새 단계 값을 정의하지 않은 이유: 이미 모든 화면이 이 단계를 쓰고 있어, 값을 바꾸면 화면 전체의 높이가 흔들릴 뿐 위계가 나아지지 않는다. 연습 중 지시문 18 px 이상은 U2에서 화면별로 맞춘다.
+- **필드**(UQ-4, UQ-10, `src/ui/Field.tsx`):
+  - 새 토큰 `--field-border`(`border-field`): 다크 #8b7a69, 라이트 #857463, 고대비 #ffffff. bg·surface·surface-2 위에서 다크 4.55·4.18·3.56, 라이트 3.84·4.13·3.34:1로 3:1을 넘는다. 장식용 `--border`는 그대로 둔다(카드 경계는 비텍스트 대비 대상이 아니다).
+  - `FIELD_CLASS`: 높이 48 px, 바탕은 `bg`(카드 안에서 한 단 들어간 우물), 비활성 50 %, `aria-invalid`면 fail 색 경계.
+  - `Select`: WebKit은 기본 모양의 select 높이를 무시한다(iPad·iPhone 23 px). `appearance: none`과 셰브런 아이콘(`chevronDown`)으로 직접 그린다. CSP(`style-src 'self'`) 안에서 테마 색을 따르려고 배경 이미지 대신 아이콘 요소를 겹친다.
+  - `Field`(라벨 → 조작 → 도움말), `Choice`(체크박스·라디오 한 줄 전체가 48 px 터치 대상), `TextInput`, `TextArea`. 6개 화면의 셀렉트, 숫자 입력, 체크박스·라디오를 모두 바꿨다. 접근 가능한 이름은 그대로다(라벨 문구·구조 유지).
+  - 슬라이더: `appearance: none`, 44 px 높이 히트 영역, 6 px 트랙(`--field-border`), 28 px 앰버 손잡이. 라이트 테마의 시스템 파란 슬라이더(F-13)도 사라진다.
+  - 숨긴 파일 입력(설정 → 가져오기)은 `tabIndex=-1`: 1 px짜리 포커스 정거장은 포커스 링을 보여 줄 수 없고, "가져오기" 버튼이 같은 일을 한다.
+- **포커스**(UQ-6): 고대비 외곽선 훅을 `[data-theme="contrast"] :where(.card, button)`(특이도 0,1,0)로 낮추고, 포커스 링을 `:root :focus-visible`(0,2,0)로 올렸다. 고대비 훅(카드·버튼 1 px 외곽선)은 그대로 유지된다.
+- **로딩 자리표시**: `Screen`·`FocusScreen`이 `busy`이고 내용이 없으면 `LoadingPlaceholder`(카드 모양 블록 3개, 화면 읽기용 "불러오는 중이에요")를 그린다. 움직이지 않는다(반짝임 애니메이션은 UQ-7·8과 충돌). 문구 하나(`ko.app.loading`)를 더했다.
+- **아이콘**: `chevronDown`, `pause`, `alert`를 더했다(의존성 없음).

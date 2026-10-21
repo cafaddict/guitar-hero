@@ -16,6 +16,7 @@ import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { CentsNeedle } from '../../ui/CentsNeedle';
 import { EnvironmentGuide } from '../../ui/EnvironmentGuide';
+import { Field, Select } from '../../ui/Field';
 import { TuningDirection } from '../../ui/TuningDirection';
 import { CaptureWarnings, MicStatusPanel } from '../mic/MicStatusPanel';
 import {
@@ -111,10 +112,8 @@ export function PermissionStep({
             {ko.onboarding.permission.device(audioEngine.diagnostics?.label ?? '')}
           </p>
           {devices.length > 1 && (
-            <label className="mt-2 flex flex-col gap-1">
-              <span className="text-sm text-muted">{ko.diagnostics.chooseDevice}</span>
-              <select
-                className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 text-fg"
+            <Field label={ko.diagnostics.chooseDevice} className="mt-2">
+              <Select
                 value={settings?.preferredInputDeviceId ?? ''}
                 onChange={(e) => void choose(e.target.value)}
               >
@@ -124,8 +123,8 @@ export function PermissionStep({
                     {d.label || d.deviceId}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
           )}
           <CaptureWarnings diagnostics={audioEngine.diagnostics} />
           <Button large className="mt-4" onClick={onNext}>

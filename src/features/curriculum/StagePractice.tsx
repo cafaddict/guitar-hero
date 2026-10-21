@@ -10,6 +10,7 @@ import { ExerciseHost } from '../../exercises/ui/ExerciseHost';
 import { ko } from '../../i18n/ko';
 import { Button, ButtonLink } from '../../ui/Button';
 import { Card, CardHeader } from '../../ui/Card';
+import { Choice } from '../../ui/Field';
 import { FocusScreen } from '../../ui/FocusScreen';
 import { Icon } from '../../ui/icons';
 import type { StoredState } from '../home/homeModel';
@@ -64,16 +65,14 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
               <span className="min-w-0 flex-1">{label}</span>
               {available ? (
                 <span className="flex flex-wrap items-center gap-2">
-                  <label className="flex min-h-12 items-center gap-2 px-2">
-                    <input
-                      type="checkbox"
-                      className="h-6 w-6 accent-accent"
-                      checked={order >= 0}
-                      onChange={() => toggle(index)}
-                      data-testid="stage-practice-pick"
-                    />
-                    {order >= 0 ? t.order(order + 1) : t.add}
-                  </label>
+                  <Choice
+                    type="checkbox"
+                    label={order >= 0 ? t.order(order + 1) : t.add}
+                    className="px-2"
+                    checked={order >= 0}
+                    onChange={() => toggle(index)}
+                    data-testid="stage-practice-pick"
+                  />
                   <ButtonLink to={`/curriculum/${stage}/practice/${index}`} data-testid="stage-practice-now">
                     <Icon name="play" size={16} />
                     {t.now}
@@ -122,12 +121,7 @@ export function StagePracticeScreen() {
   const t = ko.curriculum.practice;
   const stagePath = `/curriculum/${stageNo}`;
   const back = <ButtonLink to={stagePath}>{t.back}</ButtonLink>;
-  if (!plan)
-    return (
-      <FocusScreen title={ko.curriculum.title} exit={{ to: stagePath }} busy>
-        {null}
-      </FocusScreen>
-    );
+  if (!plan) return <FocusScreen title={ko.curriculum.title} exit={{ to: stagePath }} busy />;
   const item = plan.items[at];
   const definition = item ? exerciseDefinition(item.exerciseType) : undefined;
   if (!item || !definition) {
