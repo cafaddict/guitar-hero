@@ -113,7 +113,8 @@
 | F-66 | routine-edit | 전 뷰포트 / contrast 중심 | H3 H7 | Low | (U6 UI 리뷰) 저장 막대 구분선이 카드보다 넓고, 고대비에서 "빼기"가 "+30"과 같은 상자로 보인다 | 막대를 카드 폭으로, "빼기" 빨간 글자 | FIXED | U6 |
 | F-67 | tuner | 전 뷰포트 / 3테마 | H5 | Low | (U6 UI 리뷰) 켜기 전 96 px 줄표가 막대처럼 보이고 레벨 미터에 이름이 없다 | 작은 muted 줄표, "입력 레벨" 라벨 | FIXED | U6 |
 | F-68 | session, practice-E17-ready, metronome | 전 뷰포트 / 3테마 | H2 H3 H10 | Low | (U6 UI 리뷰) 세션 헤더에 "튜닝"이 두 번, E17 시작만 아이콘, 메트로놈 빈 박 점 1.2:1. iPhone sticky 막대가 글줄을 자른다 | 블록 이름이 항목 이름과 같으면 숨김, 아이콘 제거, 빈 점에 필드 경계 테두리. sticky 막대가 스크롤하는 내용 위에 붙는 것은 막대의 본성이라 그대로 | FIXED | U6 |
-| F-69 | settings | iphone / 3테마 | H9 | Low | (U6 전체 재검토, `2a3d1b0` 그림) 키·페달 표의 "페달 학습" 버튼이 좁은 칸에서 "페달 / 학습" 두 줄이 된다 | 버튼 글자 한 줄(`whitespace-nowrap`) | FIXED | U6b |
+| F-69 | settings | iphone / 3테마 | H9 | Low | (U6 전체 재검토, `2a3d1b0` 그림) 키·페달 표의 "페달 학습" 버튼이 좁은 칸에서 "페달 / 학습" 두 줄이 된다. 한 줄로 고정하자 고대비에서 "Enter · PageDown"이 버튼 테두리에 붙었다(재검토 2회차) | 버튼 글자 한 줄, 기본 키 칸은 `Phrases`(" · " 사이 줄바꿈)와 오른쪽 여백 | FIXED | U6c |
 | F-70 | practice-E9, stage, stage-10, 하는 법(stage-practice·E17-how-to·연습 화면) | iphone, ipad-portrait / 3테마 | H9 | Low | (U6 전체 재검토) 숫자와 단위가 줄에서 갈린다: "5 / BPM 올려요", "80 / BPM 졸업" | 사다리·진급 기준 문구의 숫자와 "BPM" 사이를 줄바꿈 없는 공백으로 | FIXED | U6b |
 | F-71 | practice-S-perform, practice-E1, practice-E5, 연습 화면 꼬리 키 안내 | iphone / 3테마 | H9 | Low | (U6 전체 재검토) 키 목록이 키 하나를 가른다: "E / 이어폰/스피커" | 키 목록도 `Phrases`(" · " 사이에서만 줄바꿈) | FIXED | U6b |
 | F-72 | routine-edit | 전 뷰포트 / contrast | H10 | Low | (U6 전체 재검토) 저장 막대 양 끝으로 아래 카드의 고대비 외곽선(1 px)이 비친다 | 막대를 양쪽 1 px 넓혀 가림 | FIXED | U6b |
+| F-73 | practice-E2 | ipad-portrait, iphone / 3테마 | H1 H2 | Low | (U6 재검토, F-55 뒤) 시작 전에도 1:00을 큰 숫자로 보이면서 남은 시간·체인지 수 두 큰 숫자가 세로로 쌓여, iPad 세로에서 "준비되면 시작" 안내가 아래 막대에 반쯤 가린다 | 폭이 되면 시간과 체인지 수를 한 줄에(iPad 세로). iPhone은 폭이 모자라 그대로 쌓이고, 가려지는 안내는 막대의 "시작" 버튼과 같은 내용이다 | FIXED | U6c |

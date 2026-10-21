@@ -17,6 +17,7 @@ import { ko } from '../../i18n/ko';
 import { Button, ButtonLink } from '../../ui/Button';
 import { Card, CardHeader } from '../../ui/Card';
 import { Choice, Field, Select, TextInput } from '../../ui/Field';
+import { Phrases } from '../../ui/Phrases';
 import { Screen } from '../../ui/Screen';
 import { removeAllFiles } from '../recording/opfs';
 
@@ -258,8 +259,10 @@ function KeysSection() {
               <th scope="row" className="py-1 pr-3 text-left font-normal">
                 {ko.keys.actions[action]}
               </th>
-              <td className="tabular-nums text-muted">{defaultKeysFor(action).map(keyName).join(' · ')}</td>
-              <td className="text-right">
+              <td className="pr-3 tabular-nums text-muted">
+                <Phrases text={defaultKeysFor(action).map(keyName).join(' · ')} />
+              </td>
+              <td className="py-1 text-right">
                 {/* One line on a phone: the narrow column would split it into "페달 / 학습" (H9). */}
                 <Button
                   variant="ghost"

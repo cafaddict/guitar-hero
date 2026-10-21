@@ -69,17 +69,20 @@ export function makeE2View(voicingOf: (id: string) => ChordVoicing) {
           </p>
         }
       >
-        <BigTimer remainingMs={remainingMs} plannedMs={params.durationMs} />
-        <p className="flex items-baseline gap-3" data-core-number>
-          <span
-            className="font-bold tabular-nums leading-none"
-            style={{ fontSize: 'clamp(3rem, 16vh, 13rem)' }}
-            data-testid="e2-count"
-          >
-            {view.count}
-          </span>
-          <span className="text-2xl text-muted">{ko.exercises.e2.count}</span>
-        </p>
+        {/* Time and count side by side where the column is wide enough (iPad portrait), stacked elsewhere. */}
+        <div className="flex flex-wrap items-end gap-x-14 gap-y-4">
+          <BigTimer remainingMs={remainingMs} plannedMs={params.durationMs} />
+          <p className="flex items-baseline gap-3" data-core-number>
+            <span
+              className="font-bold tabular-nums leading-none"
+              style={{ fontSize: 'clamp(3rem, 16vh, 13rem)' }}
+              data-testid="e2-count"
+            >
+              {view.count}
+            </span>
+            <span className="text-2xl text-muted">{ko.exercises.e2.count}</span>
+          </p>
+        </div>
         {view.countMode === 'auto' && (
           <p className="text-muted">{ko.exercises.e2.lowConfidence(view.lowConfidence)}</p>
         )}
