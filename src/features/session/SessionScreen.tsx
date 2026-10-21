@@ -228,6 +228,10 @@ export function SessionScreen() {
   const leftHanded = useSettingsStore((s) => s.settings?.leftHanded ?? false);
   /** The stored attempt of the current item's last run (its suggested tempo drives "이어서 한 번 더"). */
   const [lastAttempt, setLastAttempt] = useState<Attempt | null>(null);
+  /** Each item's latest stored attempt: going back shows it again (D-096). */
+  const [results, setResults] = useState<ReadonlyMap<string, Attempt>>(() => new Map());
+  /** The host opens on the item's latest result: set by moving back, cleared by moving forward or a rerun. */
+  const [restore, setRestore] = useState(false);
   /** Item id whose block time ran out (signal shown once). */
   const [blockEndedFor, setBlockEndedFor] = useState<string | null>(null);
   /** Transition screen before a new block (§7.3-13): ends at this simulated time. */
@@ -354,6 +358,7 @@ export function SessionScreen() {
 
   const items = loaded?.items ?? [];
   const go = useCallback((step: (s: SessionState) => SessionState) => {
+    setRestore(false);
     setEndedIndex(null);
     setLastAttempt(null);
     setTransitionEndsAt(null);
@@ -362,7 +367,26 @@ export function SessionScreen() {
     setRerun({ n: 0, params: null, identity: null });
     setState((s) => (s ? step(s) : s));
   }, []);
-  const toPrevious = useCallback(() => go((s) => previousItem(s, now())), [go, now]);
+  /**
+   * The host of the item at `index` opens on that item's latest result, if any (D-096). The after-run state is set
+   * with the move itself, so Space / Enter act on the shown result from its first frame.
+   */
+  const showResultOf = useCallback(
+    (index: number) => {
+      const attempt = results.get(items[index]?.id ?? '') ?? null;
+      setRestore(true);
+      setEndedIndex(attempt ? index : null);
+      setLastAttempt(attempt);
+    },
+    [results, items],
+  );
+  const toPrevious = useCallback(() => {
+    const index = stateRef.current?.index ?? 0;
+    if (index === 0) return;
+    // After go's reset (same batch): moving back restores, moving forward starts fresh.
+    go((s) => previousItem(s, now()));
+    showResultOf(index - 1);
+  }, [go, now, showResultOf]);
   const advance = useCallback(() => {
     go((s) => completeItem(s, items, now()));
     const index = state?.index ?? 0;
@@ -394,6 +418,7 @@ export function SessionScreen() {
   }, [transitionEndsAt, endTransition, now]);
   /** The current item again: with the params it just ran with, or with `params` (e.g. a suggested tempo). */
   const retry = useCallback((params?: unknown, identity?: RunIdentity | null) => {
+    setRestore(false);
     setEndedIndex(null);
     setRerun((r) => ({
       n: r.n + 1,
@@ -474,12 +499,10 @@ export function SessionScreen() {
   // item to that item.
   const backToPractice = useCallback(() => {
     if (ending) {
-      // The host comes back on its start screen: no ended run for Space/Enter to act on.
       setEnding(false);
-      setEndedIndex(null);
-      setLastAttempt(null);
+      if (stateRef.current) showResultOf(stateRef.current.index);
     } else toPrevious();
-  }, [ending, toPrevious]);
+  }, [ending, toPrevious, showResultOf]);
   const reporting = state !== null && (ending || isFinished(state, items));
   useEffect(() => {
     if (!reporting) return;
@@ -670,13 +693,16 @@ export function SessionScreen() {
           onActiveChange={setRunActive}
           onPrevious={state.index > 0 ? toPrevious : undefined}
           registerPrevious={registerPrevious}
+          restoredAttempt={restore ? (results.get(item.id) ?? null) : null}
           onPausedChange={(paused) =>
             setState((s) => s && (paused ? holdClock(s, now()) : releaseClock(s, now())))
           }
           onFinished={(attempt) => {
             setEndedIndex(state.index);
             setLastAttempt(attempt);
-            if (attempt) setState((s) => (s ? markRecorded(s, item.id) : s));
+            if (!attempt) return;
+            setState((s) => (s ? markRecorded(s, item.id) : s));
+            setResults((r) => (r.get(item.id) === attempt ? r : new Map(r).set(item.id, attempt)));
           }}
           renderAfter={(attempt) => {
             const tempo = attempt ? definition.suggestedTempoRetry(attempt.params, attempt.result) : null;

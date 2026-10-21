@@ -192,6 +192,46 @@ test('session: during a run ← / "이전 항목" ends the run and goes back; sk
   await expect(header).toHaveAttribute('data-index', '0');
 });
 
+test('session: going back to an item already run shows its result again; Space reruns it (D-096)', async ({
+  page,
+}) => {
+  await page.goto('/#/settings');
+  await page.getByTestId('setting-mic-disabled').check();
+  await page.goto('/#/session?timeScale=0.25');
+  const header = page.getByTestId('session-header');
+  await expect(header).toHaveAttribute('data-item-type', 'E0');
+
+  // Tuning without a microphone: Enter confirms each string, then the result is stored.
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('e0-view')).toBeVisible();
+  for (let k = 0; k < 6; k++) await page.keyboard.press('Enter');
+  await expect(page.getByTestId('next-item')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(header).toHaveAttribute('data-index', '1');
+
+  // One Enter too many: the left pedal comes back to the stored result, ready to move on again.
+  await page.keyboard.press('PageUp');
+  await expect(header).toHaveAttribute('data-index', '0');
+  await expect(page.getByTestId('exercise-summary')).toBeVisible();
+  await expect(page.getByTestId('next-item')).toBeFocused();
+  // It is not reopened: Space starts a new run from the start screen.
+  await page.keyboard.press('Space');
+  await expect(page.getByTestId('exercise-start')).toBeVisible();
+  await expect(header).toHaveAttribute('data-index', '0');
+
+  // Moving forward always starts fresh; "세션 끝내기" and back shows the result the item ended on.
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('e0-view')).toBeVisible();
+  for (let k = 0; k < 6; k++) await page.keyboard.press('Enter');
+  await expect(page.getByTestId('next-item')).toBeFocused();
+  await page.getByTestId('end-session').click();
+  await page.getByTestId('report-back').click();
+  await expect(page.getByTestId('exercise-summary')).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(header).toHaveAttribute('data-index', '1');
+  await expect(page.getByTestId('exercise-start')).toBeVisible();
+});
+
 test('the settings key list has pause (P) and song start-over (R) rows (D-085)', async ({ page }) => {
   await page.goto('/#/settings');
   for (const [action, keys] of [

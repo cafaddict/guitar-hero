@@ -62,6 +62,12 @@ export interface ExerciseHostProps {
   onPrevious?: (() => void) | undefined;
   /** Receives the running exercise's "이전 항목" request (asks first once the run is under way), null when none. */
   registerPrevious?: ((request: (() => void) | null) => void) | undefined;
+  /**
+   * Opens on this stored result instead of the start screen (the session went back to an item already run,
+   * D-096). It is shown, not reopened: a rerun is a new Attempt. `onFinished` is not called for it — the caller
+   * already knows it.
+   */
+  restoredAttempt?: Attempt | null | undefined;
 }
 
 interface Running {
@@ -290,12 +296,15 @@ export function ExerciseHost({
   content,
   onPrevious,
   registerPrevious,
+  restoredAttempt,
 }: ExerciseHostProps) {
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.update);
   const status = useEngineStatus();
   const [running, setRunning] = useState<Running | null>(null);
-  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [outcome, setOutcome] = useState<Outcome | null>(
+    restoredAttempt ? { kind: 'saved', attempt: restoredAttempt } : null,
+  );
   const [micFailed, setMicFailed] = useState(false);
   const [starting, setStarting] = useState(false);
   const startingRef = useRef(false);
