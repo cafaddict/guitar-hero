@@ -29,14 +29,30 @@ async function session(page: Page): Promise<void> {
   await expect(page.getByTestId('session-header')).toHaveAttribute('data-index', '0');
 }
 
+/** Starts the first item from the keyboard and stops it (Esc, then Esc on the question). */
+async function stopFirstItem(page: Page): Promise<void> {
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('exercise-finish')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('alertdialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('next-item')).toBeVisible();
+}
+
 const STATES: State[] = [
   {
     name: 'practice-E2-result',
     open: async (page) => {
       await page.goto('/#/practice/E2?from=A&to=D&countMode=tap&durationMs=30000&timeScale=0.25');
       await page.getByTestId('exercise-start').click();
+      await expect(page.getByTestId('e2-view')).toHaveAttribute('data-phase', 'ready');
+      // The run's keys are attached in an effect, just after the first frame shows.
+      await page.waitForTimeout(200);
+      await page.keyboard.press('Space');
+      // 30 s at the 4× test clock, then the count is confirmed (Enter).
+      await expect(page.getByTestId('e2-view')).toHaveAttribute('data-phase', 'review', { timeout: 30_000 });
       await page.keyboard.press('Enter');
-      await expect(page.getByTestId('exercise-summary')).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByTestId('exercise-summary')).toBeVisible();
     },
   },
   {
@@ -54,20 +70,14 @@ const STATES: State[] = [
     name: 'session-after-run',
     open: async (page) => {
       await session(page);
-      await page.keyboard.press('PageDown');
-      await expect(page.getByTestId('exercise-finish')).toBeVisible();
-      await page.keyboard.press('Escape');
-      await page.keyboard.press('Escape');
-      await expect(page.getByTestId('next-item')).toBeVisible();
+      await stopFirstItem(page);
     },
   },
   {
     name: 'session-transition',
     open: async (page) => {
       await session(page);
-      await page.keyboard.press('PageDown');
-      await page.keyboard.press('Escape');
-      await page.keyboard.press('Escape');
+      await stopFirstItem(page);
       await page.getByTestId('next-item').click();
       await expect(page.getByTestId('block-transition')).toBeVisible();
     },

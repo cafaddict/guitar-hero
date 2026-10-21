@@ -393,7 +393,8 @@ export function ExerciseHost({
 
   if (outcome?.kind === 'saved') {
     return (
-      <section aria-live="polite" data-testid="exercise-summary">
+      // One readable column: the result, then what to do next (SPEC §4.2).
+      <section aria-live="polite" className="mx-auto w-full max-w-3xl" data-testid="exercise-summary">
         <Card>
           <p className="mb-4 flex items-center gap-2 font-semibold text-ok">
             <span aria-hidden="true" className="grid size-6 place-items-center rounded-full bg-ok text-bg">
@@ -409,7 +410,7 @@ export function ExerciseHost({
   }
   if (outcome?.kind === 'nothing') {
     return (
-      <section aria-live="polite" data-testid="exercise-nothing">
+      <section aria-live="polite" className="mx-auto w-full max-w-3xl" data-testid="exercise-nothing">
         <Card tone="notice">
           <p>{ko.exercises.common.nothingToSave}</p>
         </Card>
@@ -420,7 +421,7 @@ export function ExerciseHost({
   if (outcome?.kind === 'saveFailed') {
     const attempt = outcome.attempt;
     return (
-      <Card as="section" role="alert" tone="fail">
+      <Card as="section" role="alert" tone="fail" className="mx-auto w-full max-w-3xl">
         <p className="text-fail">{ko.exercises.common.saveFailed}</p>
         <Button className="mt-3" onClick={() => save(attempt)}>
           {ko.common.retry}

@@ -123,9 +123,9 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
     setFlags((f) => (f.includes(flag) ? f.filter((x) => x !== flag) : [...f, flag]));
   return (
     <Card as="section" className="mx-auto flex w-full max-w-2xl flex-col gap-5" data-testid="self-report">
-      <h2 className="text-xl font-bold">{ko.session.reportTitle}</h2>
+      <h2 className="text-2xl font-bold">{ko.session.reportTitle}</h2>
       <label className="flex flex-col gap-1">
-        <span>{ko.session.pain(pain)}</span>
+        <span className="text-lg font-semibold tabular-nums">{ko.session.pain(pain)}</span>
         <input
           type="range"
           min={0}
@@ -136,7 +136,7 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
         />
       </label>
       <label className="flex flex-col gap-1">
-        <span>{ko.session.difficulty(difficulty)}</span>
+        <span className="text-lg font-semibold tabular-nums">{ko.session.difficulty(difficulty)}</span>
         <input
           type="range"
           min={1}
@@ -146,8 +146,8 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
           data-testid="report-difficulty"
         />
       </label>
-      <fieldset className="flex flex-wrap gap-3">
-        <legend className="mb-1 w-full">{ko.session.dangerLegend}</legend>
+      <fieldset className="flex flex-wrap gap-x-4">
+        <legend className="mb-1 text-lg font-semibold">{ko.session.dangerLegend}</legend>
         {(['sharp', 'numbness', 'joint'] as const).map((flag) => (
           <Choice
             key={flag}
@@ -163,13 +163,15 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
       <Field label={ko.session.note}>
         <TextArea className="min-h-24" value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      <Button
-        large
-        onClick={() => onSave({ pain, difficulty, dangerFlags: flags, note })}
-        data-testid="report-save"
-      >
-        {ko.session.save}
-      </Button>
+      <div data-primary-action>
+        <Button
+          large
+          onClick={() => onSave({ pain, difficulty, dangerFlags: flags, note })}
+          data-testid="report-save"
+        >
+          {ko.session.save}
+        </Button>
+      </div>
     </Card>
   );
 }
@@ -551,29 +553,45 @@ export function SessionScreen() {
       {transitionEndsAt !== null ? (
         <Card
           as="section"
-          className="flex flex-col items-center gap-4 py-10 text-center"
+          className="flex flex-col items-center gap-4 py-8 text-center lg:py-12"
           data-testid="block-transition"
         >
-          <p className="text-muted">{ko.session.transitionNext(ko.home.blocks[item.block])}</p>
+          <p className="text-lg font-semibold text-accent">
+            {ko.session.transitionNext(ko.home.blocks[item.block])}
+          </p>
           <p className="text-3xl font-bold sm:text-4xl">{itemTitle(item)}</p>
           {item.exerciseType === 'E1' && typeof item.params.voicingId === 'string' && (
             <div className="w-40">
               <ChordDiagram voicing={voicingById(item.params.voicingId)} leftHanded={leftHanded} />
             </div>
           )}
+          {/* The countdown to the block is a count-in: a key number read from the music stand. */}
+          <p className="font-bold tabular-nums leading-none" data-core-number aria-hidden="true">
+            <span style={{ fontSize: 'clamp(3rem, 16vh, 13rem)' }}>
+              {Math.max(0, Math.ceil((transitionEndsAt - now()) / 1000))}
+            </span>
+          </p>
           <p className="tabular-nums text-muted">
             {ko.session.transitionIn(Math.max(0, Math.ceil((transitionEndsAt - now()) / 1000)))}
           </p>
-          <Button large autoFocus onClick={endTransition} data-testid="transition-start">
-            {ko.session.transitionStart}
-          </Button>
+          <div data-primary-action>
+            <Button large autoFocus onClick={endTransition} data-testid="transition-start">
+              {ko.session.transitionStart}
+            </Button>
+          </div>
         </Card>
       ) : state.paused ? (
-        <Card as="section" className="py-10 text-center">
-          <p className="text-2xl font-bold">{ko.session.paused}</p>
-          <Button autoFocus className="mt-4" onClick={() => setState(resume(state, now()))}>
-            {ko.session.resume}
-          </Button>
+        <Card as="section" tone="retry" className="flex flex-col items-center gap-5 py-10 text-center">
+          <p className="flex items-center gap-3 text-3xl font-bold text-retry">
+            <Icon name="pause" size={28} />
+            {ko.session.paused}
+          </p>
+          <div data-primary-action>
+            <Button large autoFocus onClick={() => setState(resume(state, now()))}>
+              <Icon name="play" />
+              {ko.session.resume}
+            </Button>
+          </div>
         </Card>
       ) : item.exerciseType === 'REST' ? (
         <RestItem key={item.id} item={item} now={now} onDone={advance} />
@@ -602,9 +620,15 @@ export function SessionScreen() {
             const suggestion = attempt ? repeatSuggestion(item, attempt, loaded.repertoire) : null;
             return (
               <div className="mt-5 flex flex-wrap gap-3">
+                <div data-primary-action>
+                  <Button large autoFocus onClick={advance} data-testid="next-item">
+                    {ko.session.nextItem}
+                  </Button>
+                </div>
                 {repeatable && (
                   <Button
                     large
+                    variant="secondary"
                     onClick={() => retry(suggestion?.params, suggestion?.identity)}
                     data-testid="repeat-item"
                   >
@@ -624,9 +648,6 @@ export function SessionScreen() {
                     {ko.session.retryAtBpm(tempo.bpm)}
                   </Button>
                 )}
-                <Button large autoFocus onClick={advance} data-testid="next-item">
-                  {ko.session.nextItem}
-                </Button>
               </div>
             );
           }}
@@ -634,9 +655,7 @@ export function SessionScreen() {
       ) : (
         <Button onClick={() => go((s) => skipItem(s, items, now()))}>{ko.session.skip}</Button>
       )}
-      <p className="mt-6 text-sm text-muted">
-        {next ? ko.session.next(itemTitle(next)) : ko.session.lastItem}
-      </p>
+      <p className="mt-6 text-muted">{next ? ko.session.next(itemTitle(next)) : ko.session.lastItem}</p>
       <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-4">
         <Button
           variant="secondary"
@@ -680,7 +699,7 @@ export function SessionScreen() {
           </Button>
         </Card>
       )}
-      {runActive && <p className="mt-2 text-sm text-muted">{ko.session.finishRunFirst}</p>}
+      {runActive && <p className="mt-2 text-muted">{ko.session.finishRunFirst}</p>}
     </FocusScreen>
   );
 }
