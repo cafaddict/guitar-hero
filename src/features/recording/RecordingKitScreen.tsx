@@ -14,6 +14,7 @@ import { encodeWav } from '../../dsp/wav';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { TextInput } from '../../ui/Field';
+import { Icon } from '../../ui/icons';
 import { Screen } from '../../ui/Screen';
 import { MicStatusPanel } from '../mic/MicStatusPanel';
 import { fileExists, opfsSupported, readFile, saveFile } from './opfs';
@@ -221,19 +222,33 @@ export function RecordingKitScreen() {
     );
   }
   const recordedIds = new Set(recordings.map((r) => r.label));
+  const recordedCount = plan.filter((clip) => recordedIds.has(clip.id)).length;
   return (
     <Screen title={ko.recording.title}>
-      <p className="text-muted">{ko.recording.intro}</p>
+      <p className="text-lg text-muted">{ko.recording.intro}</p>
+      <p className="mt-3 font-semibold tabular-nums" data-testid="recording-progress">
+        {ko.recording.progress(recordedCount, plan.length)}
+      </p>
       <MicStatusPanel status={status} onRetry={() => void audioEngine.startMic()} />
       <ol className="mt-4 space-y-2">
         {plan.map((clip) => (
           <li
             key={clip.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface p-3"
+            className="card flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-3"
           >
-            <span>
-              {recordedIds.has(clip.id) ? '✓ ' : ''}
-              {clipText(clip)}
+            <span className="flex min-w-0 flex-1 basis-56 items-center gap-2.5">
+              {recordedIds.has(clip.id) && (
+                <span
+                  aria-hidden="true"
+                  className="grid size-6 shrink-0 place-items-center rounded-full bg-ok text-bg"
+                >
+                  <Icon name="check" size={16} />
+                </span>
+              )}
+              <span>
+                {recordedIds.has(clip.id) && <span className="sr-only">✓ </span>}
+                {clipText(clip)}
+              </span>
             </span>
             {active?.clip.id === clip.id ? (
               <Button onClick={() => void stop()}>

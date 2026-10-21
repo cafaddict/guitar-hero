@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { useEngineStatus, useMicReleasedOnExit } from '../../app/audioHooks';
 import { audioEngine, CAPTURE_DIAGNOSTICS_KEY, repo } from '../../app/services';
 import { useSettingsStore } from '../../app/settingsStore';
@@ -7,7 +6,8 @@ import type { CaptureDiagnostics } from '../../audio/devices';
 import type { Calibration } from '../../domain/records';
 import { DETECTOR_VERSION } from '../../dsp/version';
 import { ko } from '../../i18n/ko';
-import { Button, buttonClass } from '../../ui/Button';
+import { Button, ButtonLink } from '../../ui/Button';
+import { Card, CardHeader } from '../../ui/Card';
 import { EnvironmentGuide } from '../../ui/EnvironmentGuide';
 import { Field, Select } from '../../ui/Field';
 import { LevelMeter } from '../../ui/LevelMeter';
@@ -69,99 +69,105 @@ export function DiagnosticsScreen() {
   const diagnostics = audioEngine.diagnostics ?? stored;
   return (
     <Screen title={ko.diagnostics.title}>
-      <div className="mb-3">
+      <div className="flex flex-col gap-5">
         <EnvironmentGuide />
-      </div>
-      <p>
-        {ko.diagnostics.status}:{' '}
-        <strong data-testid="mic-status">{ko.diagnostics.statusLabels[status.kind]}</strong>
-      </p>
-      <Button className="mt-3" onClick={() => (running ? audioEngine.stopMic() : void start())}>
-        {running ? ko.diagnostics.micStop : ko.diagnostics.micStart}
-      </Button>
-      <MicStatusPanel status={status} onRetry={() => void start()} />
-      <div className="mt-4">
-        <LevelMeter
-          read={readLevel}
-          label={ko.diagnostics.level}
-          format={formatLevel}
-          textTestId="level-db"
-        />
-        {running && (
-          <p className="mt-1 text-sm text-muted" data-testid="diag-gaps">
-            {ko.diagnostics.gaps(
-              audioEngine.captureGaps.count,
-              (audioEngine.captureGaps.frames / audioEngine.sampleRate) * 1000,
+        <Card as="section" className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <p className="min-w-0 flex-1 text-lg">
+              {ko.diagnostics.status}:{' '}
+              <strong data-testid="mic-status">{ko.diagnostics.statusLabels[status.kind]}</strong>
+            </p>
+            <Button
+              variant={running ? 'secondary' : 'primary'}
+              onClick={() => (running ? audioEngine.stopMic() : void start())}
+            >
+              {running ? ko.diagnostics.micStop : ko.diagnostics.micStart}
+            </Button>
+          </div>
+          <MicStatusPanel status={status} onRetry={() => void start()} />
+          <div>
+            <LevelMeter
+              read={readLevel}
+              label={ko.diagnostics.level}
+              format={formatLevel}
+              textTestId="level-db"
+            />
+            {running && (
+              <p className="mt-1 text-sm text-muted" data-testid="diag-gaps">
+                {ko.diagnostics.gaps(
+                  audioEngine.captureGaps.count,
+                  (audioEngine.captureGaps.frames / audioEngine.sampleRate) * 1000,
+                )}
+              </p>
             )}
-          </p>
-        )}
-      </div>
-      {running && devices.length > 0 && (
-        <Field label={ko.diagnostics.chooseDevice} className="mt-4">
-          <Select
-            value={settings?.preferredInputDeviceId ?? ''}
-            onChange={(e) => void chooseDevice(e.target.value)}
-          >
-            <option value="">{ko.diagnostics.defaultDevice}</option>
-            {devices.map((d) => (
-              <option key={d.deviceId} value={d.deviceId}>
-                {d.label || d.deviceId}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      )}
-      {diagnostics && (
-        <section
-          className="mt-4 card rounded-2xl border border-border bg-surface p-4"
-          data-testid="diag-settings"
-        >
-          <p>
-            {ko.diagnostics.device}:{' '}
-            <span data-testid="diag-label">{diagnostics.label || ko.common.unknown}</span>
-          </p>
-          <h2 className="mt-3 font-semibold">{ko.diagnostics.trackSettings}</h2>
-          <dl className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-            {SETTING_KEYS.map((key) => (
-              <div key={key} className="contents">
-                <dt className="text-muted">{key}</dt>
-                <dd data-testid={`diag-${key}`}>{formatSetting(diagnostics.settings[key])}</dd>
-              </div>
-            ))}
-          </dl>
-          {diagnostics.processingOn.length === 0 && diagnostics.settings.echoCancellation !== null && (
-            <p className="mt-2 text-ok">{ko.diagnostics.allOff}</p>
+          </div>
+          {running && devices.length > 0 && (
+            <Field label={ko.diagnostics.chooseDevice}>
+              <Select
+                value={settings?.preferredInputDeviceId ?? ''}
+                onChange={(e) => void chooseDevice(e.target.value)}
+              >
+                <option value="">{ko.diagnostics.defaultDevice}</option>
+                {devices.map((d) => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {d.label || d.deviceId}
+                  </option>
+                ))}
+              </Select>
+            </Field>
           )}
-          <CaptureWarnings diagnostics={diagnostics} />
-          <p className="mt-3 text-sm">
-            {ko.diagnostics.sampleRate}: {ko.diagnostics.contextRate(diagnostics.contextSampleRate)},{' '}
-            {ko.diagnostics.trackRate(diagnostics.settings.sampleRate)}
+        </Card>
+        {diagnostics && (
+          <Card as="section" data-testid="diag-settings">
+            <p>
+              {ko.diagnostics.device}:{' '}
+              <span className="font-semibold" data-testid="diag-label">
+                {diagnostics.label || ko.common.unknown}
+              </span>
+            </p>
+            <h2 className="mt-4 text-lg font-bold">{ko.diagnostics.trackSettings}</h2>
+            <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
+              {SETTING_KEYS.map((key) => (
+                <div key={key} className="contents">
+                  <dt className="text-muted">{key}</dt>
+                  <dd data-testid={`diag-${key}`}>{formatSetting(diagnostics.settings[key])}</dd>
+                </div>
+              ))}
+            </dl>
+            {diagnostics.processingOn.length === 0 && diagnostics.settings.echoCancellation !== null && (
+              <p className="mt-3 text-ok">{ko.diagnostics.allOff}</p>
+            )}
+            <CaptureWarnings diagnostics={diagnostics} />
+            <p className="mt-3">
+              {ko.diagnostics.sampleRate}: {ko.diagnostics.contextRate(diagnostics.contextSampleRate)},{' '}
+              {ko.diagnostics.trackRate(diagnostics.settings.sampleRate)}
+            </p>
+            <p>
+              {ko.diagnostics.latency}:{' '}
+              {diagnostics.baseLatencyMs === null ? '—' : ko.common.ms(diagnostics.baseLatencyMs)} /{' '}
+              {diagnostics.outputLatencyMs === null ? '—' : ko.common.ms(diagnostics.outputLatencyMs)}
+            </p>
+          </Card>
+        )}
+        <Card as="section">
+          <CardHeader title={ko.diagnostics.calibration} />
+          <p data-testid="diag-calibration">
+            {calibration
+              ? ko.diagnostics.calibrationSummary(
+                  calibration.rttMs,
+                  ko.onboarding.summary.methods[calibration.rttMethod],
+                  calibration.noiseFloorDbfs,
+                )
+              : ko.diagnostics.noCalibration}
           </p>
-          <p className="text-sm">
-            {ko.diagnostics.latency}:{' '}
-            {diagnostics.baseLatencyMs === null ? '—' : ko.common.ms(diagnostics.baseLatencyMs)} /{' '}
-            {diagnostics.outputLatencyMs === null ? '—' : ko.common.ms(diagnostics.outputLatencyMs)}
+          <p className="mt-2 text-muted" data-testid="diag-detector">
+            {ko.diagnostics.detectorVersion(DETECTOR_VERSION)}
           </p>
-        </section>
-      )}
-      <p className="mt-4 text-sm" data-testid="diag-detector">
-        {ko.diagnostics.detectorVersion(DETECTOR_VERSION)}
-      </p>
-      <section className="mt-4 card rounded-2xl border border-border bg-surface p-4">
-        <h2 className="font-semibold">{ko.diagnostics.calibration}</h2>
-        <p className="mt-1" data-testid="diag-calibration">
-          {calibration
-            ? ko.diagnostics.calibrationSummary(
-                calibration.rttMs,
-                ko.onboarding.summary.methods[calibration.rttMethod],
-                calibration.noiseFloorDbfs,
-              )
-            : ko.diagnostics.noCalibration}
-        </p>
-        <Link className={`mt-3 ${buttonClass('secondary')}`} to="/onboarding">
-          {ko.diagnostics.rerunOnboarding}
-        </Link>
-      </section>
+          <ButtonLink className="mt-4" to="/onboarding">
+            {ko.diagnostics.rerunOnboarding}
+          </ButtonLink>
+        </Card>
+      </div>
     </Screen>
   );
 }

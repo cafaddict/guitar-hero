@@ -158,7 +158,7 @@ export function NoiseStep({ onDone }: { onDone: (result: NoiseResult) => void })
   };
   return (
     <div>
-      <p>{ko.onboarding.noise.explain}</p>
+      <p className="text-lg">{ko.onboarding.noise.explain}</p>
       <div className="mt-3">
         <EnvironmentGuide />
       </div>
@@ -252,12 +252,12 @@ export function TuningStep({ onDone }: { onDone: (result: TuningResult) => void 
 
   return (
     <div>
-      <p>{ko.onboarding.tuning.explain}</p>
+      <p className="text-lg">{ko.onboarding.tuning.explain}</p>
       <ol className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
         {STRING_INDICES.map((i) => (
           <li
             key={i}
-            className={`rounded-lg p-2 text-center ${cents[i] !== null ? 'bg-ok/20' : i === idx ? 'bg-accent/20' : 'bg-surface-2'}`}
+            className={`rounded-xl border-2 p-2 text-center ${cents[i] !== null ? 'border-transparent bg-ok-soft' : i === idx ? 'border-accent bg-accent-soft' : 'border-transparent bg-surface-2'}`}
             data-testid={`tuning-string-${stringNumber(i)}`}
             data-passed={cents[i] !== null}
           >
@@ -385,12 +385,12 @@ export function TemplateStep({
 
   return (
     <div>
-      <p>{ko.onboarding.templates.explain}</p>
+      <p className="text-lg">{ko.onboarding.templates.explain}</p>
       <ol className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
         {STRING_INDICES.map((i) => (
           <li
             key={i}
-            className={`rounded-lg p-2 text-center ${templates[i] ? 'bg-ok/20' : i === idx ? 'bg-accent/20' : 'bg-surface-2'}`}
+            className={`rounded-xl border-2 p-2 text-center ${templates[i] ? 'border-transparent bg-ok-soft' : i === idx ? 'border-accent bg-accent-soft' : 'border-transparent bg-surface-2'}`}
             data-testid={`template-string-${stringNumber(i)}`}
             data-done={templates[i] !== null}
           >
@@ -551,7 +551,7 @@ export function RttStep({ onDone }: { onDone: (result: RttOutcome) => void }) {
     <div>
       {phase === 'ready' && (
         <>
-          <p>{ko.onboarding.rtt.explain}</p>
+          <p className="text-lg">{ko.onboarding.rtt.explain}</p>
           <Button large className="mt-4" onClick={() => void runLoopback()}>
             {ko.onboarding.rtt.measure}
           </Button>

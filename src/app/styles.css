@@ -137,6 +137,15 @@ body {
   outline: 1px solid var(--fg);
 }
 
+/*
+ * High contrast paints surfaces in the page's black: the tiles drawn on them (chart cells, pattern slots, string
+ * states, question cards) keep an inner 1 px edge so they stay shapes (D-093). Low specificity on purpose.
+ */
+[data-theme="contrast"] :where(.bg-surface, .bg-surface-2):where(:not(button, a, .card)) {
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+}
+
 /* After the contrast outline hook, at a higher specificity: the focus ring always wins (UQ-6). */
 :root :focus-visible {
   outline: 3px solid var(--focus);

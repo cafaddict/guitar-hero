@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router';
 import { defaultActionForKey, defaultKeysFor, letterOfCode } from '../../app/keys';
 import { persistentStorageGranted, requestPersistentStorage } from '../../app/persist';
 import { repo } from '../../app/services';
@@ -15,12 +14,11 @@ import {
 import { KEY_ACTIONS, type KeyAction, type Settings } from '../../data/settings';
 import { dayKey } from '../../domain/records';
 import { ko } from '../../i18n/ko';
-import { Button, buttonClass } from '../../ui/Button';
+import { Button, ButtonLink } from '../../ui/Button';
+import { Card, CardHeader } from '../../ui/Card';
 import { Choice, Field, Select, TextInput } from '../../ui/Field';
 import { Screen } from '../../ui/Screen';
 import { removeAllFiles } from '../recording/opfs';
-
-const linkClass = buttonClass('secondary');
 
 function download(name: string, text: string): void {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
@@ -140,12 +138,8 @@ function BackupSection() {
   };
 
   return (
-    <section
-      className="card rounded-2xl border border-border bg-surface p-4"
-      id="backup"
-      data-testid="backup-section"
-    >
-      <h2 className="text-lg font-bold">{ko.settingsScreen.backup}</h2>
+    <Card as="section" id="backup" data-testid="backup-section">
+      <CardHeader title={ko.settingsScreen.backup} className="mb-1" />
       <p className="text-sm text-muted">
         {ko.settingsScreen.lastBackup(lastBackup === null ? null : dayKey(lastBackup))}
       </p>
@@ -213,7 +207,7 @@ function BackupSection() {
           {message}
         </p>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -247,24 +241,24 @@ function KeysSection() {
   const keyName = (key: string) => ko.keys.keyNames[key] ?? key;
   const custom = Object.entries(settings.customKeys);
   return (
-    <section className="card rounded-2xl border border-border bg-surface p-4" data-testid="keys-section">
-      <h2 className="text-lg font-bold">{ko.settingsScreen.keys}</h2>
-      <p className="text-sm text-muted">{ko.keys.pedalTip}</p>
-      <table className="mt-2 w-full text-sm">
+    <Card as="section" data-testid="keys-section">
+      <CardHeader title={ko.settingsScreen.keys} className="mb-1" />
+      <p className="text-muted">{ko.keys.pedalTip}</p>
+      <table className="mt-3 w-full">
         <thead>
-          <tr className="text-left text-muted">
+          <tr className="border-b border-border text-left text-sm text-muted">
             <th scope="col" />
             <th scope="col">{ko.keys.defaults}</th>
             <th scope="col" />
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-border">
           {KEY_ACTIONS.map((action) => (
             <tr key={action}>
-              <th scope="row" className="py-1 text-left font-normal">
+              <th scope="row" className="py-1 pr-3 text-left font-normal">
                 {ko.keys.actions[action]}
               </th>
-              <td>{defaultKeysFor(action).map(keyName).join(' · ')}</td>
+              <td className="tabular-nums text-muted">{defaultKeysFor(action).map(keyName).join(' · ')}</td>
               <td className="text-right">
                 <Button variant="ghost" onClick={() => setLearning(action)} data-testid={`learn-${action}`}>
                   {ko.keys.learn}
@@ -305,7 +299,7 @@ function KeysSection() {
           </ul>
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -321,8 +315,8 @@ function ResetSection() {
     setDone(true);
   };
   return (
-    <section className="card rounded-2xl border border-border bg-surface p-4" data-testid="reset-section">
-      <h2 className="text-lg font-bold">{ko.settingsScreen.reset}</h2>
+    <Card as="section" data-testid="reset-section">
+      <CardHeader title={ko.settingsScreen.reset} className="mb-1" />
       {step === 0 && (
         <Button variant="secondary" className="mt-2" onClick={() => setStep(1)} data-testid="reset-start">
           {ko.settingsScreen.reset}
@@ -353,7 +347,7 @@ function ResetSection() {
           {ko.settingsScreen.resetDone}
         </p>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -363,27 +357,23 @@ export function SettingsScreen() {
   const update = useSettingsStore((s) => s.update);
   if (!settings) return <Screen title={ko.settingsScreen.title} busy />;
   const set = (patch: Partial<Settings>) => void update(patch);
+  const g = ko.settingsScreen.groups;
   return (
     <Screen title={ko.settingsScreen.title}>
-      <div className="flex flex-col gap-4">
-        <section className="flex flex-wrap gap-2">
-          <Link className={linkClass} to="/settings/diagnostics">
-            {ko.settingsScreen.devices}
-          </Link>
-          <Link className={linkClass} to="/onboarding">
-            {ko.settingsScreen.recalibrate}
-          </Link>
-          <Link className={linkClass} to="/settings/recording">
-            {ko.settingsScreen.recording}
-          </Link>
-        </section>
-        <p className="rounded-xl border border-border bg-surface p-3 text-info">
-          {ko.settingsScreen.micNotice}
-        </p>
-        <section className="flex flex-col gap-2 card rounded-2xl border border-border bg-surface p-4">
+      <div className="flex flex-col gap-5">
+        <nav className="flex flex-wrap gap-2" aria-label={g.more}>
+          <ButtonLink to="/settings/diagnostics">{ko.settingsScreen.devices}</ButtonLink>
+          <ButtonLink to="/onboarding">{ko.settingsScreen.recalibrate}</ButtonLink>
+          <ButtonLink to="/settings/recording">{ko.settingsScreen.recording}</ButtonLink>
+        </nav>
+        <Card tone="info">
+          <p className="text-info">{ko.settingsScreen.micNotice}</p>
+        </Card>
+        <Card as="section" className="flex flex-col gap-3">
+          <CardHeader title={g.display} className="mb-0" />
           <fieldset>
-            <legend className="font-semibold">{ko.settingsScreen.theme}</legend>
-            <div className="flex flex-wrap gap-2">
+            <legend className="mb-1 font-semibold">{ko.settingsScreen.theme}</legend>
+            <div className="flex flex-wrap gap-x-4">
               {(['dark', 'light', 'contrast'] as const).map((theme) => (
                 <Choice
                   key={theme}
@@ -397,14 +387,9 @@ export function SettingsScreen() {
               ))}
             </div>
           </fieldset>
-          <Toggle
-            label={ko.settingsScreen.leftHanded}
-            checked={settings.leftHanded}
-            onChange={(leftHanded) => set({ leftHanded })}
-          />
           <fieldset>
-            <legend className="font-semibold">{ko.settingsScreen.headStyle}</legend>
-            <div className="flex flex-wrap gap-2">
+            <legend className="mb-1 font-semibold">{ko.settingsScreen.headStyle}</legend>
+            <div className="flex flex-wrap gap-x-4">
               {(['3+3', 'inline6'] as const).map((head) => (
                 <Choice
                   key={head}
@@ -418,65 +403,82 @@ export function SettingsScreen() {
               ))}
             </div>
           </fieldset>
-          <Field label={ko.settingsScreen.strictness}>
-            <Select
-              value={settings.strictness}
-              onChange={(e) => set({ strictness: e.target.value as Settings['strictness'] })}
-            >
-              {(['lenient', 'normal', 'strict'] as const).map((s) => (
-                <option key={s} value={s}>
-                  {ko.settingsScreen.strictnessNames[s]}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={ko.settingsScreen.sensitivity} help={ko.settingsScreen.sensitivityHelp}>
-            <Select
-              value={settings.sensitivity}
-              onChange={(e) => set({ sensitivity: e.target.value as Settings['sensitivity'] })}
-              data-testid="setting-sensitivity"
-            >
-              {(['low', 'normal', 'high'] as const).map((s) => (
-                <option key={s} value={s}>
-                  {ko.settingsScreen.sensitivityNames[s]}
-                </option>
-              ))}
-            </Select>
-          </Field>
           <Toggle
-            label={ko.settingsScreen.visualOnly}
-            checked={settings.visualOnlyMetronome}
-            onChange={(visualOnlyMetronome) => set({ visualOnlyMetronome })}
+            label={ko.settingsScreen.leftHanded}
+            checked={settings.leftHanded}
+            onChange={(leftHanded) => set({ leftHanded })}
           />
-          <Toggle
-            label={ko.settingsScreen.xStringCheck}
-            checked={settings.xStringCheck}
-            onChange={(xStringCheck) => set({ xStringCheck })}
-          />
-          <Toggle
-            label={ko.settingsScreen.micDisabled}
-            checked={settings.micDisabled}
-            onChange={(micDisabled) => set({ micDisabled })}
-            testId="setting-mic-disabled"
-          />
-          <Toggle
-            label={ko.settingsScreen.blockTransition}
-            checked={settings.blockTransition}
-            onChange={(blockTransition) => set({ blockTransition })}
-            testId="setting-block-transition"
-          />
-          <Toggle
-            label={ko.settingsScreen.sessionLengthTemplate}
-            checked={settings.sessionLengthMode === 'template'}
-            onChange={(byStage) => set({ sessionLengthMode: byStage ? 'template' : 'custom' })}
-            testId="setting-session-template"
-          />
+        </Card>
+        <Card as="section" className="flex flex-col gap-4">
+          <CardHeader title={g.judging} className="mb-0" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={ko.settingsScreen.strictness}>
+              <Select
+                value={settings.strictness}
+                onChange={(e) => set({ strictness: e.target.value as Settings['strictness'] })}
+              >
+                {(['lenient', 'normal', 'strict'] as const).map((s) => (
+                  <option key={s} value={s}>
+                    {ko.settingsScreen.strictnessNames[s]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={ko.settingsScreen.sensitivity} help={ko.settingsScreen.sensitivityHelp}>
+              <Select
+                value={settings.sensitivity}
+                onChange={(e) => set({ sensitivity: e.target.value as Settings['sensitivity'] })}
+                data-testid="setting-sensitivity"
+              >
+                {(['low', 'normal', 'high'] as const).map((s) => (
+                  <option key={s} value={s}>
+                    {ko.settingsScreen.sensitivityNames[s]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <div>
+            <Toggle
+              label={ko.settingsScreen.xStringCheck}
+              checked={settings.xStringCheck}
+              onChange={(xStringCheck) => set({ xStringCheck })}
+            />
+            <Toggle
+              label={ko.settingsScreen.micDisabled}
+              checked={settings.micDisabled}
+              onChange={(micDisabled) => set({ micDisabled })}
+              testId="setting-mic-disabled"
+            />
+          </div>
+        </Card>
+        <Card as="section" className="flex flex-col gap-3">
+          <CardHeader title={g.practice} className="mb-0" />
+          <div>
+            <Toggle
+              label={ko.settingsScreen.visualOnly}
+              checked={settings.visualOnlyMetronome}
+              onChange={(visualOnlyMetronome) => set({ visualOnlyMetronome })}
+            />
+            <Toggle
+              label={ko.settingsScreen.blockTransition}
+              checked={settings.blockTransition}
+              onChange={(blockTransition) => set({ blockTransition })}
+              testId="setting-block-transition"
+            />
+            <Toggle
+              label={ko.settingsScreen.sessionLengthTemplate}
+              checked={settings.sessionLengthMode === 'template'}
+              onChange={(byStage) => set({ sessionLengthMode: byStage ? 'template' : 'custom' })}
+              testId="setting-session-template"
+            />
+          </div>
           <MinutesInput
             label={ko.settingsScreen.sessionMinutes}
             value={settings.sessionMinutes}
             onCommit={(v) => set({ sessionMinutes: v, sessionLengthMode: 'custom' })}
           />
-        </section>
+        </Card>
         <KeysSection />
         <BackupSection />
         <ResetSection />
