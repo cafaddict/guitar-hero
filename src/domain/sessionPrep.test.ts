@@ -18,7 +18,7 @@ describe('AC-PG2 session start (SPEC v1.1 §7.4): stagnation → prescriptions, 
   const stuckPair = [12, 9, 6, 3, 1].map((d, i) =>
     s('pair:A|D', 'cpmQualified', 24 + (i % 2), NOW - d * DAY_MS),
   );
-  const stuckLadder = [10, 7, 4, 1].map((d) => s('strum:P3:mute', 'ladderBpm', 60, NOW - d * DAY_MS));
+  const stuckLadder = [10, 7, 4, 1].map((d) => s('altpick:2', 'ladderBpm', 60, NOW - d * DAY_MS));
 
   it('detectStagnation runs at every session start and adds one prescription per subject', () => {
     const samples = [...stuckPair, ...stuckLadder];
@@ -30,8 +30,8 @@ describe('AC-PG2 session start (SPEC v1.1 §7.4): stagnation → prescriptions, 
       now: NOW,
     });
     expect(prep.added.map((p) => [p.kind, p.subjectKey])).toEqual([
+      ['slowerTempo', 'altpick:2'],
       ['omcToPfc', 'pair:A|D'],
-      ['slowerTempo', 'strum:P3:mute'],
     ]);
     const tempo = prep.added.find((p) => p.kind === 'slowerTempo')!;
     expect(tempo.expiresAt).toBe(NOW + 7 * DAY_MS);
@@ -62,6 +62,16 @@ describe('AC-PG2 session start (SPEC v1.1 §7.4): stagnation → prescriptions, 
     expect(
       prescriptionExpired({ ...base, kind: 'slowerTempo', expiresAt: NOW + DAY_MS }, none, 11, NOW + DAY_MS),
     ).toBe(true);
+    // A −10 BPM prescription stored for a ladder the learner now paces ends at the next prepare (D-098).
+    const strumSlower: Prescription = {
+      ...base,
+      kind: 'slowerTempo',
+      subjectKey: 'strum:P3:mute',
+      expiresAt: NOW + 7 * DAY_MS,
+      reason: 'stagnation',
+    };
+    expect(prescriptionExpired(strumSlower, none, 11, NOW)).toBe(true);
+    expect(prescriptionExpired({ ...strumSlower, subjectKey: 'altpick:2' }, none, 11, NOW)).toBe(false);
     const passed = buildSkills([
       s('pair:A|D', 'cpmQualified', 31, NOW - DAY_MS),
       s('pair:A|D', 'cpmQualified', 30, NOW),

@@ -1,7 +1,7 @@
 /**
  * E10 scale ladder (SPEC v1.1 §11.13): one cycle of a step (§6.8) per pass, one note per click. Four flawless
- * cycles in a row → +5 BPM; four in a row at ≥ 80 BPM graduate the step (the next step opens at 60); a run with
- * mistakes in half or more of its cycles, twice in a row → −5 BPM (minimum 50). Memorization = step 1 with the
+ * cycles in a row → +5 BPM; four in a row at ≥ 80 BPM graduate the step (the next step opens at 60); otherwise
+ * it stays — a failed run never lowers the tempo, the learner picks it (D-098). Memorization = step 1 with the
  * TAB hidden throughout, four flawless cycles in a row at ≥ 60 BPM.
  */
 import { z } from 'zod';
@@ -36,7 +36,7 @@ export const e10ParamsSchema = z.object({
   withBacking: z.boolean().default(false),
   /** Earphone confirmation of the backing run (§8.6-1); on speakers the run is reference only. */
   earphones: z.boolean().default(false),
-  /** Previous run of this step had mistakes in half or more of its cycles (two in a row → −5). */
+  /** Unused since D-098 (runs never step down); kept so stored params still parse. */
   previousLow: z.boolean().default(false),
   ladderBase: z.number().int().optional(),
   /** Seed of the random steps (2 and 3); each cycle derives its own. */
@@ -156,7 +156,7 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
       ...(this.params.withBacking ? { backingAudible: this.backingAudible } : {}),
       ...(this.params.review ? { review: true } : {}),
       cycles: [...this.cycleRecords],
-      ladder: counts ? sequenceLadder(this.cycleRecords, this.params.previousLow) : 'stay',
+      ladder: counts ? sequenceLadder(this.cycleRecords) : 'stay',
       graduated: run >= SEQUENCE_STREAK && this.params.bpm >= SCALE_GRADUATION_BPM,
       memorized:
         this.params.step === 1 &&

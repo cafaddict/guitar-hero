@@ -575,35 +575,24 @@ describe('§14.9 simulation — other learners', () => {
     expect(rotationGaps(run, 5)).toEqual([]);
   });
 
-  it('stuck ladders (§7.4): −10 BPM for a week from the ladder tempo, never cumulative, the ladder kept', () => {
+  it('user-paced ladders are never slowed (D-098): no −10 BPM for patterns, scales, riffs, chromatic', () => {
     const run = simulate({
       ...base,
-
       learner: improvingLearner({ stuckLadders: true }, 'stuck'),
-
       days: 40,
-
       fixedStage: 4,
-
       start: reach.stageEntries.get(4)!,
     });
-
-    const prescribed = run.sessions.filter((s) => s.prescriptions.some((p) => p.kind === 'slowerTempo'));
-
-    expect(prescribed.length).toBeGreaterThan(0);
-
+    const userPaced = /^(strum|scale|riff|chromatic):/;
     for (const s of run.sessions) {
+      const slowed = s.prescriptions.filter((p) => p.kind === 'slowerTempo' && userPaced.test(p.subjectKey));
+      expect(slowed, `day ${s.day}`).toEqual([]);
       for (const item of s.plan.items.filter((i) => i.exerciseType === 'E5')) {
         const subject = `strum:${String(item.params.patternId)}:${String(item.params.mode)}`;
-
         const ladder = s.skillsAtStart.get(subject)?.metrics.ladderBpm?.last ?? 60;
-
-        const slowed = s.prescriptions.some((p) => p.kind === 'slowerTempo' && p.subjectKey === subject);
-
-        expect(item.params.bpm, `day ${s.day} ${subject}`).toBe(slowed ? ladder - 10 : ladder);
-
-        // The stored ladder never sinks below where it started (the learner never passes or fails twice).
-
+        // The run starts at the ladder: no prescription ever lowers it.
+        expect(item.params.bpm, `day ${s.day} ${subject}`).toBe(ladder);
+        expect(item.params.ladderBase, `day ${s.day} ${subject}`).toBeUndefined();
         expect(ladder, `day ${s.day} ${subject}`).toBeGreaterThanOrEqual(60);
       }
     }

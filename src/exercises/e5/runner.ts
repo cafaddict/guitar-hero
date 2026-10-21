@@ -2,7 +2,8 @@
  * E5 strumming pattern ladder (SPEC §11.6). One count-in bar, then `bars` bars of the pattern against the
  * metronome; missed strums do not stop anything. Mode D scores strums (judged onset times) against the
  * eighth-note slot grid shifted by the calibrated RTT; strums in rest slots count as extra. Direction is not
- * judged (v2). Ladder: hit rate ≥ 90 % and no miss → +5 BPM; a second run in a row below 70 % → −5 BPM.
+ * judged (v2). Ladder: hit rate ≥ 90 % and no miss → +5 BPM; otherwise it stays — a failed run never lowers the
+ * tempo, the learner picks it (D-098).
  * Without a microphone the user rates the run (1 nothing missed / 2 sometimes missed / 3 often missed).
  * With a microphone the run waits "armed": the first strum (or Space) starts the count-in (SPEC §12.3).
  * P pauses: the interrupted bar is replayed after a one-bar count-in; a paused run is recorded but keeps the
@@ -29,7 +30,7 @@ export const e5ParamsSchema = z.object({
   /** Chord classes shown per bar (single = one chord; progression cycles). */
   chords: z.array(z.string()).max(8),
   cuesHidden: z.boolean(),
-  /** The previous run of this pattern was below 70 % (two in a row → step down). */
+  /** Unused since D-098 (runs never step down); kept so stored params still parse. */
   previousLow: z.boolean(),
   /** Dynamics mode (SPEC v1.1 §11.6, Stage 7): 4 bars soft → 4 bars loud, then a self evaluation. */
   dynamics: z.boolean().optional(),
@@ -44,7 +45,6 @@ export const e5ParamsSchema = z.object({
 export type E5Params = z.infer<typeof e5ParamsSchema>;
 
 export const LADDER_UP_HIT_RATE = 0.9;
-export const LADDER_DOWN_HIT_RATE = 0.7;
 export const LADDER_STEP_BPM = 5;
 /** The ladder only steps up on a full 8-bar run (SPEC §11.6 "8마디"). */
 export const LADDER_MIN_BARS = 8;
@@ -87,17 +87,16 @@ export interface E5View {
   liveBars: readonly LiveBar[];
 }
 
+/** Up or stay: a failed run never lowers the tempo (D-098). */
 export function ladderDecision(
   hitRate: number,
   misses: number,
-  previousLow: boolean,
   bars: number = LADDER_MIN_BARS,
-): Ladder {
-  if (hitRate >= LADDER_UP_HIT_RATE && misses === 0 && bars >= LADDER_MIN_BARS) return 'up';
-  if (hitRate < LADDER_DOWN_HIT_RATE && previousLow) return 'down';
-  return 'stay';
+): 'up' | 'stay' {
+  return hitRate >= LADDER_UP_HIT_RATE && misses === 0 && bars >= LADDER_MIN_BARS ? 'up' : 'stay';
 }
 
+/** The tempo after a run; `'down'` only comes from results stored before D-098. */
 export function nextBpmFor(bpm: number, ladder: Ladder): number {
   if (ladder === 'up') return clampBpm(bpm + LADDER_STEP_BPM);
   if (ladder === 'down') return clampBpm(bpm - LADDER_STEP_BPM);
@@ -279,7 +278,6 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
         // The ladder and pattern passes use the personal-lead-corrected hit rate (SPEC v1.1 §7.1, §11.6).
         this.analysis.hitRateCorrected,
         this.analysis.misses,
-        this.params.previousLow,
         this.params.bars,
       );
     return null;

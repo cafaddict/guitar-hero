@@ -58,12 +58,14 @@ function play(t: Awaited<ReturnType<typeof setup>>, offsets: number[], rttS: num
 }
 
 describe('E5 helpers', () => {
-  it('ladder: ≥ 90 % with no miss → up, a second run below 70 % → down', () => {
-    expect(ladderDecision(0.95, 0, false)).toBe('up');
-    expect(ladderDecision(0.95, 1, false)).toBe('stay');
-    expect(ladderDecision(0.6, 3, false)).toBe('stay');
-    expect(ladderDecision(0.6, 3, true)).toBe('down');
+  it('ladder: ≥ 90 % with no miss → up, anything else stays (never down, D-098)', () => {
+    expect(ladderDecision(0.95, 0)).toBe('up');
+    expect(ladderDecision(0.95, 1)).toBe('stay');
+    expect(ladderDecision(0.6, 3)).toBe('stay');
+    expect(ladderDecision(0.1, 20)).toBe('stay');
+    expect(ladderDecision(0.95, 0, 4)).toBe('stay');
     expect(nextBpmFor(80, 'up')).toBe(85);
+    // Results stored before D-098 may still say 'down'.
     expect(nextBpmFor(30, 'down')).toBe(30);
   });
 
@@ -198,12 +200,12 @@ describe('E5 strumming ladder', () => {
     expect(r.passed).toBe(false);
   });
 
-  it('two low runs in a row step down', async () => {
+  it('a low run never steps down, even after another low one (D-098)', async () => {
     const t = await setup({ bars: 2, previousLow: true });
     play(t, [0, 0.75], 0, 12);
     await flush();
-    expect(t.runner.finish()).toMatchObject({ ladder: 'down' });
-    expect(t.view().nextBpm).toBe(75);
+    expect(t.runner.finish()).toMatchObject({ ladder: 'stay', bpm: 80 });
+    expect(t.view().nextBpm).toBe(80);
   });
 
   it('shows the current bar/slot while playing (visual cue) and hides nothing in the data', async () => {
@@ -278,43 +280,9 @@ describe('E5 strumming ladder', () => {
     expect(aborted.runner.hasResult()).toBe(false);
   });
 
-  it('the plugin derives "previous run below 70 %" from the latest run of the same pattern', async () => {
+  it('E5 has no history adjustment: the tempo is the one the run was started with (D-098)', async () => {
     const { e5Plugin } = await import('./plugin');
-    const params = {
-      patternId: 'P3' as const,
-      bpm: 80,
-      bars: 8,
-      mode: 'single' as const,
-      chords: [],
-      cuesHidden: false,
-      previousLow: false,
-    };
-    const run = (patternId: string, hitRate: number, pauses?: number) => ({
-      ...strumResultSchema.parse({
-        ...(pauses === undefined ? {} : { pauses }),
-        patternId,
-        bpm: 80,
-        bars: 8,
-        mode: 'single',
-        hits: 0,
-        misses: 0,
-        extras: 0,
-        meanOffsetMs: null,
-        sdOffsetMs: null,
-        hitRate,
-        hitRateCorrected: hitRate,
-        cuesHidden: false,
-        ladder: 'stay',
-        passed: false,
-        source: 'mic',
-      }),
-    });
-    expect(e5Plugin.withHistory!(params, [run('P1', 0.2), run('P3', 0.6)]).previousLow).toBe(true);
-    expect(e5Plugin.withHistory!(params, [run('P3', 0.75), run('P3', 0.5)]).previousLow).toBe(false);
-    expect(e5Plugin.withHistory!(params, []).previousLow).toBe(false);
-    // A paused run is not "the latest run" for the ladder (D-085).
-    expect(e5Plugin.withHistory!(params, [run('P3', 0.3, 1), run('P3', 0.9)]).previousLow).toBe(false);
-    expect(e5Plugin.withHistory!(params, [run('P3', 0.9, 1), run('P3', 0.3)]).previousLow).toBe(true);
+    expect(e5Plugin.withHistory).toBeUndefined();
   });
 });
 

@@ -1,6 +1,5 @@
 import { riffById } from '../../content/riffs';
 import {
-  countsForCriteria,
   extractMetrics,
   ladderNextBpm,
   type RiffResult,
@@ -13,15 +12,7 @@ import { SequenceStage } from '../sequence/SequenceStage';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { RESULT_HEADLINE } from '../ui/resultHeadline';
-import {
-  type E17Params,
-  type E17View,
-  e17ParamsSchema,
-  FLAWLESS_STREAK_UP,
-  LOW_MISTAKE_RATIO,
-  mistakeRatio,
-  RiffRunner,
-} from './runner';
+import { type E17Params, type E17View, e17ParamsSchema, FLAWLESS_STREAK_UP, RiffRunner } from './runner';
 import { riffSpelled } from './spell';
 
 function E17ViewComponent({ runner }: { runner: ExerciseRunner<RiffResult, E17View>; params: E17Params }) {
@@ -114,11 +105,6 @@ export const e17Plugin: ExercisePlugin<E17Params, RiffResult, E17View> = {
     };
   },
   toMetrics: (result) => extractMetrics('E17', result),
-  withHistory: (params, recent) => {
-    // A paused run does not count for the ladder (D-085).
-    const last = recent.find((r) => r.riffId === params.riffId && countsForCriteria(r));
-    return { ...params, previousLow: last !== undefined && mistakeRatio(last.cycles) >= LOW_MISTAKE_RATIO };
-  },
   suggestedTempoRetry: (params, result) => tempoRetry(params, ladderNextBpm(result.bpm, result.ladder)),
   usesMicrophone: true,
   // P pauses; a paused run keeps the ladder where it is (D-085).

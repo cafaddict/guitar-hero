@@ -24,7 +24,7 @@ const strum = (bpm: number, ladder: 'up' | 'down' | 'stay') => ({
 });
 
 describe('retry at the suggested tempo (session "N BPM으로 다시")', () => {
-  it('E5 follows the ladder: down → −5, up → +5, stay → no second button', () => {
+  it('E5 follows the ladder: up → +5, stay → no second button, an old down result → −5', () => {
     const e5 = exerciseDefinition('E5')!;
     const params = { ...(e5.defaultParams(TEST_CONTENT) as object), bpm: 60 };
     expect(e5.suggestedTempoRetry(params, strum(60, 'down'))).toMatchObject({ bpm: 55, params: { bpm: 55 } });

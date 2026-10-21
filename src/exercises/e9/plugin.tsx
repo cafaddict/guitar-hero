@@ -3,7 +3,6 @@ import {
   CHROMATIC_STREAK,
   type ChromaticResult,
   chromaticResultSchema,
-  countsForCriteria,
   extractMetrics,
   ladderNextBpm,
 } from '../../domain/exerciseResults';
@@ -12,7 +11,7 @@ import { LADDER_STEP_BPM, tempoRetry } from '../e5/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
 import { RESULT_HEADLINE } from '../ui/resultHeadline';
-import { ChromaticRunner, type E9Params, type E9View, e9ParamsSchema, flawlessShare } from './runner';
+import { ChromaticRunner, type E9Params, type E9View, e9ParamsSchema } from './runner';
 
 function E9ViewComponent({ runner }: { runner: ExerciseRunner<ChromaticResult, E9View>; params: E9Params }) {
   const view = runner.snapshot().view;
@@ -67,13 +66,7 @@ export const e9Plugin: ExercisePlugin<E9Params, ChromaticResult, E9View> = {
   withHistory: (params, recent) => {
     const last = recent.find((r) => r.startFret === params.startFret);
     if (!last || params.ladderBase !== undefined) return params;
-    // `previousLow` from the latest run that counts (a paused one is ignored, D-085).
-    const counted = recent.find((r) => r.startFret === params.startFret && countsForCriteria(r));
-    return {
-      ...params,
-      bpm: ladderNextBpm(last.bpm, last.ladder),
-      previousLow: counted !== undefined && counted.cycles.length > 0 && flawlessShare(counted.cycles) < 0.5,
-    };
+    return { ...params, bpm: ladderNextBpm(last.bpm, last.ladder) };
   },
   suggestedTempoRetry: (params, result) => tempoRetry(params, ladderNextBpm(result.bpm, result.ladder)),
   usesMicrophone: true,

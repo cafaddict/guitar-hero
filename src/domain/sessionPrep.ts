@@ -8,6 +8,7 @@ import { RIFF_TARGET_EXTRA_BPM, riffById } from '../content/riffs';
 import type { GVoicing } from '../content/voicings';
 import {
   detectStagnation,
+  isUserPacedLadder,
   type LadderTargets,
   modeGraduated,
   PRESCRIPTION_SESSIONS,
@@ -73,7 +74,10 @@ export interface SessionPrep {
   stagnations: Stagnation[];
 }
 
-/** A prescription ends after its sessions or date, or once its goal is reached (pair passed, chord acquired). */
+/**
+ * A prescription ends after its sessions or date, or once its goal is reached (pair passed, chord acquired). A
+ * −10 BPM prescription stored for a ladder the learner now paces ends at once (D-098).
+ */
 export function prescriptionExpired(
   p: Prescription,
   skills: ReadonlyMap<string, SkillState>,
@@ -82,6 +86,7 @@ export function prescriptionExpired(
 ): boolean {
   if (sessionNumber - p.startedSession >= p.expiresAfterSessions) return true;
   if (p.expiresAt !== undefined && now >= p.expiresAt) return true;
+  if (p.kind === 'slowerTempo' && isUserPacedLadder(p.subjectKey)) return true;
   if (
     (p.kind === 'omcToPfc' || p.kind === 'pfcToOmc') &&
     pairPassed(skills, p.subjectKey.slice('pair:'.length))

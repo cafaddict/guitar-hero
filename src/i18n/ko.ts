@@ -827,8 +827,8 @@ export const ko = {
           progression: '마디마다 화면에 나오는 코드로 바꾸며 쳐요.',
         },
         keepGoing: '놓쳐도 멈추지 말고 계속 쳐요.',
-        ladder: (up: number, down: number, bars: number, step: number) =>
-          `${bars}마디 이상 쳐서 놓친 칸 없이 ${up}% 이상 맞추면 다음엔 ${step}\u00a0BPM 올리고, 두 번 연속 ${down}% 아래면 ${step}\u00a0BPM 내려요.`,
+        ladder: (up: number, bars: number, step: number) =>
+          `${bars}마디 이상 쳐서 놓친 칸 없이 ${up}% 이상 맞추면 다음엔 ${step}\u00a0BPM 올려요. 못 맞춰도 템포를 저절로 내리지 않아요.`,
       },
       E6: {
         chords: (progression: string) =>
@@ -852,12 +852,12 @@ export const ko = {
       },
       E9: {
         ladder: (streak: number, goal: number, step: number) =>
-          `${streak}묶음 연속 실수 없으면 ${step}\u00a0BPM 올려요. 목표는 ${goal}\u00a0BPM이에요.`,
+          `${streak}묶음 연속 실수 없으면 ${step}\u00a0BPM 올려요. 목표는 ${goal}\u00a0BPM이에요. 실수가 많아도 템포를 저절로 내리지 않아요.`,
       },
       E10: {
         fingers: 'TAB 아래 숫자가 누를 손가락이에요. 한 프렛에 한 손가락을 써요.',
         ladder: (streak: number, graduate: number, step: number) =>
-          `TAB 끝까지가 한 바퀴예요. ${streak}바퀴 연속 실수 없으면 ${step}\u00a0BPM 올리고, ${graduate}\u00a0BPM 이상에서 ${streak}바퀴 연속이면 이 단계를 졸업해요.`,
+          `TAB 끝까지가 한 바퀴예요. ${streak}바퀴 연속 실수 없으면 ${step}\u00a0BPM 올리고, ${graduate}\u00a0BPM 이상에서 ${streak}바퀴 연속이면 이 단계를 졸업해요. 실수가 많아도 템포를 저절로 내리지 않아요.`,
       },
       E11: {
         ladder: (hit: number, max: number, step: number) =>
@@ -882,7 +882,7 @@ export const ko = {
           'TAB 끝까지가 한 바퀴예요. 끝나면 멈추지 말고 바로 처음으로 돌아가 반복해요. 색칠된 칸이 지금 칠 음이에요.',
         listen: '시작하기 전에 "들어 보기"(M)로 어떻게 들리는지 먼저 들어 봐요.',
         judge: (streak: number, step: number) =>
-          `바퀴마다 마이크가 음과 박을 확인해요(마이크 없이는 1\u00a0실수\u00a0없음\u00a0· 2\u00a0실수\u00a0있음). ${streak}바퀴 연속 실수 없으면 다음엔 ${step}\u00a0BPM 올려요.`,
+          `바퀴마다 마이크가 음과 박을 확인해요(마이크 없이는 1\u00a0실수\u00a0없음\u00a0· 2\u00a0실수\u00a0있음). ${streak}바퀴 연속 실수 없으면 다음엔 ${step}\u00a0BPM 올려요. 실수가 많아도 템포를 저절로 내리지 않아요.`,
       },
       Q1: [
         '다이어그램을 보고 맞는 답을 1/2/3(또는 버튼)으로 골라요.',
@@ -1167,6 +1167,7 @@ export const ko = {
       selfNote: '마이크 없이 스스로 판단해요.',
       ladder: {
         up: (bpm: number) => `연속 실수 없음! 다음엔 ${bpm} BPM으로 올려요.`,
+        /** Results stored before D-098 only: runs no longer step down. */
         down: (bpm: number) => `실수가 많았어요. 다음엔 ${bpm} BPM으로 낮춰요.`,
         stay: (bpm: number) => `다음에도 ${bpm} BPM으로 해요.`,
       },
@@ -1247,6 +1248,7 @@ export const ko = {
       summary: (n: number, flawless: number) => `${n}바퀴 중 실수 없이 ${flawless}바퀴`,
       ladder: {
         up: (bpm: number) => `4바퀴 연속 실수 없음! 다음엔 ${bpm} BPM으로 올려요.`,
+        /** Results stored before D-098 only: runs no longer step down. */
         down: (bpm: number) => `실수가 많았어요. 다음엔 ${bpm} BPM으로 낮춰요.`,
         stay: (bpm: number) => `다음에도 ${bpm} BPM으로 해요.`,
       },
@@ -1366,6 +1368,7 @@ export const ko = {
         `맞음 ${hits} · 놓침 ${misses} · 추가 ${extras}`,
       ladder: {
         up: (bpm: number) => `잘했어요! 다음엔 ${bpm} BPM으로 올려 보세요.`,
+        /** Results stored before D-098 only: runs no longer step down. */
         down: (bpm: number) => `${bpm} BPM으로 내려서 다져 봐요.`,
         stay: (bpm: number) => `${bpm} BPM으로 한 번 더 해 봐요.`,
       },

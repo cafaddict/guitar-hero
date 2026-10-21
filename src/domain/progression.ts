@@ -432,6 +432,16 @@ export interface LadderTargets {
 
 const LADDER_PREFIXES = ['strum:', 'scale:', 'riff:', 'altpick:'] as const;
 
+/**
+ * Ladders whose tempo the learner picks on the start screen (E5 pattern, E10 scale, E17 riff, E9 chromatic,
+ * D-098): a failed run never lowers them, and stagnation does not prescribe −10 BPM for them either.
+ */
+export const USER_PACED_LADDER_PREFIXES = ['strum:', 'scale:', 'riff:', 'chromatic:'] as const;
+
+export function isUserPacedLadder(key: string): boolean {
+  return USER_PACED_LADDER_PREFIXES.some((p) => key.startsWith(p));
+}
+
 function isLadderSubject(key: string): boolean {
   if (key === 'altpick:any') return false;
   if (key.startsWith('strum:')) return key.split(':').length === 3;
@@ -457,7 +467,8 @@ function windowSamples(samples: readonly MetricSample[], metric: string, from: n
  * - pair (E2): median of the last 3 vs the first 3 qualified runs, + 2 → OMC → PFC
  * - pair (E3): clean rate below 0.5 rising < 0.1 → PFC → OMC
  * - chord (E1): clean ratio of the last 10 vs the first 10 checks, + 0.1 → pluck mode
- * - pattern / scale / riff / alternate picking: ladder tempo, + 5 → one week at −10 BPM
+ * - alternate picking: ladder tempo, + 5 → one week at −10 BPM (pattern, scale, riff and chromatic ladders are
+ *   paced by the learner and never slowed, D-098)
  * Passed pairs and acquired chords are not watched; neither are ladders that graduated or reached their goal.
  */
 export function detectStagnation(
@@ -500,7 +511,8 @@ export function detectStagnation(
   }
 
   for (const [key, list] of windowSamples(samples, 'ladderBpm', from, now)) {
-    if (!isLadderSubject(key) || list.length < STAGNATION_MIN_RUNS || !oldEnough(list)) continue;
+    if (!isLadderSubject(key) || isUserPacedLadder(key)) continue;
+    if (list.length < STAGNATION_MIN_RUNS || !oldEnough(list)) continue;
     const current = list.at(-1)!.value;
     if (ladders.done(key, current)) continue;
     if (current - list[0]!.value < 5) out.push({ subjectKey: key, prescription: 'slowerTempo' });

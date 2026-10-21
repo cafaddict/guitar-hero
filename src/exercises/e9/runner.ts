@@ -1,8 +1,8 @@
 /**
  * E9 chromatic 1-2-3-4 (SPEC v1.1 §11.14): fingers 1-2-3-4 one fret each from the start fret, string 6 → 1 and
  * back (4-3-2-1 on the way down), eighth notes with alternate picking. Each four-note group is a cycle.
- * Ladder ("10회 무실수 후 가속", 01:154·333): 10 flawless groups in a row → +5 BPM; a run with fewer than half
- * of its groups flawless, twice in a row → −5 (minimum 50). Goal 100 BPM (design value).
+ * Ladder ("10회 무실수 후 가속", 01:154·333): 10 flawless groups in a row → +5 BPM; otherwise it stays — a failed
+ * run never lowers the tempo, the learner picks it (D-098). Goal 100 BPM (design value).
  */
 import { z } from 'zod';
 import { chromaticGroups, positionMidi } from '../../content/scales';
@@ -23,7 +23,7 @@ export const e9ParamsSchema = z.object({
   startFret: z.number().int().min(1).max(12).default(CHROMATIC_START_FRET),
   bpm: z.number().int().min(30).max(240).default(60),
   tabHidden: z.boolean().default(false),
-  /** The previous run had fewer than half of its groups flawless (two in a row → −5). */
+  /** Unused since D-098 (runs never step down); kept so stored params still parse. */
   previousLow: z.boolean().default(false),
   ladderBase: z.number().int().optional(),
 });
@@ -38,14 +38,13 @@ export function flawlessShare(cycles: readonly Pick<SequenceCycle, 'flawless' | 
   return judged.length ? judged.filter((c) => c.flawless).length / judged.length : 0;
 }
 
-/** E9 ladder: the flawless run restarts at a cycle after a pause (longestFlawlessRun, D-085). */
+/**
+ * E9 ladder, up or stay (D-098): the flawless run restarts at a cycle after a pause (longestFlawlessRun, D-085).
+ */
 export function chromaticLadder(
   cycles: readonly Pick<SequenceCycle, 'flawless' | 'uncertain' | 'resumed'>[],
-  previousLow: boolean,
-): 'up' | 'down' | 'stay' {
-  if (longestFlawlessRun(cycles) >= CHROMATIC_STREAK) return 'up';
-  if (cycles.length > 0 && flawlessShare(cycles) < 0.5 && previousLow) return 'down';
-  return 'stay';
+): 'up' | 'stay' {
+  return longestFlawlessRun(cycles) >= CHROMATIC_STREAK ? 'up' : 'stay';
 }
 
 export class ChromaticRunner extends SequenceRunner<ChromaticResult, E9View> {
@@ -84,9 +83,7 @@ export class ChromaticRunner extends SequenceRunner<ChromaticResult, E9View> {
       bpm: this.params.bpm,
       cycles: [...this.cycleRecords],
       // A paused run is recorded but keeps the ladder where it is (D-085).
-      ladder: countsForCriteria(pauses)
-        ? chromaticLadder(this.cycleRecords, this.params.previousLow)
-        : 'stay',
+      ladder: countsForCriteria(pauses) ? chromaticLadder(this.cycleRecords) : 'stay',
       source: this.source,
       hitRate: rates.hitRate,
       okRatio: rates.okRatio,

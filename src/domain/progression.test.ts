@@ -245,7 +245,10 @@ describe('AC-R2 progression engine', () => {
       // Chord: 4 runs, clean ratio stays 0.
       ...[13, 9, 5, 1].map((d) => run('chord:C', 'clean', 0, d)),
       // Ladder: 60 → 60 BPM over 10 days.
+      ...[10, 7, 4, 1].map((d) => run('altpick:2', 'ladderBpm', 60, d)),
+      // A ladder the learner paces (E5, D-098): stuck too, but never slowed.
       ...[10, 7, 4, 1].map((d) => run('strum:P3:mute', 'ladderBpm', 60, d)),
+      ...[10, 7, 4, 1].map((d) => run('riff:R1', 'ladderBpm', 60, d)),
       // Ladder rising +10 → fine.
       ...[10, 7, 4, 1].map((d, i) => run('strum:P1:single', 'ladderBpm', 60 + 5 * i, d)),
       // Ladder at its goal (P2 mute graduates at 70) → not judged.
@@ -255,11 +258,13 @@ describe('AC-R2 progression engine', () => {
     ];
     const skills = buildSkills(samples);
     const targets = { done: (key: string, bpm: number) => key === 'strum:P2:mute' && bpm >= 70 };
-    expect(detectStagnation(skills, samples, NOW, targets)).toEqual([
+    const found = detectStagnation(skills, samples, NOW, targets);
+    expect(found).toEqual([
+      { subjectKey: 'altpick:2', prescription: 'slowerTempo' },
       { subjectKey: 'chord:C', prescription: 'pluckMode' },
       { subjectKey: 'pair:A|D', prescription: 'omcToPfc' },
-      { subjectKey: 'strum:P3:mute', prescription: 'slowerTempo' },
     ]);
+    expect(found.map((x) => x.subjectKey)).not.toContain('strum:P3:mute');
     // A passed pair is not watched.
     const passed = [
       ...samples,

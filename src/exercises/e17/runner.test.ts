@@ -3,45 +3,31 @@ import { extractMetrics, riffResultSchema } from '../../domain/exerciseResults';
 import { flawlessStreak } from '../sequence/runner';
 import { testContext } from '../testing/fakes';
 import { e17Plugin } from './plugin';
-import { e17ParamsSchema, mistakeRatio, RiffRunner, sequenceLadder } from './runner';
+import { mistakeRatio, RiffRunner, sequenceLadder } from './runner';
 
 const cycle = (flawless: boolean, uncertain = false) => ({ flawless, uncertain, stops: 0, okRatio: null });
 
 describe('E17 single-note riff (SPEC v1.1 §11.19)', () => {
-  it('ladder: 4 flawless cycles in a row → up; mistakes in ≥ half of the cycles twice in a row → down', () => {
-    expect(
-      sequenceLadder(
-        [true, true, false, true, true, true, true].map((f) => cycle(f)),
-        false,
-      ),
-    ).toBe('up');
+  it('ladder: 4 flawless cycles in a row → up; anything else stays, never down (D-098)', () => {
+    expect(sequenceLadder([true, true, false, true, true, true, true].map((f) => cycle(f)))).toBe('up');
+    expect(sequenceLadder([true, true, true].map((f) => cycle(f)))).toBe('stay');
+    // An uncertain cycle neither counts nor breaks the streak (§10.10-4).
+    expect(sequenceLadder([cycle(true), cycle(true), cycle(false, true), cycle(true), cycle(true)])).toBe(
+      'up',
+    );
+    expect(sequenceLadder([false, false, true].map((f) => cycle(f)))).toBe('stay');
+    expect(sequenceLadder([false, false, false].map((f) => cycle(f)))).toBe('stay');
     expect(
       sequenceLadder(
         [true, true, true].map((f) => cycle(f)),
-        false,
+        3,
       ),
-    ).toBe('stay');
-    // An uncertain cycle neither counts nor breaks the streak (§10.10-4).
-    expect(
-      sequenceLadder([cycle(true), cycle(true), cycle(false, true), cycle(true), cycle(true)], false),
     ).toBe('up');
-    expect(
-      sequenceLadder(
-        [false, false, true].map((f) => cycle(f)),
-        false,
-      ),
-    ).toBe('stay');
-    expect(
-      sequenceLadder(
-        [false, false, true].map((f) => cycle(f)),
-        true,
-      ),
-    ).toBe('down');
     expect(mistakeRatio([cycle(false), cycle(true)])).toBe(0.5);
     // The streak starts over at the cycle after a pause (D-085).
     const resumed = { ...cycle(true), resumed: true };
-    expect(sequenceLadder([cycle(true), cycle(true), resumed, cycle(true)], false)).toBe('stay');
-    expect(sequenceLadder([cycle(true), resumed, cycle(true), cycle(true), cycle(true)], false)).toBe('up');
+    expect(sequenceLadder([cycle(true), cycle(true), resumed, cycle(true)])).toBe('stay');
+    expect(sequenceLadder([cycle(true), resumed, cycle(true), cycle(true), cycle(true)])).toBe('up');
     // The live streak counter too.
     expect(flawlessStreak([cycle(true), cycle(true), cycle(true)])).toBe(3);
     expect(flawlessStreak([cycle(true), cycle(true), resumed, cycle(true)])).toBe(2);
@@ -49,23 +35,8 @@ describe('E17 single-note riff (SPEC v1.1 §11.19)', () => {
     expect(flawlessStreak([cycle(true), resumed, cycle(false, true)])).toBe(1);
   });
 
-  it('withHistory: previousLow ignores a paused run (D-085)', () => {
-    const params = e17ParamsSchema.parse({ riffId: 'R1', bpm: 60 });
-    const run = (flawless: boolean[], pauses?: number) =>
-      riffResultSchema.parse({
-        riffId: 'R1',
-        bpm: 60,
-        tabHidden: false,
-        cycles: flawless.map((f) => cycle(f)),
-        ladder: 'stay',
-        source: 'self',
-        ...(pauses === undefined ? {} : { pauses }),
-      });
-    const low = [false, false, true];
-    const good = [true, true, true];
-    expect(e17Plugin.withHistory!(params, [run(low), run(good)]).previousLow).toBe(true);
-    expect(e17Plugin.withHistory!(params, [run(low, 1), run(good)]).previousLow).toBe(false);
-    expect(e17Plugin.withHistory!(params, [run(good, 1), run(low)]).previousLow).toBe(true);
+  it('E17 has no history adjustment: the tempo is the one the run was started with (D-098)', () => {
+    expect(e17Plugin.withHistory).toBeUndefined();
   });
 
   it('self-reported cycles with the metronome; records the riff ladder tempo', async () => {

@@ -1,7 +1,6 @@
 import { patternById } from '../../content/patterns';
 import { voicingById, voicingForClass } from '../../content/voicings';
 import {
-  countsForCriteria,
   extractMetrics,
   ladderNextBpm,
   SCALE_GRADUATION_BPM,
@@ -14,7 +13,6 @@ import { renderBacking } from '../../dsp/synth/backing';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { LADDER_STEP_BPM, tempoRetry } from '../e5/runner';
-import { LOW_MISTAKE_RATIO, mistakeRatio } from '../e17/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
@@ -80,22 +78,15 @@ export function nextScaleRun(params: E10Params, recent: readonly ScaleResult[]):
   // the ladder.
   const mine = recent.filter((r) => r.scaleId === params.scaleId && r.backingAudible !== true && !r.review);
   // A review plays the step under review (the routine names it) at the graduation tempo (§7.5).
-  if (params.review) return { ...params, bpm: SCALE_GRADUATION_BPM, previousLow: false };
+  if (params.review) return { ...params, bpm: SCALE_GRADUATION_BPM };
   // A memorization run (the routine hides the TAB on step 1, §7.3-10) stays on step 1 at step 1's ladder.
   const memorizing = params.tabHidden && params.step === 1;
   const last = memorizing ? mine.find((r) => r.step === 1) : mine[0];
   if (!last) return { ...params, step: 1, bpm: params.bpm ?? SCALE_START_BPM };
   if (!memorizing && last.graduated && last.step < 5)
-    return { ...params, step: last.step + 1, bpm: SCALE_START_BPM, previousLow: false };
+    return { ...params, step: last.step + 1, bpm: SCALE_START_BPM };
   const bpm = ladderNextBpm(last.bpm, last.ladder);
-  // `previousLow` from the latest run of this step that counts (a paused one is ignored, D-085).
-  const counted = mine.find((r) => r.step === last.step && countsForCriteria(r));
-  return {
-    ...params,
-    step: last.step,
-    bpm: params.ladderBase !== undefined ? params.bpm : bpm,
-    previousLow: counted !== undefined && mistakeRatio(counted.cycles) >= LOW_MISTAKE_RATIO,
-  };
+  return { ...params, step: last.step, bpm: params.ladderBase !== undefined ? params.bpm : bpm };
 }
 
 export const e10Plugin: ExercisePlugin<E10Params, ScaleResult, E10View> = {
