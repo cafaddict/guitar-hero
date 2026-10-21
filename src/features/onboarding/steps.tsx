@@ -106,7 +106,7 @@ export function PermissionStep({
           </Button>
         </div>
       )}
-      <MicStatusPanel status={status} onRetry={() => start()} onWithoutMic={onWithoutMic} />
+      <MicStatusPanel status={status} onRetry={() => start()} onWithoutMic={onWithoutMic} marksNextStep />
       {running && (
         <div className="mt-4">
           <p className="text-ok">{ko.onboarding.permission.granted}</p>
@@ -129,9 +129,11 @@ export function PermissionStep({
             </Field>
           )}
           <CaptureWarnings diagnostics={audioEngine.diagnostics} />
-          <Button large className="mt-4" onClick={onNext}>
-            {ko.common.next}
-          </Button>
+          <div className="mt-4" data-primary-action>
+            <Button large onClick={onNext}>
+              {ko.common.next}
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -163,9 +165,11 @@ export function NoiseStep({ onDone }: { onDone: (result: NoiseResult) => void })
         <EnvironmentGuide />
       </div>
       {phase !== 'done' && (
-        <Button large className="mt-4" onClick={() => void measure()} disabled={phase === 'measuring'}>
-          {phase === 'measuring' ? ko.onboarding.noise.measuring : ko.onboarding.noise.measure}
-        </Button>
+        <div className="mt-4" data-primary-action>
+          <Button large onClick={() => void measure()} disabled={phase === 'measuring'}>
+            {phase === 'measuring' ? ko.onboarding.noise.measuring : ko.onboarding.noise.measure}
+          </Button>
+        </div>
       )}
       {phase === 'done' && result && (
         <div className="mt-4">
@@ -174,9 +178,11 @@ export function NoiseStep({ onDone }: { onDone: (result: NoiseResult) => void })
             {result.noiseDbfs > NOISE_WARN_DBFS ? ko.onboarding.noise.noisy : ko.onboarding.noise.quiet}
           </p>
           <div className="mt-4 flex gap-2">
-            <Button large onClick={() => onDone(result)}>
-              {ko.common.next}
-            </Button>
+            <div data-primary-action>
+              <Button large onClick={() => onDone(result)}>
+                {ko.common.next}
+              </Button>
+            </div>
             <Button variant="secondary" onClick={() => void measure()}>
               {ko.onboarding.noise.again}
             </Button>
@@ -307,19 +313,20 @@ export function TuningStep({ onDone }: { onDone: (result: TuningResult) => void 
           <p className="text-ok" data-testid="tuning-done">
             {ko.onboarding.tuning.done}
           </p>
-          <Button
-            large
-            className="mt-3"
-            onClick={() =>
-              onDone({
-                cents,
-                skipped: cents.map(() => false),
-                firstReadings: [...firstReadings.current.values()],
-              })
-            }
-          >
-            {ko.common.next}
-          </Button>
+          <div className="mt-3" data-primary-action>
+            <Button
+              large
+              onClick={() =>
+                onDone({
+                  cents,
+                  skipped: cents.map(() => false),
+                  firstReadings: [...firstReadings.current.values()],
+                })
+              }
+            >
+              {ko.common.next}
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -413,9 +420,11 @@ export function TemplateStep({
           <p className="text-ok" data-testid="templates-done">
             {ko.onboarding.templates.done}
           </p>
-          <Button large className="mt-3" onClick={() => onDone(templates)}>
-            {ko.common.next}
-          </Button>
+          <div className="mt-3" data-primary-action>
+            <Button large onClick={() => onDone(templates)}>
+              {ko.common.next}
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -552,9 +561,11 @@ export function RttStep({ onDone }: { onDone: (result: RttOutcome) => void }) {
       {phase === 'ready' && (
         <>
           <p className="text-lg">{ko.onboarding.rtt.explain}</p>
-          <Button large className="mt-4" onClick={() => void runLoopback()}>
-            {ko.onboarding.rtt.measure}
-          </Button>
+          <div className="mt-4" data-primary-action>
+            <Button large onClick={() => void runLoopback()}>
+              {ko.onboarding.rtt.measure}
+            </Button>
+          </div>
         </>
       )}
       {phase === 'measuring' && <p aria-live="polite">{ko.onboarding.rtt.measuring(attempt)}</p>}
@@ -569,9 +580,11 @@ export function RttStep({ onDone }: { onDone: (result: RttOutcome) => void }) {
           </p>
           <p className="mt-2">{ko.onboarding.rtt.tapExplain}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button large onClick={() => void runTap()}>
-              {ko.onboarding.rtt.tapStart}
-            </Button>
+            <div data-primary-action>
+              <Button large onClick={() => void runTap()}>
+                {ko.onboarding.rtt.tapStart}
+              </Button>
+            </div>
             <Button variant="secondary" onClick={() => void runLoopback()}>
               {ko.onboarding.rtt.tryLoopback}
             </Button>
@@ -602,9 +615,11 @@ export function RttStep({ onDone }: { onDone: (result: RttOutcome) => void }) {
             data-values={history.map((m) => (m.ok ? m.rttMs : 'x')).join(',')}
           />
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button large onClick={() => onDone(result)}>
-              {ko.common.next}
-            </Button>
+            <div data-primary-action>
+              <Button large onClick={() => onDone(result)}>
+                {ko.common.next}
+              </Button>
+            </div>
             <Button
               variant="secondary"
               onClick={() => void (result.method === 'tap' ? runTap() : runLoopback())}

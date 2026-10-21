@@ -17,6 +17,7 @@ import { Badge } from '../../ui/Badge';
 import { Button, ButtonLink } from '../../ui/Button';
 import { Card, CardHeader } from '../../ui/Card';
 import { Icon } from '../../ui/icons';
+import { Phrases } from '../../ui/Phrases';
 import { ProgressRing, percent } from '../../ui/ProgressRing';
 import { Screen } from '../../ui/Screen';
 import { Stat } from '../../ui/Stat';
@@ -196,7 +197,9 @@ function RoutineCard({
               />
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-medium text-muted">{ko.home.blocks[item.block]}</span>
-                <span className="font-medium">{itemTitle(item)}</span>
+                <span className="font-medium">
+                  <Phrases text={itemTitle(item)} />
+                </span>
                 {reviews > 0 && (
                   <Badge tone="info" className="ml-2 align-middle" data-testid="review-badge">
                     {ko.home.reviewBadge(reviews)}
@@ -277,7 +280,11 @@ export function HomeScreen() {
       <UpdateToast />
       <div className="mb-5 space-y-3 empty:hidden">
         {split && (
-          <Card tone="accent" className="flex flex-wrap items-center gap-4" data-testid="split-resume">
+          <Card
+            tone="accent"
+            className="flex flex-wrap items-center justify-between gap-4"
+            data-testid="split-resume"
+          >
             <p className="min-w-0 flex-1 font-medium">{ko.home.splitResume}</p>
             <div data-primary-action>
               <ButtonLink to="/session?resume=1" variant="primary" large data-testid="resume-session">
@@ -288,7 +295,7 @@ export function HomeScreen() {
           </Card>
         )}
         {needsOnboarding && (
-          <Card tone="notice" className="flex flex-wrap items-center gap-4">
+          <Card tone="notice" className="flex flex-wrap items-center justify-between gap-4">
             <p className="min-w-0 flex-1">{ko.home.firstRun}</p>
             {/* Secondary: the routine's start stays the one amber action on the screen (F-29). */}
             <ButtonLink to="/onboarding" variant="secondary">
@@ -301,7 +308,7 @@ export function HomeScreen() {
             as="section"
             tone="retry"
             role="status"
-            className="flex flex-wrap items-center gap-4"
+            className="flex flex-wrap items-center justify-between gap-4"
             data-testid="backup-reminder"
           >
             <p className="min-w-0 flex-1">{ko.home.backupReminder}</p>

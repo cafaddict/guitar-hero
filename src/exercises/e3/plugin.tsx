@@ -15,10 +15,12 @@ import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { PRACTICE_DIAGRAM, PracticeStage } from '../ui/PracticeStage';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { type E3Params, type E3View, e3ParamsSchema, PfcRunner } from './runner';
 
 function E3ViewComponent({
   runner,
+  params,
   ctx,
 }: {
   runner: ExerciseRunner<PfcResult, E3View>;
@@ -66,7 +68,7 @@ function E3ViewComponent({
         </>
       }
     >
-      <BigTimer remainingMs={remainingMs} />
+      <BigTimer remainingMs={remainingMs} plannedMs={params.durationMs} />
       <p className="text-3xl font-bold tabular-nums" data-testid="e3-count" data-arrivals={view.arrivals}>
         {t.arrivals(view.arrivals, view.clean)}
       </p>
@@ -93,7 +95,7 @@ function E3Summary({ result }: { result: PfcResult; params: E3Params }) {
   const s = pfcScores(result);
   return (
     <div data-testid="e3-summary" data-passed={s.passed}>
-      <p className="text-xl font-bold">{t.score(s.cleanPerMin, s.cleanRate)}</p>
+      <p className={RESULT_HEADLINE}>{t.score(s.cleanPerMin, s.cleanRate)}</p>
       <p>{s.passed ? t.passed : t.notYet}</p>
       <p className="text-sm text-muted">{t.normal}</p>
     </div>

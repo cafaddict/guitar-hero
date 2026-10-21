@@ -1,5 +1,16 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
+import {
+  createContext,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+  useContext,
+  useId,
+} from 'react';
 import { Icon } from './icons';
+
+/** The id of the enclosing Field's help line: its control is described by it (the label alone names it). */
+const FieldHelpContext = createContext<string | undefined>(undefined);
 
 /**
  * One look for every text-like field (text and number inputs, selects, text areas), D-089: ≥ 48 px tall, a
@@ -10,11 +21,23 @@ export const FIELD_CLASS =
   'min-h-12 rounded-xl border border-field bg-bg px-3 text-base text-fg disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-fail';
 
 export function TextInput({ className = '', ...rest }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={`${FIELD_CLASS} ${className}`} {...rest} />;
+  return (
+    <input
+      className={`${FIELD_CLASS} ${className}`}
+      aria-describedby={useContext(FieldHelpContext)}
+      {...rest}
+    />
+  );
 }
 
 export function TextArea({ className = '', ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={`${FIELD_CLASS} py-2 ${className}`} {...rest} />;
+  return (
+    <textarea
+      className={`${FIELD_CLASS} py-2 ${className}`}
+      aria-describedby={useContext(FieldHelpContext)}
+      {...rest}
+    />
+  );
 }
 
 /**
@@ -24,7 +47,11 @@ export function TextArea({ className = '', ...rest }: TextareaHTMLAttributes<HTM
 export function Select({ className = '', children, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <span className={`relative flex ${className}`}>
-      <select className={`${FIELD_CLASS} w-full min-w-0 cursor-pointer appearance-none pr-10`} {...rest}>
+      <select
+        className={`${FIELD_CLASS} w-full min-w-0 cursor-pointer appearance-none pr-10`}
+        aria-describedby={useContext(FieldHelpContext)}
+        {...rest}
+      >
         {children}
       </select>
       <Icon
@@ -36,7 +63,10 @@ export function Select({ className = '', children, ...rest }: SelectHTMLAttribut
   );
 }
 
-/** A labelled field stacked as label → control → help, the label naming the control. */
+/**
+ * A labelled field stacked as label → control → help. The label names the control; the help sits outside the
+ * label and describes it (aria-describedby), so the name stays short ("감도", not the whole help sentence).
+ */
 export function Field({
   label,
   help,
@@ -48,13 +78,21 @@ export function Field({
   children: ReactNode;
   className?: string;
 }) {
+  const helpId = useId();
+  const describedBy = help === undefined ? undefined : helpId;
   return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: the control comes in as `children`, inside the label.
-    <label className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="font-semibold">{label}</span>
-      {children}
-      {help !== undefined && <span className="text-sm text-muted">{help}</span>}
-    </label>
+    <div className={`flex flex-col gap-1.5 ${className}`}>
+      {/* biome-ignore lint/a11y/noLabelWithoutControl: the control comes in as `children`, inside the label. */}
+      <label className="flex flex-col gap-1.5">
+        <span className="font-semibold">{label}</span>
+        <FieldHelpContext.Provider value={describedBy}>{children}</FieldHelpContext.Provider>
+      </label>
+      {help !== undefined && (
+        <span id={helpId} className="text-sm text-muted">
+          {help}
+        </span>
+      )}
+    </div>
   );
 }
 

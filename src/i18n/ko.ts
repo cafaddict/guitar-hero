@@ -409,7 +409,7 @@ export const ko = {
   routineEditor: {
     title: '루틴 편집',
     intro:
-      '항목을 빼거나 더하고 블록 시간을 바꿔 저장하면, 다음 세션부터 이 단계에서 이 구성으로 짜요. 쌍·코드·템포는 앱이 그날 맞게 채워요.',
+      '항목을 빼거나 더하고 블록 시간을 바꿔 저장하면, 다음 세션부터 이 단계에서 이 구성으로 짜요. 쌍, 코드, 템포는 앱이 그날 맞게 채워요.',
     seconds: (sec: number) => `${Math.round(sec / 60) >= 1 && sec % 60 === 0 ? `${sec / 60}분` : `${sec}초`}`,
     moveUp: '위로',
     moveDown: '아래로',
@@ -963,7 +963,7 @@ export const ko = {
       UNEXPECTED: '울리면 안 돼요',
       WEAK: '약함',
       UNVERIFIABLE: '확인 불가',
-      NOT_PLAYED: '치지 않는 줄',
+      NOT_PLAYED: '안 침',
       pending: '대기',
       hidden: '내 판단 먼저',
     },
@@ -1048,10 +1048,15 @@ export const ko = {
       next: '다음 문제',
       score: (correct: number, total: number) => `${total}문제 중 ${correct}개 정답`,
       reaction: (ms: number) => `평균 반응 ${(ms / 1000).toFixed(1)}초`,
-      keysHint: '답은 1/2/3 키로도 고를 수 있어요.',
+      // Keys 1/2/3 pick the first three answers only (v1.1 SPEC §12.3): say so when there are more.
+      keysHint: (options: number) =>
+        options > 3
+          ? '앞의 세 답은 1/2/3 키로도 고를 수 있어요.'
+          : `답은 ${Array.from({ length: options }, (_, i) => i + 1).join('/')} 키로도 고를 수 있어요.`,
     },
     q1: {
-      positionPrompt: '표시된 점은 몇 번 줄, 몇 프렛, 몇 번 손가락인가요?',
+      // No-break spaces keep "몇 번" and "몇 프렛" on one line each (H9).
+      positionPrompt: '테두리를 두른 점은 몇\u00a0번 줄, 몇\u00a0프렛, 몇\u00a0번 손가락인가요?',
       position: (stringNo: number, fret: number, finger: string) =>
         `${stringNo}번 줄 · ${fret}프렛 · ${finger}`,
       symbolPrompt: (stringNo: number) => `${stringNo}번 줄 위의 표시는 무슨 뜻인가요?`,
@@ -1116,7 +1121,6 @@ export const ko = {
     },
     sequence: {
       bpm: (bpm: number) => `${bpm} BPM`,
-      start: '시작',
       tabTopLine: 'TAB의 맨 위 선이 1번 줄, 왼쪽 숫자가 줄 번호예요.',
       fingerRow: '손',
       countIn: '한 마디 세고 시작해요…',
@@ -1233,7 +1237,8 @@ export const ko = {
       replay: '다시 듣기',
       prompts: {
         majmin: '들려준 코드는 메이저일까요, 마이너일까요?',
-        interval: '두 음은 얼마나 떨어져 있을까요? (아래 음 → 위 음)',
+        // No-break spaces: "아래 음 → 위 음" reads as one unit and never splits across lines (H9).
+        interval: '두 음은 얼마나 떨어져 있을까요? (아래\u00a0음\u00a0→\u00a0위\u00a0음)',
         progression: '첫 코드(I) 다음에 온 코드는 무엇일까요?',
       },
       // App-made memory aids only (no song titles or melodies, §3.2, §11.21).
@@ -1362,8 +1367,9 @@ export const ko = {
       confirm: '확인',
       soundNote: '소리 품질은 채점하지 않아요. 손이 얼마나 빨리 옮겨 가는지만 세요.',
       perMinute: (cpm: number) => `분당 ${cpm.toFixed(1)}회`,
+      perMinuteMeaning: '1분 동안 코드를 바꾼 횟수예요.',
       detail: (detected: number, corrected: number | null) =>
-        corrected === null ? `자동 ${detected}회` : `자동 ${detected}회 → 보정 ${corrected}회`,
+        corrected === null ? `센 횟수 ${detected}회` : `센 횟수 ${detected}회 → 고친 횟수 ${corrected}회`,
     },
   },
   onboarding: {

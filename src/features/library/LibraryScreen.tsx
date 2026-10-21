@@ -71,9 +71,26 @@ export function ChordDetailScreen() {
     <Screen title={voicing.nameKo ?? voicing.symbol} eyebrow={ko.library.stage(voicing.stage)} width="wide">
       <div className="grid items-start gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-10">
         <div className="card flex justify-center rounded-2xl border border-border bg-surface p-4 sm:p-6">
-          <ChordDiagram voicing={voicing} leftHanded={settings?.leftHanded ?? false} className="max-w-sm" />
+          <ChordDiagram
+            voicing={voicing}
+            leftHanded={settings?.leftHanded ?? false}
+            className="max-w-56 sm:max-w-sm"
+          />
         </div>
         <div className="flex flex-col gap-6">
+          <div className="flex flex-wrap gap-3">
+            <ButtonLink
+              to={`/practice/E1?voicingId=${encodeURIComponent(voicing.id)}&mode=pluck`}
+              variant="primary"
+              large
+            >
+              <Icon name="play" size={18} />
+              {ko.library.practice}
+            </ButtonLink>
+            <Button large variant="secondary" disabled={playing} onClick={listen}>
+              {ko.library.listen}
+            </Button>
+          </div>
           <section>
             <h2 className="mb-2 text-lg font-bold">{ko.library.expected}</h2>
             <ul className="flex flex-wrap gap-2" data-testid="expected-notes">
@@ -98,19 +115,6 @@ export function ChordDetailScreen() {
             </ul>
             <p className="mt-2 text-muted">{ko.library.notVerifiable}</p>
           </section>
-          <div className="flex flex-wrap gap-3">
-            <ButtonLink
-              to={`/practice/E1?voicingId=${encodeURIComponent(voicing.id)}&mode=pluck`}
-              variant="primary"
-              large
-            >
-              <Icon name="play" size={18} />
-              {ko.library.practice}
-            </ButtonLink>
-            <Button large variant="secondary" disabled={playing} onClick={listen}>
-              {ko.library.listen}
-            </Button>
-          </div>
           <ButtonLink to="/library" variant="ghost" className="self-start">
             <Icon name="back" size={18} />
             {ko.library.back}

@@ -100,7 +100,10 @@ export function TunerScreen() {
               })}
             </div>
           </fieldset>
-          <LevelMeter read={readLevel} label={ko.diagnostics.level} />
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-semibold text-muted">{ko.diagnostics.level}</p>
+            <LevelMeter read={readLevel} label={ko.diagnostics.level} />
+          </div>
           <p className="text-muted">{ko.tuner.judgingOff}</p>
         </div>
         <section
@@ -108,7 +111,8 @@ export function TunerScreen() {
           aria-live="polite"
         >
           <p className="text-center text-7xl font-bold sm:text-8xl" data-testid="tuner-note">
-            {display?.note ?? '—'}
+            {/* Before a reading: a quiet dash, not a 96 px bar that reads as a broken note (H5). */}
+            {display ? display.note : <span className="text-5xl text-muted">—</span>}
           </p>
           <p className="min-h-8 text-center text-2xl tabular-nums text-muted" data-testid="tuner-cents">
             {display ? ko.common.cents(display.cents) : running ? ko.tuner.listening : ko.tuner.idle}

@@ -8,6 +8,7 @@ import { BigBpm } from '../ui/BigBpm';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
 import { PracticeStage } from '../ui/PracticeStage';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { selfRatingButtons } from '../ui/SelfRating';
 import { type E6Params, type E6View, e6ParamsSchema, ONE_BEAT_PASS_RATIO, OneBeatRunner } from './runner';
 
@@ -70,7 +71,7 @@ function E6ViewComponent({
 function E6Summary({ result }: { result: OneBeatResult; params: E6Params }) {
   return (
     <div data-testid="e6-summary">
-      <p className="text-xl font-bold">{ko.exercises.e6.bars(result.barsInWindow, result.bars)}</p>
+      <p className={RESULT_HEADLINE}>{ko.exercises.e6.bars(result.barsInWindow, result.bars)}</p>
       <p>{ko.exercises.e6.stops(result.stops)}</p>
       {result.beat1DelayMsMean !== null && <p>{ko.exercises.e6.delay(result.beat1DelayMsMean)}</p>}
       <p className="mt-2 font-semibold">

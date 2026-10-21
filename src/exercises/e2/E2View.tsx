@@ -8,11 +8,13 @@ import type { ExerciseContext, ExerciseRunner } from '../types';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { PRACTICE_DIAGRAM, PracticeStage } from '../ui/PracticeStage';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import type { E2Params, E2View as View } from './runner';
 
 export function makeE2View(voicingOf: (id: string) => ChordVoicing) {
   return function E2ViewComponent({
     runner,
+    params,
     ctx,
   }: {
     runner: ExerciseRunner<OneMinuteResult, View>;
@@ -67,7 +69,7 @@ export function makeE2View(voicingOf: (id: string) => ChordVoicing) {
           </p>
         }
       >
-        <BigTimer remainingMs={remainingMs} />
+        <BigTimer remainingMs={remainingMs} plannedMs={params.durationMs} />
         <p className="flex items-baseline gap-3" data-core-number>
           <span
             className="font-bold tabular-nums leading-none"
@@ -94,7 +96,8 @@ export function makeE2View(voicingOf: (id: string) => ChordVoicing) {
 export function E2Summary({ result }: { result: OneMinuteResult; params: E2Params }) {
   return (
     <div data-testid="e2-summary">
-      <p className="text-xl font-bold">{ko.exercises.e2.perMinute(changesPerMinute(result))}</p>
+      <p className={RESULT_HEADLINE}>{ko.exercises.e2.perMinute(changesPerMinute(result))}</p>
+      <p className="text-muted">{ko.exercises.e2.perMinuteMeaning}</p>
       <p>
         {ko.exercises.e2.detail(
           result.countMode === 'tap' ? (result.tapChanges ?? 0) : result.detectedChanges,

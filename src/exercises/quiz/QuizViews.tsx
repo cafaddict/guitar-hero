@@ -10,6 +10,7 @@ import { Tab } from '../../ui/Tab';
 import type { ExerciseContext, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { PRACTICE_DIAGRAM, PracticeStage } from '../ui/PracticeStage';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import type { QuizView } from './choiceQuiz';
 import type { DiagramPrompt, EarPrompt, OpenNotePrompt, TabPrompt } from './questions';
 import type { Q2View } from './recall';
@@ -73,7 +74,9 @@ function QuizProgress<P>({ view }: { view: QuizView<P> }) {
   );
 }
 
-const keysHint = <p className="text-muted">{ko.exercises.quiz.keysHint}</p>;
+function keysHint(options: number) {
+  return <p className="text-muted">{ko.exercises.quiz.keysHint(options)}</p>;
+}
 
 export function Q1View({
   runner,
@@ -108,7 +111,7 @@ export function Q1View({
         </>
       }
       primary={choiceButtons(runner, view)}
-      notes={keysHint}
+      notes={keysHint(q.options.length)}
     >
       <QuizProgress view={view} />
     </PracticeStage>
@@ -150,7 +153,7 @@ export function Q3View({
         </p>
       }
       primary={choiceButtons(runner, view)}
-      notes={keysHint}
+      notes={keysHint(q.options.length)}
     >
       <QuizProgress view={view} />
     </PracticeStage>
@@ -186,7 +189,7 @@ export function Q4View({
         </div>
       }
       primary={choiceButtons(runner, view)}
-      notes={keysHint}
+      notes={keysHint(view.question.options.length)}
     >
       <QuizProgress view={view} />
     </PracticeStage>
@@ -196,7 +199,7 @@ export function Q4View({
 export function QuizSummary({ result }: { result: QuizResult; params: unknown }) {
   return (
     <div data-testid="quiz-summary">
-      <p className="text-xl font-bold">{ko.exercises.quiz.score(result.correct, result.questions)}</p>
+      <p className={RESULT_HEADLINE}>{ko.exercises.quiz.score(result.correct, result.questions)}</p>
       {result.meanReactionMs !== null && <p>{ko.exercises.quiz.reaction(result.meanReactionMs)}</p>}
     </div>
   );
@@ -253,7 +256,7 @@ export function Q2Summary({ result }: { result: RecallResult; params: unknown })
     (i) => i.correct && i.reactionMs !== null && i.reactionMs <= RECALL_LIMIT_MS,
   ).length;
   return (
-    <p className="text-xl font-bold" data-testid="q2-summary">
+    <p className={RESULT_HEADLINE} data-testid="q2-summary">
       {ko.exercises.q2.passed(passed, result.items.length)}
     </p>
   );
@@ -295,7 +298,7 @@ export function Q5View({
         </div>
       }
       primary={choiceButtons(runner, view)}
-      notes={keysHint}
+      notes={keysHint(q.options.length)}
     >
       <QuizProgress view={view} />
     </PracticeStage>

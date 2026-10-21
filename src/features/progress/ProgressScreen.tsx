@@ -219,7 +219,7 @@ export function ProgressScreen() {
           <table className="w-full table-fixed border-separate border-spacing-1 text-center text-sm">
             <thead>
               <tr>
-                <th scope="col" className="w-14" />
+                <th scope="col" className="w-20" />
                 {[6, 5, 4, 3, 2, 1].map((n) => (
                   <th key={n} scope="col" className="font-semibold text-muted">
                     {n}

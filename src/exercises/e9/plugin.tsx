@@ -11,6 +11,7 @@ import { ko } from '../../i18n/ko';
 import { LADDER_STEP_BPM, tempoRetry } from '../e5/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { ChromaticRunner, type E9Params, type E9View, e9ParamsSchema, flawlessShare } from './runner';
 
 function E9ViewComponent({ runner }: { runner: ExerciseRunner<ChromaticResult, E9View>; params: E9Params }) {
@@ -33,7 +34,7 @@ function E9Summary({ result }: { result: ChromaticResult; params: E9Params }) {
   const t = ko.exercises.sequence;
   return (
     <div data-testid="e9-summary">
-      <p className="text-xl font-bold">
+      <p className={RESULT_HEADLINE}>
         {t.summary(result.cycles.length, result.cycles.filter((c) => c.flawless).length)}
       </p>
       <p>{t.ladder[result.ladder](ladderNextBpm(result.bpm, result.ladder))}</p>

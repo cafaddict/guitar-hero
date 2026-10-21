@@ -13,6 +13,7 @@ import { Card, CardHeader } from '../../ui/Card';
 import { Choice } from '../../ui/Field';
 import { FocusScreen } from '../../ui/FocusScreen';
 import { Icon } from '../../ui/icons';
+import { Phrases } from '../../ui/Phrases';
 import type { StoredState } from '../home/homeModel';
 import { routineNoticeText } from '../home/noticeText';
 import { slotLabel } from '../routineEditor/slotLabel';
@@ -45,6 +46,13 @@ function useStageOptions(stage: number, state: StoredState) {
   }, [stage, state]);
 }
 
+/** "여러 개 골라 세션으로": brings the list into view and moves the keyboard focus there with it. */
+function showPracticeList() {
+  const list = document.getElementById('stage-practice');
+  list?.scrollIntoView();
+  list?.focus({ preventScroll: true });
+}
+
 /**
  * The stage page's first step (SPEC §4.4): the stage's first available exercise, one tap away, above the
  * reading. The full list (one now, or several as a session) stays further down.
@@ -61,20 +69,24 @@ export function StageQuickStart({ stage, state }: { stage: number; state: Stored
     >
       <div className="min-w-0 flex-1 basis-56">
         <p className="text-sm font-semibold text-accent">{t.quickTitle}</p>
-        <p className="text-xl font-bold">{first.label}</p>
+        <p className="text-xl font-bold" id="stage-quick-label">
+          <Phrases text={first.label} />
+        </p>
       </div>
       <div data-primary-action>
+        {/* Two links read "바로 하기" on the page: each names its exercise as its description. */}
         <ButtonLink
           to={`/curriculum/${stage}/practice/${first.index}`}
           variant="primary"
           large
+          aria-describedby="stage-quick-label"
           data-testid="stage-practice-now"
         >
           <Icon name="play" size={18} />
           {t.now}
         </ButtonLink>
       </div>
-      <Button variant="ghost" onClick={() => document.getElementById('stage-practice')?.scrollIntoView()}>
+      <Button variant="ghost" onClick={showPracticeList}>
         {t.pickMany}
       </Button>
     </Card>
@@ -90,7 +102,13 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
     setPicked((p) => (p.includes(index) ? p.filter((i) => i !== index) : [...p, index]));
   const request: CustomSessionRequest = { stage, options: picked };
   return (
-    <Card as="section" className="mt-5 scroll-mt-6" id="stage-practice" data-testid="stage-practice">
+    <Card
+      as="section"
+      className="mt-5 scroll-mt-6"
+      id="stage-practice"
+      tabIndex={-1}
+      data-testid="stage-practice"
+    >
       <CardHeader title={t.title} className="mb-1" />
       <p className="text-sm text-muted">{t.intro}</p>
       {stage !== state.progression.stage && <p className="mt-1 text-sm text-info">{t.otherStage}</p>}
@@ -104,7 +122,9 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
               data-testid="stage-practice-item"
             >
               {/* At least a phrase wide: on a phone the controls wrap under the name (F-18). */}
-              <span className="min-w-0 flex-1 basis-48 font-medium">{label}</span>
+              <span className="min-w-0 flex-1 basis-48 font-medium" id={`stage-option-${index}`}>
+                <Phrases text={label} />
+              </span>
               {available ? (
                 <span className="flex flex-wrap items-center gap-2">
                   <Choice
@@ -115,7 +135,11 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
                     onChange={() => toggle(index)}
                     data-testid="stage-practice-pick"
                   />
-                  <ButtonLink to={`/curriculum/${stage}/practice/${index}`} data-testid="stage-practice-now">
+                  <ButtonLink
+                    to={`/curriculum/${stage}/practice/${index}`}
+                    aria-describedby={`stage-option-${index}`}
+                    data-testid="stage-practice-now"
+                  >
                     <Icon name="play" size={16} />
                     {t.now}
                   </ButtonLink>
@@ -127,9 +151,11 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
           );
         })}
       </ul>
+      {/* Amber only once something is picked: until then the quick start above is the one next step. */}
       <Button
         className="mt-4"
         large
+        variant={picked.length > 0 ? 'primary' : 'secondary'}
         disabled={picked.length === 0}
         onClick={() => navigate('/session', { state: { custom: request } })}
         data-testid="stage-practice-start"

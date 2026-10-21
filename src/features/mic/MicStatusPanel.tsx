@@ -9,10 +9,13 @@ export function MicStatusPanel({
   status,
   onRetry,
   onWithoutMic,
+  marksNextStep = false,
 }: {
   status: EngineStatus;
   onRetry: () => void;
   onWithoutMic?: () => void;
+  /** The recovery is the screen's next step (a practice start, onboarding): mark it as such (UI SPEC §5.1). */
+  marksNextStep?: boolean;
 }) {
   if (status.kind === 'interrupted') {
     return (
@@ -33,7 +36,7 @@ export function MicStatusPanel({
       data-code={status.code}
     >
       <p>{ko.mic.errors[status.code]}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap gap-2" {...(marksNextStep ? { 'data-primary-action': '' } : {})}>
         <Button onClick={onRetry}>{ko.common.retry}</Button>
         {onWithoutMic && (
           <Button variant="secondary" onClick={onWithoutMic}>

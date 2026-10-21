@@ -9,6 +9,7 @@ import { TuningDirection } from '../../ui/TuningDirection';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { PracticeStage } from '../ui/PracticeStage';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { type E0Params, type E0View, e0ParamsSchema, TuningRunner } from './runner';
 
 const note = (idx: number) => midiName(STANDARD_TUNING.openMidi[idx]!);
@@ -77,9 +78,7 @@ function E0ViewComponent({ runner }: { runner: ExerciseRunner<TuningResult, E0Vi
 function E0Summary({ result }: { result: TuningResult; params: E0Params }) {
   const n = result.strings.filter((s) => s.inTune).length;
   return (
-    <p className="text-xl font-bold">
-      {result.complete ? ko.exercises.e0.complete : ko.exercises.e0.done(n)}
-    </p>
+    <p className={RESULT_HEADLINE}>{result.complete ? ko.exercises.e0.complete : ko.exercises.e0.done(n)}</p>
   );
 }
 

@@ -36,6 +36,28 @@ test('AC-U2: a learned pedal key drives the exercise; Esc asks before stopping',
   await expect(page.getByTestId('exercise-nothing')).toBeVisible();
 });
 
+test('during a run "나가기" asks the same question as Esc instead of staying disabled (D-094)', async ({
+  page,
+}) => {
+  await page.goto('/#/practice/E7');
+  await page.getByTestId('exercise-start').click();
+  await expect(page.getByTestId('e7-view')).toBeVisible();
+  const exit = page.getByTestId('focus-exit');
+  await expect(exit).toBeEnabled();
+  await exit.click();
+  await expect(page.getByRole('alertdialog')).toBeVisible();
+  // "No" keeps the run; asking again and "yes" stops it; then the exit leaves.
+  await page.getByRole('button', { name: ko.keys.abortNo }).click();
+  await expect(page.getByRole('alertdialog')).toBeHidden();
+  await expect(page.getByTestId('e7-view')).toBeVisible();
+  await exit.click();
+  await page.getByRole('button', { name: ko.keys.abortYes }).click();
+  await expect(page.getByTestId('exercise-nothing')).toBeVisible();
+  // Leaves the practice screen (home, or onboarding on a first-run profile).
+  await exit.click();
+  await expect(page).not.toHaveURL(/#\/practice\//);
+});
+
 test('AC-U2: page-turner keys walk the session between runs; navigation waits while a run is in progress', async ({
   page,
 }) => {

@@ -12,6 +12,7 @@ import { LADDER_STEP_BPM, tempoRetry } from '../e5/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import {
   type E17Params,
   type E17View,
@@ -78,7 +79,7 @@ function E17Summary({ result }: { result: RiffResult; params: E17Params }) {
   const flawless = result.cycles.filter((c) => c.flawless).length;
   return (
     <div>
-      <p className="text-xl font-bold">{ko.exercises.e17.summary(result.cycles.length, flawless)}</p>
+      <p className={RESULT_HEADLINE}>{ko.exercises.e17.summary(result.cycles.length, flawless)}</p>
       <p>{ko.exercises.e17.ladder[result.ladder](ladderNextBpm(result.bpm, result.ladder))}</p>
       {(result.pauses ?? 0) > 0 && <p className="text-muted">{ko.exercises.common.pausedRun}</p>}
     </div>

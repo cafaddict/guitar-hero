@@ -10,6 +10,7 @@ import type { ExerciseContext, ExerciseRunner } from '../types';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { PRACTICE_DIAGRAM, PracticeStage } from '../ui/PracticeStage';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import type { E1Params, E1StringView, E1View as View } from './runner';
 import { stringTendencies } from './tendency';
 
@@ -168,7 +169,7 @@ export function makeE1View(voicingOf: (id: string) => ChordVoicing) {
                 <span className={`block text-2xl font-bold ${t.tone}`} aria-hidden="true">
                   {t.icon}
                 </span>
-                <span className={`block text-sm ${t.tone}`}>{t.label}</span>
+                <span className={`block text-base ${t.tone}`}>{t.label}</span>
               </li>
             );
           })}
@@ -214,7 +215,7 @@ export function makeE1Summary(voicingOf: (id: string) => ChordVoicing) {
     const tendencies = stringTendencies(result, voicingOf(result.voicingId));
     return (
       <div data-testid="e1-summary">
-        <p className="text-xl font-bold">{ko.exercises.e1.cleanRatio(result.cleanRatio)}</p>
+        <p className={RESULT_HEADLINE}>{ko.exercises.e1.cleanRatio(result.cleanRatio)}</p>
         <p>{ko.exercises.e1.stats(result.attempts.filter((a) => a.clean).length, result.attempts.length)}</p>
         {agreements.length > 0 && (
           <p>{ko.exercises.e1.selfAgreement(agreements.reduce((s, x) => s + x, 0) / agreements.length)}</p>

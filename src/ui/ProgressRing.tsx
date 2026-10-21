@@ -35,7 +35,7 @@ export function ProgressRing({
           r={radius}
           fill="none"
           strokeWidth={stroke}
-          className="stroke-surface-2"
+          className="stroke-field [stroke-opacity:0.35]"
         />
         <circle
           cx={size / 2}

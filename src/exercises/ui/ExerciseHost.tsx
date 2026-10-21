@@ -23,6 +23,7 @@ import { MicStatusPanel } from '../../features/mic/MicStatusPanel';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { Card } from '../../ui/Card';
+import { useExitGuard } from '../../ui/FocusScreen';
 import { Icon } from '../../ui/icons';
 import { createExerciseMic, createExerciseOutput } from '../audioAdapter';
 import { contentContextFor } from '../contentContext';
@@ -112,6 +113,8 @@ function RunningExercise({
   const [confirmAbort, setConfirmAbort] = useState(false);
   const confirmRef = useRef<HTMLDivElement>(null);
   useAnimationTick(runner);
+  // "나가기" during a run asks the same question as Esc (D-094).
+  useExitGuard(useCallback(() => setConfirmAbort(true), []));
   // The question appears above the stage: bring it into view and give it the focus (the dialog itself, not its
   // "yes" button — Space would then click it, where the run's keys read Space as "keep going").
   useEffect(() => {
@@ -393,8 +396,8 @@ export function ExerciseHost({
 
   if (outcome?.kind === 'saved') {
     return (
-      // One readable column: the result, then what to do next (SPEC §4.2).
-      <section aria-live="polite" className="mx-auto w-full max-w-3xl" data-testid="exercise-summary">
+      // One readable column on the header's left edge: the result, then what to do next (SPEC §4.2).
+      <section aria-live="polite" className="w-full max-w-3xl" data-testid="exercise-summary">
         <Card>
           <p className="mb-4 flex items-center gap-2 font-semibold text-ok">
             <span aria-hidden="true" className="grid size-6 place-items-center rounded-full bg-ok text-bg">
@@ -410,9 +413,12 @@ export function ExerciseHost({
   }
   if (outcome?.kind === 'nothing') {
     return (
-      <section aria-live="polite" className="mx-auto w-full max-w-3xl" data-testid="exercise-nothing">
+      <section aria-live="polite" className="w-full max-w-3xl" data-testid="exercise-nothing">
         <Card tone="notice">
-          <p>{ko.exercises.common.nothingToSave}</p>
+          <p className="flex items-start gap-2">
+            <Icon name="info" className="mt-0.5 shrink-0" />
+            {ko.exercises.common.nothingToSave}
+          </p>
         </Card>
         {renderAfter?.(null)}
       </section>
@@ -421,11 +427,11 @@ export function ExerciseHost({
   if (outcome?.kind === 'saveFailed') {
     const attempt = outcome.attempt;
     return (
-      <Card as="section" role="alert" tone="fail" className="mx-auto w-full max-w-3xl">
+      <Card as="section" role="alert" tone="fail" className="w-full max-w-3xl">
         <p className="text-fail">{ko.exercises.common.saveFailed}</p>
-        <Button className="mt-3" onClick={() => save(attempt)}>
-          {ko.common.retry}
-        </Button>
+        <div className="mt-3" data-primary-action>
+          <Button onClick={() => save(attempt)}>{ko.common.retry}</Button>
+        </div>
       </Card>
     );
   }
@@ -480,6 +486,7 @@ export function ExerciseHost({
           status={status}
           onRetry={() => void begin(true)}
           onWithoutMic={() => void withoutMic()}
+          marksNextStep
         />
       ) : (
         <div className="flex flex-col gap-2">

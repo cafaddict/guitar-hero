@@ -9,6 +9,7 @@ import { Icon } from '../../ui/icons';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { PracticeStage } from '../ui/PracticeStage';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { renderChordProgression } from './listen';
 import {
   firstRunAtStage,
@@ -234,7 +235,7 @@ function SongViewComponent({
 function SongSummary({ result }: { result: SongResult; params: SongParams }) {
   return (
     <div data-testid="song-summary">
-      <p className="text-xl font-bold">
+      <p className={RESULT_HEADLINE}>
         {songById(result.songId).title} · {ko.exercises.song.summary(result.completed, result.stops)}
         {result.memorized && ` · ${ko.exercises.song.memorizedTag}`}
       </p>

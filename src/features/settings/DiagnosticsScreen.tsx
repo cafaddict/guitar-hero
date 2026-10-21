@@ -70,9 +70,9 @@ export function DiagnosticsScreen() {
   return (
     <Screen title={ko.diagnostics.title}>
       <div className="flex flex-col gap-5">
-        <EnvironmentGuide />
+        <EnvironmentGuide level={2} />
         <Card as="section" className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <p className="min-w-0 flex-1 text-lg">
               {ko.diagnostics.status}:{' '}
               <strong data-testid="mic-status">{ko.diagnostics.statusLabels[status.kind]}</strong>

@@ -14,6 +14,7 @@ import { LADDER_STEP_BPM } from '../e5/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { type E11Params, type E11View, e11ParamsSchema, HammerRunner } from './runner';
 
 function E11ViewComponent({ runner }: { runner: ExerciseRunner<HammerResult, E11View>; params: E11Params }) {
@@ -67,7 +68,7 @@ function E11Summary({ result }: { result: HammerResult; params: E11Params }) {
   const t = ko.exercises.e11;
   return (
     <div data-testid="e11-summary">
-      <p className="text-xl font-bold">{t.title(result.pair)}</p>
+      <p className={RESULT_HEADLINE}>{t.title(result.pair)}</p>
       {result.legatoBeta && result.legatoBeta.total > 0 && (
         <p>{t.legato(result.legatoBeta.heard, result.legatoBeta.total)}</p>
       )}

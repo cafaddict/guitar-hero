@@ -2,16 +2,24 @@ import { extractMetrics, type StretchResult, stretchResultSchema } from '../../d
 import { ko } from '../../i18n/ko';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { TimedSelfReport } from '../ui/TimedSelfReport';
 import { type E7Params, type E7View, e7ParamsSchema, StretchRunner } from './runner';
 
-function E7ViewComponent({ runner }: { runner: ExerciseRunner<StretchResult, E7View>; params: E7Params }) {
+function E7ViewComponent({
+  runner,
+  params,
+}: {
+  runner: ExerciseRunner<StretchResult, E7View>;
+  params: E7Params;
+}) {
   const { view, phase, remainingMs } = useRunnerSnapshot(runner);
   return (
     <TimedSelfReport
       testId="e7-view"
       phase={phase}
       remainingMs={remainingMs}
+      plannedMs={params.durationMs}
       startLabel={ko.exercises.e7.start}
       stopLabel={ko.exercises.e7.stop}
       reviewPrompt={ko.exercises.e7.painPrompt}
@@ -30,7 +38,7 @@ function E7ViewComponent({ runner }: { runner: ExerciseRunner<StretchResult, E7V
 
 function E7Summary({ result }: { result: StretchResult; params: E7Params }) {
   return (
-    <p className="text-xl font-bold">
+    <p className={RESULT_HEADLINE}>
       {ko.exercises.e7.startFret(result.startFret)}
       {result.pain !== null && ` · ${ko.exercises.e7.pain(result.pain)}`}
     </p>

@@ -10,11 +10,13 @@ import { ko } from '../../i18n/ko';
 import { ChordDiagram } from '../../ui/ChordDiagram';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { TimedSelfReport } from '../ui/TimedSelfReport';
 import { AnchorDrillRunner, type E4Params, type E4View, e4ParamsSchema } from './runner';
 
 function E4ViewComponent({
   runner,
+  params,
   ctx,
 }: {
   runner: ExerciseRunner<AnchorDrillResult, E4View>;
@@ -28,6 +30,7 @@ function E4ViewComponent({
       testId="e4-view"
       phase={phase}
       remainingMs={remainingMs}
+      plannedMs={params.durationMs}
       startLabel={ko.exercises.e4.start}
       stopLabel={ko.exercises.e4.stop}
       reviewPrompt={ko.exercises.e4.review}
@@ -62,7 +65,7 @@ function E4ViewComponent({
 
 function E4Summary({ result }: { result: AnchorDrillResult; params: E4Params }) {
   return (
-    <p className="text-xl font-bold">
+    <p className={RESULT_HEADLINE}>
       {result.kind === 'anchor' ? ko.exercises.e4.anchorTitle : ko.exercises.e4.airTitle}
       {result.selfReportSuccess !== null && ` · ${ko.exercises.e4.success(result.selfReportSuccess)}`}
     </p>

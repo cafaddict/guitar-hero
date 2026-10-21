@@ -76,7 +76,7 @@ function ActionBar({
   const hasPause = filled(pause);
   if (!hasView && !hasPause && !filled(secondary)) return null;
   const bar = sticky
-    ? 'sticky bottom-0 z-10 -mx-4 border-t border-border bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0'
+    ? 'sticky bottom-0 z-10 -mx-4 border-t border-border bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [--pinned-bottom:0px] sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0'
     : '';
   const next = (isNext: boolean) =>
     isNext ? { 'data-primary-action': '', ...(label ? { role: 'group', 'aria-label': label } : {}) } : {};
@@ -198,10 +198,15 @@ export function PracticeStage({
   const at = PLACEMENT[figureSpan][hasTools ? 'tools' : 'plain'];
   const grid = hasFigure
     ? `lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-10 lg:gap-y-5 ${at.rows}`
-    : 'mx-auto w-full max-w-3xl';
+    : // One readable column on the header's left edge, like the result after it (D-094).
+      'w-full max-w-3xl';
   const place = (slot: string) => (hasFigure ? slot : '');
   return (
-    <section className={`flex flex-col gap-5 ${grid} ${className}`} {...rest}>
+    // Focus scrolled into view stops above the sticky bar (about 6 rem with the safe area, styles.css).
+    <section
+      className={`flex flex-col gap-5 ${grid} ${stickyActions ? '[--pinned-bottom:7rem]' : ''} ${className}`}
+      {...rest}
+    >
       {hasFigure && <div className={`flex min-w-0 flex-col items-center gap-3 ${at.figure}`}>{figure}</div>}
       <div className={`flex min-w-0 flex-col gap-4 ${place(at.panel)}`}>
         {run.paused && <PausedBadge />}

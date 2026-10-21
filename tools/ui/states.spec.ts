@@ -116,6 +116,8 @@ test('ui state shots', async ({ page }) => {
       for (const state of pick(STATES, process.env.UI_SHOTS_STATES)) {
         await page.goto('/#/tools');
         await state.open(page);
+        // Park the pointer: a hover left on a card or answer would read as "selected" in the shot.
+        await page.mouse.move(0, 0);
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.waitForTimeout(250);
         const base = join(OUT, theme.name, `${viewport.name}-${state.name}`);

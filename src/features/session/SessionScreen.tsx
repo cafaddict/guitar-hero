@@ -23,6 +23,7 @@ import { ChordDiagram } from '../../ui/ChordDiagram';
 import { Choice, Field, TextArea } from '../../ui/Field';
 import { FocusScreen } from '../../ui/FocusScreen';
 import { Icon } from '../../ui/icons';
+import { Phrases } from '../../ui/Phrases';
 import type { CustomSessionRequest } from '../curriculum/StagePractice';
 import { practiceOptions, stageContent, stageItems } from '../curriculum/stagePracticeModel';
 import { routineInputFrom } from '../home/homeModel';
@@ -105,11 +106,17 @@ function RestItem({ item, now, onDone }: { item: RoutineItem; now: () => number;
     return () => clearInterval(id);
   }, [endsAt, now, onDone]);
   return (
-    <Card as="section" className="py-10 text-center" data-testid="rest-item">
-      <p className="text-3xl font-bold tabular-nums">{ko.session.rest(left)}</p>
-      <Button autoFocus className="mt-4" onClick={onDone}>
-        {ko.session.restSkip}
-      </Button>
+    <Card as="section" className="flex flex-col items-center gap-4 py-10 text-center" data-testid="rest-item">
+      <p className="text-2xl font-bold tabular-nums">{ko.session.rest(left)}</p>
+      {/* The seconds left read from the stand like the block countdown (UI SPEC §5.1: same role, same size). */}
+      <p className="font-bold tabular-nums leading-none" data-core-number aria-hidden="true">
+        <span style={{ fontSize: 'clamp(3rem, 16vh, 13rem)' }}>{left}</span>
+      </p>
+      <div data-primary-action>
+        <Button autoFocus onClick={onDone}>
+          {ko.session.restSkip}
+        </Button>
+      </div>
     </Card>
   );
 }
@@ -122,7 +129,7 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
   const toggle = (flag: SelfReport['dangerFlags'][number]) =>
     setFlags((f) => (f.includes(flag) ? f.filter((x) => x !== flag) : [...f, flag]));
   return (
-    <Card as="section" className="mx-auto flex w-full max-w-2xl flex-col gap-5" data-testid="self-report">
+    <Card as="section" className="flex w-full max-w-2xl flex-col gap-5" data-testid="self-report">
       <h2 className="text-2xl font-bold">{ko.session.reportTitle}</h2>
       <label className="flex flex-col gap-1">
         <span className="text-lg font-semibold tabular-nums">{ko.session.pain(pain)}</span>
@@ -503,26 +510,35 @@ export function SessionScreen() {
         data-block={item.block}
         data-count={items.length}
       >
-        {/* Where the session is: done items filled, the current one half-lit. */}
-        <div aria-hidden="true" className="mb-4 flex gap-1">
+        {/* Where the session is: done items filled, the current one filled and taller (a shape, not a tint). */}
+        <div aria-hidden="true" className="mb-4 flex items-center gap-1">
           {items.map((it, i) => (
             <span
               key={it.id}
-              className={`h-1.5 flex-1 rounded-full ${
-                i < state.index ? 'bg-accent' : i === state.index ? 'bg-accent/50' : 'bg-surface-2'
+              className={`flex-1 rounded-full ${
+                i < state.index
+                  ? 'h-1.5 bg-accent'
+                  : i === state.index
+                    ? 'h-3 bg-accent'
+                    : 'h-1.5 bg-surface-2'
               }`}
             />
           ))}
         </div>
         <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-accent">{ko.home.blocks[item.block]}</p>
+            {/* The block name, unless the item is named the same ("튜닝 · 튜닝"). */}
+            {ko.home.blocks[item.block] !== itemTitle(item) && (
+              <p className="text-sm font-semibold text-accent">{ko.home.blocks[item.block]}</p>
+            )}
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              <span className="tabular-nums text-muted">
-                {ko.session.itemOf(state.index + 1, items.length)}
-              </span>
-              {' · '}
-              {itemTitle(item)}
+              <span className="inline-block">
+                <span className="tabular-nums text-muted">
+                  {ko.session.itemOf(state.index + 1, items.length)}
+                </span>{' '}
+                ·
+              </span>{' '}
+              <Phrases text={itemTitle(item)} />
             </h2>
           </div>
           <p
@@ -559,9 +575,12 @@ export function SessionScreen() {
           <p className="text-lg font-semibold text-accent">
             {ko.session.transitionNext(ko.home.blocks[item.block])}
           </p>
-          <p className="text-3xl font-bold sm:text-4xl">{itemTitle(item)}</p>
+          <p className="text-3xl font-bold sm:text-4xl">
+            <Phrases text={itemTitle(item)} />
+          </p>
           {item.exerciseType === 'E1' && typeof item.params.voicingId === 'string' && (
-            <div className="w-40">
+            // Smaller on a phone: the diagram, the countdown and "바로 시작" all fit the first screen (F-52).
+            <div className="w-28 sm:w-40">
               <ChordDiagram voicing={voicingById(item.params.voicingId)} leftHanded={leftHanded} />
             </div>
           )}
@@ -655,7 +674,9 @@ export function SessionScreen() {
       ) : (
         <Button onClick={() => go((s) => skipItem(s, items, now()))}>{ko.session.skip}</Button>
       )}
-      <p className="mt-6 text-muted">{next ? ko.session.next(itemTitle(next)) : ko.session.lastItem}</p>
+      <p className="mt-6 text-muted">
+        <Phrases text={next ? ko.session.next(itemTitle(next)) : ko.session.lastItem} />
+      </p>
       <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-4">
         <Button
           variant="secondary"

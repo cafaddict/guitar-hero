@@ -18,6 +18,7 @@ import { LOW_MISTAKE_RATIO, mistakeRatio } from '../e17/runner';
 import { SequenceStage } from '../sequence/SequenceStage';
 import { type ExercisePlugin, type ExerciseRunner, SEQUENCE_HISTORY_DEPTH } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { type E10Params, type E10View, e10ParamsSchema, ScaleRunner } from './runner';
 
 function E10ViewComponent({ runner }: { runner: ExerciseRunner<ScaleResult, E10View>; params: E10Params }) {
@@ -63,7 +64,7 @@ function E10Summary({ result }: { result: ScaleResult; params: E10Params }) {
   const flawless = result.cycles.filter((c) => c.flawless).length;
   return (
     <div data-testid="e10-summary" data-graduated={result.graduated} data-memorized={result.memorized}>
-      <p className="text-xl font-bold">{t.summary(result.cycles.length, flawless)}</p>
+      <p className={RESULT_HEADLINE}>{t.summary(result.cycles.length, flawless)}</p>
       {result.backingAudible && <p className="text-muted">{ko.exercises.e10.speakerReference}</p>}
       {result.graduated && <p className="text-ok">{ko.exercises.e10.graduated(result.step)}</p>}
       {result.memorized && <p className="text-ok">{ko.exercises.e10.memorized}</p>}

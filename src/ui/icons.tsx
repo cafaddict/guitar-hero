@@ -22,7 +22,8 @@ export type IconName =
   | 'flag'
   | 'chevronDown'
   | 'pause'
-  | 'alert';
+  | 'alert'
+  | 'info';
 
 const PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -117,6 +118,13 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M12 3 2 20h20L12 3Z" />
       <path d="M12 10v4" />
       <path d="M12 17h.01" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v6" />
+      <path d="M12 7.5h.01" />
     </>
   ),
 };

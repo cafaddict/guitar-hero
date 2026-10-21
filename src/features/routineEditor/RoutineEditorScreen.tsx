@@ -8,6 +8,7 @@ import { generateRoutine } from '../../domain/routine';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { Field, Select } from '../../ui/Field';
+import { Phrases } from '../../ui/Phrases';
 import { Screen } from '../../ui/Screen';
 import { routineInputFrom, userTemplateFor } from '../home/homeModel';
 import { itemTitle } from '../session/itemTitle';
@@ -33,6 +34,9 @@ interface Loaded {
 }
 
 /** Routine editor (SPEC v1.1 §7.3-9, §12.1): edit today's items, save as this stage's template, or reset. */
+/** Keyboard focus in the list stops above the tab bar and the sticky save bar (styles.css, WCAG 2.4.11). */
+const CLEAR_OF_SAVE_BAR = '[--pinned-bottom:calc(var(--tabbar-h)+env(safe-area-inset-bottom)+6rem)]';
+
 export function RoutineEditorScreen() {
   const navigate = useNavigate();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -70,7 +74,7 @@ export function RoutineEditorScreen() {
   return (
     <Screen title={ko.routineEditor.title}>
       <p className="text-lg text-muted">{ko.routineEditor.intro}</p>
-      <ol className="mt-5 flex flex-col gap-3" data-testid="editor-items">
+      <ol className={`mt-5 flex flex-col gap-3 ${CLEAR_OF_SAVE_BAR}`} data-testid="editor-items">
         {items.map((item, index) => (
           <li
             key={item.id}
@@ -80,7 +84,7 @@ export function RoutineEditorScreen() {
             <span className="min-w-0 flex-1 basis-56">
               <span className="block text-sm font-medium text-muted">{ko.home.blocks[item.block]}</span>
               <span className="font-semibold">
-                {item.exerciseType === 'REST' ? ko.home.restItem : itemTitle(item)}
+                <Phrases text={item.exerciseType === 'REST' ? ko.home.restItem : itemTitle(item)} />
               </span>
               <span className="ml-2 whitespace-nowrap tabular-nums text-muted">
                 {ko.routineEditor.seconds(item.durationSec)}
@@ -121,8 +125,10 @@ export function RoutineEditorScreen() {
               >
                 +30
               </Button>
+              {/* Red text, so in the outlined contrast theme it still reads apart from "+30" (H7). */}
               <Button
                 variant="ghost"
+                className="text-fail!"
                 onClick={() => setItems((list) => removeItem(list, item.id))}
                 data-testid="editor-remove"
               >
@@ -132,7 +138,7 @@ export function RoutineEditorScreen() {
           </li>
         ))}
       </ol>
-      <div className="mt-5 flex flex-wrap items-end gap-3">
+      <div className={`mt-5 flex flex-wrap items-end gap-3 ${CLEAR_OF_SAVE_BAR}`}>
         <Field label={ko.routineEditor.addLabel} className="min-w-0 flex-1 basis-64">
           <Select value={choice} onChange={(e) => setChoice(e.target.value)} data-testid="editor-add-choice">
             {loaded.options.map((o) => (
@@ -151,16 +157,8 @@ export function RoutineEditorScreen() {
           {ko.routineEditor.add}
         </Button>
       </div>
-      {/*
-       * Save stays on the first screen (SPEC §4.5): a bar stuck above the bottom tab bar (its height plus the
-       * safe area), at the window's bottom where the sidebar replaces the tab bar.
-       */}
-      <div className="sticky bottom-[calc(3.625rem+env(safe-area-inset-bottom))] z-10 -mx-4 mt-6 flex flex-wrap items-center gap-3 border-t border-border bg-bg px-4 py-3 sm:-mx-6 sm:px-6 lg:bottom-0 lg:-mx-8 lg:px-8">
-        <div data-primary-action>
-          <Button large onClick={save} data-testid="editor-save">
-            {ko.routineEditor.save}
-          </Button>
-        </div>
+      {/* Reset (it drops the saved routine at once) and cancel sit apart from Save, never under the thumb (H7). */}
+      <div className={`mt-6 flex flex-wrap gap-3 ${CLEAR_OF_SAVE_BAR}`}>
         {loaded.hasTemplate && (
           <Button
             variant="secondary"
@@ -173,6 +171,17 @@ export function RoutineEditorScreen() {
         <Button variant="secondary" onClick={() => navigate('/')}>
           {ko.routineEditor.cancel}
         </Button>
+      </div>
+      {/*
+       * Save stays on the first screen (SPEC §4.5): one row stuck above the bottom tab bar (its height plus the
+       * safe area), at the window's bottom where the sidebar replaces the tab bar; as wide as the cards above.
+       */}
+      <div className="sticky bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] z-10 mt-6 flex items-center gap-3 border-t border-border bg-bg py-3 [--pinned-bottom:0px] lg:bottom-0">
+        <div data-primary-action>
+          <Button large onClick={save} data-testid="editor-save">
+            {ko.routineEditor.save}
+          </Button>
+        </div>
         <p className="ml-auto font-semibold tabular-nums" data-testid="editor-total">
           {ko.home.totalTime(totalMin)}
         </p>

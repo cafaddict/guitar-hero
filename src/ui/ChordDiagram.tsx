@@ -100,12 +100,17 @@ export function ChordDiagram({
       <text x={width / 2} y={18} textAnchor="middle" fontSize={18} fontWeight={700} fill="var(--fg)">
         {voicing.symbol}
       </text>
+      {/*
+        Where the shown frets start, in the top corner on the low-string side: beside the first fret it was cut
+        off at the edge (only "프렛" showed, which read as a first-position chord).
+      */}
       {base > 1 && (
         <text
-          x={leftHanded ? right + 6 : left - 8}
-          y={top + fretGap / 2 + 5}
-          textAnchor={leftHanded ? 'start' : 'end'}
-          fontSize={12}
+          x={leftHanded ? width - 4 : 4}
+          y={18}
+          textAnchor={leftHanded ? 'end' : 'start'}
+          fontSize={13}
+          fontWeight={700}
           fill="var(--muted)"
         >
           {ko.exercises.e1.baseFret(base)}
@@ -201,6 +206,18 @@ export function ChordDiagram({
               <rect x={x(idx) - 11} y={y(fret) - 11} width={22} height={22} rx={4} fill={fill} />
             ) : (
               <circle cx={x(idx)} cy={y(fret)} r={11} fill={fill} />
+            )}
+            {isHighlight && (
+              // The asked-about dot (Q1) also carries a ring: a shape cue, not colour alone (H6).
+              <circle
+                cx={x(idx)}
+                cy={y(fret)}
+                r={16}
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth={3}
+                data-testid="diagram-highlight"
+              />
             )}
             {finger !== null && finger !== 0 && finger !== undefined && (
               <text

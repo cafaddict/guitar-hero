@@ -17,8 +17,9 @@ export function CentsNeedle({
     <div className="relative">
       <meter className="sr-only" aria-label={label} min={-50} max={50} value={Math.round(clamped)} />
       <div aria-hidden="true" className="relative h-12 w-full rounded-xl bg-surface-2">
+        {/* The pass zone: a soft band with solid edges, the edges carrying the contrast (≥ 3:1, H6). */}
         <div
-          className="absolute inset-y-0 bg-ok-soft"
+          className="absolute inset-y-0 border-x-2 border-ok bg-ok-soft"
           style={{ left: `${50 - passCents}%`, width: `${2 * passCents}%` }}
         />
         <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-muted" />

@@ -85,6 +85,14 @@
   --color-info-soft: color-mix(in srgb, var(--info) 16%, var(--surface));
 }
 
+/*
+ * Height of the bottom tab bar below lg (AppNav: a 1 px top border + min-h-14). Bars pinned above it use it,
+ * plus the safe area.
+ */
+:root {
+  --tabbar-h: 3.5625rem;
+}
+
 html,
 body,
 #root {
@@ -110,6 +118,17 @@ body {
 
 /* Element defaults sit in the base layer: a utility class on the element still wins. */
 @layer base {
+  /*
+   * Below lg, a control scrolled into view by the keyboard focus stops above whatever is pinned to the bottom
+   * (WCAG 2.4.11): a screen sets --pinned-bottom to the tab bar or its sticky bar; a pinned bar resets it for its
+   * own controls (they are on screen already, and an autofocus there must not scroll the page).
+   */
+  @media (width < 64rem) {
+    :where(main) :where(a, button, input, select, textarea, summary, [tabindex]) {
+      scroll-margin-bottom: var(--pinned-bottom, 0px);
+    }
+  }
+
   h1,
   h2,
   h3,

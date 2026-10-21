@@ -65,9 +65,11 @@ function Summary({
           )}
         </dd>
       </dl>
-      <Button large className="mt-6" onClick={onSave}>
-        {ko.onboarding.summary.save}
-      </Button>
+      <div className="mt-6" data-primary-action>
+        <Button large onClick={onSave}>
+          {ko.onboarding.summary.save}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -123,12 +125,12 @@ export function OnboardingScreen() {
   return (
     <Screen title={ko.onboarding.title}>
       {step === 'permission' && <p className="mb-5 text-lg text-muted">{ko.onboarding.intro}</p>}
-      {/* Where the setup is: done steps filled, the current one half-lit (like the session runner). */}
-      <div aria-hidden="true" className="mb-3 flex max-w-md gap-1.5">
+      {/* Where the setup is: done steps filled, the current one filled and taller (like the session runner). */}
+      <div aria-hidden="true" className="mb-3 flex max-w-md items-center gap-1.5">
         {STEPS.map((s, i) => (
           <span
             key={s}
-            className={`h-1.5 flex-1 rounded-full ${i < index ? 'bg-accent' : i === index ? 'bg-accent/50' : 'bg-surface-2'}`}
+            className={`flex-1 rounded-full ${i < index ? 'h-1.5 bg-accent' : i === index ? 'h-3 bg-accent' : 'h-1.5 bg-surface-2'}`}
           />
         ))}
       </div>

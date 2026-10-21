@@ -11,6 +11,7 @@ import { PracticeStage } from './PracticeStage';
 export function TimedSelfReport({
   phase,
   remainingMs,
+  plannedMs,
   children,
   startLabel,
   stopLabel,
@@ -22,6 +23,8 @@ export function TimedSelfReport({
 }: {
   phase: RunnerPhase;
   remainingMs: number | null;
+  /** The run's length, shown before the timer starts. */
+  plannedMs: number;
   /** The drill: what to play and how (the stage's figure). */
   children: ReactNode;
   startLabel: string;
@@ -53,7 +56,7 @@ export function TimedSelfReport({
         ) : undefined
       }
     >
-      {phase !== 'review' && <BigTimer remainingMs={remainingMs} />}
+      {phase !== 'review' && <BigTimer remainingMs={remainingMs} plannedMs={plannedMs} />}
       {phase === 'review' && (
         <div aria-live="polite" className="flex flex-col gap-3">
           <p className="text-xl">{reviewPrompt}</p>

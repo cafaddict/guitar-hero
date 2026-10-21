@@ -1,7 +1,12 @@
-import { scaleById } from '../../content/scales';
+import { SCALES } from '../../content/scales';
 import type { RuleEvaluation } from '../../domain/progression';
 import { ko } from '../../i18n/ko';
 import { Icon } from '../../ui/icons';
+
+/** A scale's name; an unknown id stays as it is rather than breaking the whole checklist (scaleById throws). */
+function scaleName(id: string): string {
+  return SCALES.find((s) => s.id === id)?.name ?? id;
+}
 
 export function ruleText(evaluation: RuleEvaluation): string {
   const rule = evaluation.rule;
@@ -26,9 +31,9 @@ export function ruleText(evaluation: RuleEvaluation): string {
       return ko.rules.songsCompletedAtLeast(rule.count, rule.filter.stage ?? null);
     case 'scaleStepGraduated':
       // The scale's name, never its id ("am-pent-pos1", F-30).
-      return ko.rules.scaleStepGraduated(scaleById(rule.scaleId).name, rule.step, rule.bpm);
+      return ko.rules.scaleStepGraduated(scaleName(rule.scaleId), rule.step, rule.bpm);
     case 'scaleMemorized':
-      return ko.rules.scaleMemorized(scaleById(rule.scaleId).name);
+      return ko.rules.scaleMemorized(scaleName(rule.scaleId));
     case 'chordCleanRatioAtLeast':
       return ko.rules.chordCleanRatioAtLeast(rule.voicingIds.join('·'), rule.ratio);
     case 'quizRunAtLeast':

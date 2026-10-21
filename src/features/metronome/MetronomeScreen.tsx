@@ -210,7 +210,7 @@ export function MetronomeScreen() {
                 <span
                   key={beat}
                   data-active={active}
-                  className={`rounded-full ${accent ? 'size-11' : 'size-8'} ${active ? (pulse?.countIn ? 'bg-info' : 'bg-accent') : 'bg-surface-2'}`}
+                  className={`rounded-full ${accent ? 'size-11' : 'size-8'} ${active ? (pulse?.countIn ? 'bg-info' : 'bg-accent') : 'border-2 border-field bg-surface-2'}`}
                 />
               );
             })}

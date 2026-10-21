@@ -40,6 +40,8 @@ test('ui shots', async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       for (const screen of screens) {
         await openScreen(page, screen);
+        // Park the pointer: a hover left on a card or answer would read as "selected" in the shot.
+        await page.mouse.move(0, 0);
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.waitForTimeout(250);
         const base = join(OUT, theme.name, `${viewport.name}-${screen.name}`);

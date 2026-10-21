@@ -57,7 +57,7 @@ function ShellLayout() {
   return (
     <div className="lg:flex">
       <AppNav />
-      <div className="min-w-0 flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <div className="min-w-0 flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] [--pinned-bottom:calc(var(--tabbar-h)+env(safe-area-inset-bottom)+0.5rem)] lg:pb-0">
         <Outlet />
       </div>
     </div>

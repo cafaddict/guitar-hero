@@ -7,6 +7,7 @@ import { BigBpm } from '../ui/BigBpm';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
 import { PracticeStage } from '../ui/PracticeStage';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { selfRatingButtons } from '../ui/SelfRating';
 import {
   ALT_PICK_HIT_RATE,
@@ -62,7 +63,7 @@ function E8ViewComponent({
 function E8Summary({ result }: { result: AltPickResult; params: E8Params }) {
   return (
     <div data-testid="e8-summary">
-      <p className="text-xl font-bold">{ko.exercises.e8.hitRate(result.hitRate)}</p>
+      <p className={RESULT_HEADLINE}>{ko.exercises.e8.hitRate(result.hitRate)}</p>
       {result.ioiCv !== null && <p>{ko.exercises.e8.evenness(result.ioiCv)}</p>}
       <p className="mt-2 font-semibold">
         {result.passed ? ko.exercises.e8.passed(nextBpmFor(result.bpm, 'up')) : ko.exercises.e8.notYet}

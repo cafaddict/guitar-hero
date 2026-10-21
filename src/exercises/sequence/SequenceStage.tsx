@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { sequenceHints } from '../../domain/coaching';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
-import { Icon } from '../../ui/icons';
+import { Phrases } from '../../ui/Phrases';
 import { Tab } from '../../ui/Tab';
 import type { ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
@@ -74,8 +74,8 @@ export function SequenceStage<R, V extends SequenceView>({
       figureSpan="full"
       figure={
         <div className="flex w-full flex-col items-center gap-2">
-          <p className="self-start text-3xl font-bold">
-            {title} <span className="whitespace-nowrap tabular-nums">· {t.bpm(view.bpm)}</span>
+          <p className="self-start text-3xl font-bold tabular-nums">
+            <Phrases text={`${title} · ${t.bpm(view.bpm)}`} />
           </p>
           <Tab
             notes={view.cycleNotes.map((n) => ({ string: n.string, fret: n.fret }))}
@@ -96,8 +96,7 @@ export function SequenceStage<R, V extends SequenceView>({
         ) : phase === 'ready' ? (
           // Space starts it too; the button is the touch way in (an iPad on a music stand, SPEC §4.2).
           <Button large onClick={() => runner.command('toggle')} data-testid="seq-start">
-            <Icon name="play" />
-            {t.start}
+            {ko.common.start}
           </Button>
         ) : view.source === 'self' && phase === 'running' ? (
           <>

@@ -4,10 +4,17 @@ import { Button } from '../../ui/Button';
 import type { ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { PracticeStage } from '../ui/PracticeStage';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { TimedSelfReport } from '../ui/TimedSelfReport';
 import { type E12Params, type E12View, e12ParamsSchema, PinkyRunner } from './runner';
 
-function E12ViewComponent({ runner }: { runner: ExerciseRunner<PinkyResult, E12View>; params: E12Params }) {
+function E12ViewComponent({
+  runner,
+  params,
+}: {
+  runner: ExerciseRunner<PinkyResult, E12View>;
+  params: E12Params;
+}) {
   const { view, phase, remainingMs } = useRunnerSnapshot(runner);
   const t = ko.exercises.e12;
   const body = (
@@ -42,6 +49,7 @@ function E12ViewComponent({ runner }: { runner: ExerciseRunner<PinkyResult, E12V
       testId="e12-view"
       phase={phase}
       remainingMs={remainingMs}
+      plannedMs={params.durationMs}
       startLabel={ko.exercises.e7.start}
       stopLabel={t.stop}
       reviewPrompt={ko.exercises.e7.painPrompt}
@@ -57,7 +65,7 @@ function E12ViewComponent({ runner }: { runner: ExerciseRunner<PinkyResult, E12V
 function E12Summary({ result }: { result: PinkyResult; params: E12Params }) {
   const t = ko.exercises.e12;
   return (
-    <p className="text-xl font-bold" data-testid="e12-summary">
+    <p className={RESULT_HEADLINE} data-testid="e12-summary">
       {result.clarity !== null && t.clarity[result.clarity]}
       {result.pain !== null && ` · ${ko.exercises.e7.pain(result.pain)}`}
     </p>

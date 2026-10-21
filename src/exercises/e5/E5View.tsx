@@ -9,6 +9,7 @@ import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
 import { PracticeStage } from '../ui/PracticeStage';
+import { RESULT_HEADLINE } from '../ui/resultHeadline';
 import { type E5Beta, type E5Params, nextBpmFor, type E5View as View } from './runner';
 
 /** A slot's identity is its position in the bar (patterns repeat 'D'/'U' symbols). */
@@ -180,7 +181,7 @@ export function E5Summary({ result }: { result: StrumResult; params: E5Params })
   const next = nextBpmFor(result.bpm, result.ladder);
   return (
     <div data-testid="e5-summary">
-      <p className="text-xl font-bold">{patternById(result.patternId).label}</p>
+      <p className={RESULT_HEADLINE}>{patternById(result.patternId).label}</p>
       <p className="text-3xl font-bold" data-testid="e5-hit-rate" data-value={result.hitRate}>
         {ko.exercises.e5.hitRate(result.hitRate)}
       </p>
