@@ -1057,6 +1057,9 @@ export const ko = {
       correct: '정답!',
       wrong: (answer: string) => `아쉬워요. 정답: ${answer}`,
       next: '다음 문제',
+      lookBack: '← 앞 문제 보기',
+      lookingBack: (n: number) => `${n}번 문제를 다시 보고 있어요. 답은 바꿀 수 없어요.`,
+      backToCurrent: '지금 문제로 (Enter)',
       score: (correct: number, total: number) => `${total}문제 중 ${correct}개 정답`,
       reaction: (ms: number) => `평균 반응 ${(ms / 1000).toFixed(1)}초`,
       // Keys 1/2/3 pick the first three answers only (v1.1 SPEC §12.3): say so when there are more.

@@ -268,6 +268,25 @@ test('← steps back inside an exercise: the string before, or an early end take
   await expect(view).toHaveAttribute('data-phase', 'review');
   await page.keyboard.press('ArrowLeft');
   await expect(view).toHaveAttribute('data-phase', 'running');
+
+  // A quiz looks back read-only: the answer cannot change, Enter returns to the current question.
+  await page.goto('/#/practice/Q1');
+  await page.getByTestId('exercise-start').click();
+  await expect(page.getByTestId('q1-view')).toBeVisible();
+  await expect(page.getByTestId('quiz-look-back')).toBeHidden();
+  await page.keyboard.press('1');
+  const verdict = await page.getByTestId('quiz-feedback').innerText();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('quiz-feedback')).toBeHidden();
+  await page.getByTestId('quiz-look-back').click();
+  await expect(page.getByTestId('quiz-looking-back')).toBeVisible();
+  await expect(page.getByTestId('quiz-feedback')).toHaveText(verdict);
+  await page.keyboard.press('2');
+  await expect(page.getByTestId('quiz-feedback')).toHaveText(verdict);
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('quiz-looking-back')).toBeHidden();
+  await expect(page.getByTestId('quiz-feedback')).toBeHidden();
+  await expect(page.getByTestId('q1-view')).toContainText(ko.exercises.quiz.progress(2, 10));
 });
 
 test('the settings key list has pause (P) and song start-over (R) rows (D-085)', async ({ page }) => {

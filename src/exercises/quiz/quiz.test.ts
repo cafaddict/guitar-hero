@@ -99,6 +99,92 @@ describe('ChoiceQuizRunner', () => {
   });
 });
 
+describe('ChoiceQuizRunner look back (D-096)', () => {
+  const questions = [0, 1, 2].map((answer) => ({ prompt: answer, options: ['a', 'b', 'c'], answer }));
+
+  it('shows an answered question read-only: answering is blocked, the score is unchanged', () => {
+    const { ctx, clock } = testContext({ mic: false });
+    const runner = new ChoiceQuizRunner(ctx, questions);
+    runner.start();
+    expect(runner.canStepBack()).toBe(false);
+    runner.command('manual2'); // wrong
+    runner.command('next');
+    expect(runner.canStepBack()).toBe(true);
+    runner.command('prev');
+    expect(runner.snapshot().view).toMatchObject({ index: 0, picked: 1, lookingBack: true, correctCount: 0 });
+    expect(runner.canStepBack()).toBe(false);
+    runner.command('manual1'); // ignored: looking back
+    expect(runner.snapshot().view).toMatchObject({ index: 0, picked: 1, correctCount: 0 });
+    clock.advance(2);
+    runner.tick();
+    runner.command('next');
+    expect(runner.snapshot().view).toMatchObject({ index: 1, picked: null, lookingBack: false });
+    runner.command('manual2'); // correct, answered on the current question
+    expect(runner.snapshot().view.correctCount).toBe(1);
+  });
+
+  it('the look back is not reaction time', () => {
+    const { ctx, clock } = testContext({ mic: false });
+    const runner = new ChoiceQuizRunner(ctx, questions);
+    runner.start();
+    runner.command('manual1');
+    runner.command('next');
+    clock.advance(1);
+    runner.command('prev');
+    clock.advance(10);
+    runner.command('next');
+    clock.advance(1);
+    runner.command('manual2');
+    runner.command('abort');
+    expect(runner.finish()).toMatchObject({ questions: 2, correct: 2, meanReactionMs: 1000 });
+  });
+
+  it('feedback pending at the look back is held, and moves on after the return', () => {
+    const { ctx, clock } = testContext({ mic: false });
+    const shown: number[] = [];
+    const runner = new ChoiceQuizRunner(ctx, questions, (q) => shown.push(q.prompt));
+    runner.start();
+    runner.command('manual1');
+    runner.command('next');
+    runner.command('manual2'); // feedback showing, next question due in 1.5 s
+    runner.command('prev');
+    runner.command('prev'); // nothing earlier than the first question
+    expect(runner.snapshot().view.index).toBe(0);
+    runner.command('mark'); // replays the question on screen
+    clock.advance(5);
+    runner.tick();
+    expect(runner.snapshot().view).toMatchObject({ index: 0, lookingBack: true });
+    runner.command('next'); // straight back to the current question
+    expect(runner.snapshot().view).toMatchObject({ index: 1, picked: 1, lookingBack: false });
+    clock.advance(1);
+    runner.tick();
+    expect(runner.snapshot().view.index).toBe(1);
+    clock.advance(1);
+    runner.tick();
+    expect(runner.snapshot().view.index).toBe(2);
+    expect(shown).toEqual([0, 1, 0, 2]);
+  });
+
+  it('a Q3 pluck heard during a look back does not answer', () => {
+    const { ctx, mic } = testContext();
+    const runner = new OpenNotesRunner(ctx, { mode: 'pluck', seed: 5 });
+    runner.start();
+    const answerRight = () => {
+      const q = runner.snapshot().view.question!;
+      if (q.prompt.kind !== 'pluck') throw new Error('expected a pluck question');
+      const right = midiToHz(52 + ((((q.prompt.pitchClass - 52) % 12) + 12) % 12));
+      mic.tuner.emit({ f0: right, stableF0: right });
+    };
+    answerRight();
+    runner.command('next');
+    runner.command('prev');
+    answerRight(); // the shown (earlier) question's note: ignored
+    expect(runner.snapshot().view).toMatchObject({ index: 0, correctCount: 1 });
+    runner.command('next');
+    expect(runner.snapshot().view).toMatchObject({ index: 1, picked: null, correctCount: 1 });
+  });
+});
+
 describe('Q3 pluck mode', () => {
   it('a stable reading of the right pitch class answers correctly', () => {
     const { ctx, mic } = testContext();

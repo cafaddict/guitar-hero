@@ -2,6 +2,8 @@
  * Generic multiple-choice quiz runner (Q1, Q3, Q4): one question at a time, answers with 1/2/3 (or buttons),
  * reaction time from showing the question to the answer, short feedback, then the next question. A quiz
  * stopped early is recorded over the questions actually answered (none answered → nothing is recorded).
+ * ← looks back at the questions already answered, read-only (D-096): answers stay as they were, and the time
+ * spent looking back is not reaction time.
  */
 import type { QuizResult } from '../../domain/exerciseResults';
 import { BaseRunner } from '../baseRunner';
@@ -19,6 +21,8 @@ export interface QuizView<P> {
   question: ChoiceQuestion<P> | null;
   picked: number | null;
   correctCount: number;
+  /** Showing an earlier, answered question (`index`, `picked` are that question's); answering waits. */
+  lookingBack: boolean;
 }
 
 const CHOICES: Partial<Record<RunnerCommand, number>> = { manual1: 0, manual2: 1, manual3: 2 };
@@ -33,6 +37,13 @@ export class ChoiceQuizRunner<P> extends BaseRunner<QuizResult, QuizView<P>> {
   private correct = 0;
   private readonly reactions: number[] = [];
   private readonly items: { card: string; correct: boolean; reactionMs: number | null }[] = [];
+  /** The answer picked for each question so far (what a look back shows). */
+  private readonly picks: (number | null)[] = [];
+  /** The earlier question shown by a look back, null while the current one is shown. */
+  private lookIndex: number | null = null;
+  private lookStartedAt = 0;
+  /** The current question's feedback was showing when the look back began: it moves on after the return. */
+  private heldAdvance = false;
 
   constructor(
     ctx: ExerciseContext,
@@ -51,13 +62,20 @@ export class ChoiceQuizRunner<P> extends BaseRunner<QuizResult, QuizView<P>> {
     return this.questions[this.index] ?? null;
   }
 
+  /** The question on screen: the current one, or the earlier one a look back shows. */
+  private displayed(): ChoiceQuestion<P> | null {
+    return this.questions[this.lookIndex ?? this.index] ?? null;
+  }
+
   protected view(): QuizView<P> {
+    const looking = this.lookIndex !== null;
     return {
-      index: this.index,
+      index: this.lookIndex ?? this.index,
       total: this.questions.length,
-      question: this.current(),
-      picked: this.picked,
+      question: this.displayed(),
+      picked: this.lookIndex === null ? this.picked : (this.picks[this.lookIndex] ?? null),
       correctCount: this.correct,
+      lookingBack: looking,
     };
   }
 
@@ -77,8 +95,10 @@ export class ChoiceQuizRunner<P> extends BaseRunner<QuizResult, QuizView<P>> {
   /** Records an answer for the current question (index into its options). */
   protected answer(choice: number): void {
     const q = this.current();
-    if (!q || this.picked !== null || this.phase !== 'running') return;
+    // During a look back nothing is answered (a Q3 pluck heard meanwhile included).
+    if (!q || this.picked !== null || this.phase !== 'running' || this.lookIndex !== null) return;
     this.picked = choice;
+    this.picks[this.index] = choice;
     if (choice === q.answer) this.correct++;
     const reaction = this.ctx.clock.now() - this.shownAt;
     this.reactions.push(reaction);
@@ -88,9 +108,40 @@ export class ChoiceQuizRunner<P> extends BaseRunner<QuizResult, QuizView<P>> {
     this.publish();
   }
 
+  /** Plays the question on screen again (a look back at a Q4 question plays that question's sound). */
   protected replay(): void {
-    const q = this.current();
+    const q = this.displayed();
     if (q) this.onShow(q);
+  }
+
+  /** A look back is possible while an earlier question exists to show. */
+  canStepBack(): boolean {
+    return this.phase === 'running' && (this.lookIndex ?? this.index) > 0;
+  }
+
+  /** One question further back; the current question's clock and pending feedback wait meanwhile. */
+  private lookBack(): void {
+    if (this.lookIndex === null) {
+      this.lookStartedAt = this.ctx.clock.now();
+      if (this.advanceAt !== null) {
+        this.heldAdvance = true;
+        this.advanceAt = null;
+      }
+    }
+    this.lookIndex = (this.lookIndex ?? this.index) - 1;
+    this.publish();
+  }
+
+  /** Back to the current question: an unanswered one gets its reaction clock back, feedback moves on as before. */
+  private endLookBack(): void {
+    this.lookIndex = null;
+    const now = this.ctx.clock.now();
+    if (this.picked === null) this.shownAt += now - this.lookStartedAt;
+    if (this.heldAdvance) {
+      this.heldAdvance = false;
+      this.advanceAt = now + FEEDBACK_MS;
+    }
+    this.publish();
   }
 
   private advance(): void {
@@ -109,6 +160,15 @@ export class ChoiceQuizRunner<P> extends BaseRunner<QuizResult, QuizView<P>> {
       return;
     }
     if (this.phase !== 'running') return;
+    if (cmd === 'prev') {
+      if (this.canStepBack()) this.lookBack();
+      return;
+    }
+    if (this.lookIndex !== null) {
+      if (cmd === 'next' || cmd === 'toggle') this.endLookBack();
+      else if (cmd === 'mark') this.replay();
+      return;
+    }
     const choice = CHOICES[cmd];
     if (choice !== undefined && choice < (this.current()?.options.length ?? 0)) this.answer(choice);
     else if (cmd === 'mark') this.replay();

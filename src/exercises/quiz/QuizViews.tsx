@@ -58,10 +58,31 @@ function choiceButtons<P>(runner: ExerciseRunner<QuizResult, QuizView<P>>, view:
               ? ko.exercises.quiz.correct
               : ko.exercises.quiz.wrong(q.options[q.answer] ?? '')}
           </p>
-          <Button onClick={() => runner.command('next')}>{ko.exercises.quiz.next}</Button>
+          {view.lookingBack ? (
+            <>
+              <p className="w-full text-muted" data-testid="quiz-looking-back">
+                {ko.exercises.quiz.lookingBack(view.index + 1)}
+              </p>
+              <Button onClick={() => runner.command('next')} data-testid="quiz-back-to-current">
+                {ko.exercises.quiz.backToCurrent}
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => runner.command('next')}>{ko.exercises.quiz.next}</Button>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+/** ← in a quiz: a read-only look at the questions already answered (D-096). */
+function lookBackButton<P>(runner: ExerciseRunner<QuizResult, QuizView<P>>, view: QuizView<P>) {
+  if (view.lookingBack || !(runner.canStepBack?.() ?? false)) return undefined;
+  return (
+    <Button variant="secondary" onClick={() => runner.command('prev')} data-testid="quiz-look-back">
+      {ko.exercises.quiz.lookBack}
+    </Button>
   );
 }
 
@@ -111,6 +132,7 @@ export function Q1View({
         </>
       }
       primary={choiceButtons(runner, view)}
+      secondary={lookBackButton(runner, view)}
       notes={keysHint(q.options.length)}
     >
       <QuizProgress view={view} />
@@ -153,6 +175,7 @@ export function Q3View({
         </p>
       }
       primary={choiceButtons(runner, view)}
+      secondary={lookBackButton(runner, view)}
       notes={keysHint(q.options.length)}
     >
       <QuizProgress view={view} />
@@ -189,6 +212,7 @@ export function Q4View({
         </div>
       }
       primary={choiceButtons(runner, view)}
+      secondary={lookBackButton(runner, view)}
       notes={keysHint(view.question.options.length)}
     >
       <QuizProgress view={view} />
@@ -298,6 +322,7 @@ export function Q5View({
         </div>
       }
       primary={choiceButtons(runner, view)}
+      secondary={lookBackButton(runner, view)}
       notes={keysHint(q.options.length)}
     >
       <QuizProgress view={view} />
