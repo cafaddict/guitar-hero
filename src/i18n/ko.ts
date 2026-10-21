@@ -366,7 +366,8 @@ export const ko = {
     end: '세션 끝내기',
     splitPoint: '앞 절반 끝 — 30분 루틴은 여기서 나눠 해도 돼요. 오늘 안에 홈에서 이어서 할 수 있어요.',
     splitHere: '여기서 나눠 하기',
-    finishRunFirst: '연습이 끝나면 이동할 수 있어요. 지금 그만두려면 Esc를 두 번 누르거나 "중단"을 눌러요.',
+    finishRunFirst:
+      '건너뛰기와 세션 끝내기는 연습이 끝나면 할 수 있어요. 지금 그만두려면 Esc를 두 번 누르거나 "중단"을 눌러요. "이전 항목"(←)은 이 연습을 끝내고 돌아가요.',
     rest: (seconds: number) => `잠깐 쉬어요 · ${seconds}초`,
     restSkip: '바로 다음으로',
     breakReminder: '30분 동안 연습했어요. 잠깐 손을 쉬고 스트레칭해요.',
@@ -379,6 +380,7 @@ export const ko = {
     note: '메모 (선택)',
     save: '저장하고 끝내기',
     exitWithoutReport: '평가 없이 끝내려면 위의 "나가기"를 눌러요. 오늘 한 연습은 그대로 남아요.',
+    backToPractice: '연습으로 돌아가기 (←)',
     saved: '세션을 저장했어요.',
     noRoutine: '오늘은 쉬는 날이에요.',
   },
@@ -687,6 +689,8 @@ export const ko = {
     confirmAbort: '연습을 중단할까요? 지금까지 한 것은 기록돼요.',
     abortYes: '중단하기',
     abortNo: '계속하기',
+    confirmPrevious: '이 연습을 끝내고 이전 항목으로 갈까요? 지금까지 한 것은 기록돼요.',
+    previousYes: '이전 항목으로',
   },
   exercises: {
     titles: {

@@ -75,6 +75,11 @@ export interface ExerciseRunner<R, V> {
    * recorded in the Attempt params). Runners without options leave it out and the start params are stored.
    */
   effectiveParams?(): unknown;
+  /**
+   * True while 'prev' undoes this run's last step (D-096). Absent = never: in a session ← then means the
+   * previous item.
+   */
+  canStepBack?(): boolean;
   dispose(): void;
 }
 

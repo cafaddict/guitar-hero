@@ -173,6 +173,18 @@ describe('session model', () => {
     expect(s).toMatchObject({ done: ['1', '2'], recorded: ['1'], skipped: ['3'] });
   });
 
+  it('previous from the self report (all items done) is the last item again, with its block time (D-096)', () => {
+    let s = startSession(0);
+    s = completeItem(s, items, 100_000);
+    s = completeItem(s, items, 130_000);
+    s = completeItem(s, items, 430_000);
+    expect(isFinished(s, items)).toBe(true);
+    s = previousItem(s, 431_000);
+    expect(s.index).toBe(items.length - 1);
+    expect(isFinished(s, items)).toBe(false);
+    expect(itemRemainingSec(s, items, 431_000)).toBe(300);
+  });
+
   it('a stored attempt counts even when the item is left by skip or by ending the session', () => {
     let s = startSession(0);
     s = markRecorded(s, '1');

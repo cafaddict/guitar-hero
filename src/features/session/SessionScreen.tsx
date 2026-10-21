@@ -121,7 +121,7 @@ function RestItem({ item, now, onDone }: { item: RoutineItem; now: () => number;
   );
 }
 
-function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
+function SelfReportForm({ onSave, onBack }: { onSave: (report: SelfReport) => void; onBack: () => void }) {
   const [pain, setPain] = useState(0);
   const [difficulty, setDifficulty] = useState(3);
   const [flags, setFlags] = useState<SelfReport['dangerFlags'][number][]>([]);
@@ -170,13 +170,20 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
       <Field label={ko.session.note}>
         <TextArea className="min-h-24" value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      <div data-primary-action>
-        <Button
-          large
-          onClick={() => onSave({ pain, difficulty, dangerFlags: flags, note })}
-          data-testid="report-save"
-        >
-          {ko.session.save}
+      <div className="flex flex-wrap gap-3">
+        <div data-primary-action>
+          <Button
+            large
+            onClick={() => onSave({ pain, difficulty, dangerFlags: flags, note })}
+            data-testid="report-save"
+          >
+            {ko.session.save}
+          </Button>
+        </div>
+        {/* Reached by mistake (one Enter too many, "세션 끝내기"): back to the practice, nothing is lost (D-096). */}
+        <Button large variant="secondary" className="min-w-16" onClick={onBack} data-testid="report-back">
+          <Icon name="back" />
+          {ko.session.backToPractice}
         </Button>
       </div>
       <p className="text-sm text-muted">{ko.session.exitWithoutReport}</p>
@@ -227,6 +234,13 @@ export function SessionScreen() {
   const [transitionEndsAt, setTransitionEndsAt] = useState<number | null>(null);
   const [showBreak, setShowBreak] = useState(false);
   const [ending, setEnding] = useState(false);
+  /** The running exercise's "이전 항목" (asks first once the run is under way, D-096); null while none is up. */
+  const [previousRequest, setPreviousRequest] = useState<(() => void) | null>(null);
+  // A function in state is stored through the updater form.
+  const registerPrevious = useCallback(
+    (request: (() => void) | null) => setPreviousRequest(() => request),
+    [],
+  );
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -343,9 +357,12 @@ export function SessionScreen() {
     setEndedIndex(null);
     setLastAttempt(null);
     setTransitionEndsAt(null);
+    // Every move restarts the item's clock: a revisited item gets its block time and its end signal again.
+    setBlockEndedFor(null);
     setRerun({ n: 0, params: null, identity: null });
     setState((s) => (s ? step(s) : s));
   }, []);
+  const toPrevious = useCallback(() => go((s) => previousItem(s, now())), [go, now]);
   const advance = useCallback(() => {
     go((s) => completeItem(s, items, now()));
     const index = state?.index ?? 0;
@@ -414,7 +431,7 @@ export function SessionScreen() {
           endTransition();
         } else if (action === 'prev') {
           event.preventDefault();
-          go((s) => previousItem(s, now()));
+          toPrevious();
         }
         return;
       }
@@ -433,7 +450,7 @@ export function SessionScreen() {
         if (event.key === ' ') swallowNextSpaceKeyup();
         retry(repeat?.params, repeat?.identity);
       } else if (command === 'advance') advance();
-      else if (command === 'previous') go((s) => previousItem(s, now()));
+      else if (command === 'previous') toPrevious();
       else setState(resume(state, now()));
     };
     window.addEventListener('keydown', onKey);
@@ -445,13 +462,36 @@ export function SessionScreen() {
     endedIndex,
     customKeys,
     advance,
-    go,
+    toPrevious,
     retry,
     now,
     transitionEndsAt,
     endTransition,
     repeat,
   ]);
+
+  // The self report reached by mistake goes back (D-096): after "세션 끝내기" to the item it was on, after the last
+  // item to that item.
+  const backToPractice = useCallback(() => {
+    if (ending) {
+      // The host comes back on its start screen: no ended run for Space/Enter to act on.
+      setEnding(false);
+      setEndedIndex(null);
+      setLastAttempt(null);
+    } else toPrevious();
+  }, [ending, toPrevious]);
+  const reporting = state !== null && (ending || isFinished(state, items));
+  useEffect(() => {
+    if (!reporting) return;
+    const onKey = (event: KeyboardEvent) => {
+      // The pain and difficulty sliders move with ←.
+      if (isEditableTarget(event.target) || actionForKey(event, customKeys ?? {}) !== 'prev') return;
+      event.preventDefault();
+      backToPractice();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [reporting, customKeys, backToPractice]);
 
   /** Ends the session; `null` = left with "나가기" without the self report (D-095: the practice still counts). */
   const finishSession = async (report: SelfReport | null) => {
@@ -492,7 +532,7 @@ export function SessionScreen() {
     return (
       // "나가기" here ends the session without a report: leaving must not lose today's practice (D-095).
       <FocusScreen title={ko.session.title} exit={{ onExit: () => void finishSession(null) }}>
-        <SelfReportForm onSave={(report) => void finishSession(report)} />
+        <SelfReportForm onSave={(report) => void finishSession(report)} onBack={backToPractice} />
       </FocusScreen>
     );
   }
@@ -628,6 +668,8 @@ export function SessionScreen() {
           routineKey={rerun.identity ? rerun.identity.routineKey : (item.key ?? null)}
           autoFocusStart
           onActiveChange={setRunActive}
+          onPrevious={state.index > 0 ? toPrevious : undefined}
+          registerPrevious={registerPrevious}
           onPausedChange={(paused) =>
             setState((s) => s && (paused ? holdClock(s, now()) : releaseClock(s, now())))
           }
@@ -681,10 +723,11 @@ export function SessionScreen() {
         <Phrases text={next ? ko.session.next(itemTitle(next)) : ko.session.lastItem} />
       </p>
       <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-4">
+        {/* During a run it ends the run first (asking once it is under way, D-096); skip and end still wait. */}
         <Button
           variant="secondary"
-          disabled={runActive || state.index === 0}
-          onClick={() => go((s) => previousItem(s, now()))}
+          disabled={state.index === 0 || (runActive && previousRequest === null)}
+          onClick={() => (runActive ? previousRequest?.() : toPrevious())}
         >
           {ko.session.previous}
         </Button>

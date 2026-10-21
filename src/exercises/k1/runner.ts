@@ -56,6 +56,10 @@ export class SelfCheckRunner extends BaseRunner<SelfCheckResult, K1View> {
     }
   }
 
+  canStepBack(): boolean {
+    return this.phase === 'running' && this.index > 0;
+  }
+
   private answer(status: 'done' | 'notYet'): void {
     const id = this.params.items[this.index];
     if (id === undefined) return;

@@ -30,6 +30,21 @@ describe('K1 self-check cards (SPEC v1.1 §11.12)', () => {
     });
   });
 
+  it('steps back while a card was answered in this run (D-096), not at the first card or after the run', () => {
+    const { ctx } = testContext({ mic: false });
+    const runner = new SelfCheckRunner(ctx, { items: ['posture', 'pick'] });
+    runner.start();
+    expect(runner.canStepBack()).toBe(false);
+    runner.command('manual1');
+    expect(runner.canStepBack()).toBe(true);
+    runner.command('prev');
+    expect(runner.canStepBack()).toBe(false);
+    runner.command('manual1');
+    runner.command('manual2');
+    expect(runner.snapshot().phase).toBe('done');
+    expect(runner.canStepBack()).toBe(false);
+  });
+
   it('stopping before any answer records nothing; a partial run records what was answered', () => {
     const { ctx } = testContext({ mic: false });
     const empty = new SelfCheckRunner(ctx, { items: ['posture', 'pick'] });

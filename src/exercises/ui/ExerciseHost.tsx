@@ -34,6 +34,7 @@ import { HowToPanel } from './HowToPanel';
 import { useRunnerSnapshot } from './hooks';
 import { MicFeedback } from './MicFeedback';
 import { PracticeStage, RunControlsContext } from './PracticeStage';
+import { prevRoute } from './prevRoute';
 
 export interface ExerciseHostProps {
   definition: ExerciseDefinition;
@@ -54,6 +55,13 @@ export interface ExerciseHostProps {
   onPausedChange?: (paused: boolean) => void;
   /** Content to run with (a curriculum stage other than the current one, D-072); default the current stage's. */
   content?: ContentContext;
+  /**
+   * Session only, absent at the first item: go to the previous item (D-096). During a run ← / "이전 항목" ends
+   * the run first (as "중단" does) and calls this once what was played is stored.
+   */
+  onPrevious?: (() => void) | undefined;
+  /** Receives the running exercise's "이전 항목" request (asks first once the run is under way), null when none. */
+  registerPrevious?: ((request: (() => void) | null) => void) | undefined;
 }
 
 interface Running {
@@ -95,34 +103,55 @@ function useAnimationTick(runner: ExerciseRunner<unknown, unknown> | null): void
 /** Phases a pausable run shows its pause button in (D-085). */
 const PAUSE_PHASES: ReadonlySet<string> = new Set(['countIn', 'running', 'paused']);
 
+/** Phases before anything was played: going back to the previous item loses nothing, so it does not ask. */
+const WAITING_PHASES: ReadonlySet<string> = new Set(['ready', 'armed']);
+
 function RunningExercise({
   definition,
   params,
   running,
   onDone,
   onPausedChange,
+  onPrevious,
+  registerPrevious,
 }: {
   definition: ExerciseDefinition;
   params: unknown;
   running: Running;
   onDone: () => void;
   onPausedChange: ((paused: boolean) => void) | undefined;
+  onPrevious: (() => void) | undefined;
+  registerPrevious: ((request: (() => void) | null) => void) | undefined;
 }) {
   const { runner, ctx } = running;
   const snapshot = useRunnerSnapshot(runner);
   const settings = useSettingsStore((s) => s.settings);
-  const [confirmAbort, setConfirmAbort] = useState(false);
+  /** The open question: stop the run (Esc, "중단"), or end it and go to the previous item (D-096). */
+  const [confirm, setConfirm] = useState<'abort' | 'previous' | null>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
   useAnimationTick(runner);
   // "나가기" during a run asks the same question as Esc (D-094).
-  useExitGuard(useCallback(() => setConfirmAbort(true), []));
+  useExitGuard(useCallback(() => setConfirm('abort'), []));
   // The question appears above the stage: bring it into view and give it the focus (the dialog itself, not its
   // "yes" button — Space would then click it, where the run's keys read Space as "keep going").
   useEffect(() => {
-    if (!confirmAbort) return;
+    if (!confirm) return;
     confirmRef.current?.scrollIntoView({ block: 'nearest' });
     confirmRef.current?.focus();
-  }, [confirmAbort]);
+  }, [confirm]);
+
+  const waiting = WAITING_PHASES.has(snapshot.phase);
+  // Before anything was played the previous item is a plain move; afterwards going back ends the run, so it asks.
+  const askPrevious = useCallback(() => {
+    if (!onPrevious) return;
+    if (waiting) onPrevious();
+    else setConfirm('previous');
+  }, [onPrevious, waiting]);
+  useEffect(() => {
+    if (!registerPrevious || !onPrevious) return;
+    registerPrevious(askPrevious);
+    return () => registerPrevious(null);
+  }, [registerPrevious, onPrevious, askPrevious]);
 
   useEffect(() => {
     if (snapshot.phase === 'done') onDone();
@@ -142,10 +171,17 @@ function RunningExercise({
     const onKey = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
       const action = actionForKey(event, settings?.customKeys ?? {});
-      if (confirmAbort) {
+      if (confirm === 'previous') {
+        // A pedal has prev beside next: either one confirms. Anything else — Esc too — keeps the run.
+        event.preventDefault();
+        if (action === 'prev' || action === 'next') onPrevious?.();
+        setConfirm(null);
+        return;
+      }
+      if (confirm === 'abort') {
         event.preventDefault();
         if (action === 'abort' || action === 'next') runner.command('abort');
-        setConfirmAbort(false);
+        setConfirm(null);
         return;
       }
       // Space/Enter on the focused pause button: its own click pauses or resumes, once (D-085).
@@ -153,12 +189,21 @@ function RunningExercise({
       // Only metronome exercises pause; elsewhere P does nothing.
       if (!action || (action === 'pause' && !definition.pausable)) return;
       event.preventDefault();
-      if (action === 'abort') setConfirmAbort(true);
+      if (action === 'abort') setConfirm('abort');
+      else if (
+        action === 'prev' &&
+        prevRoute({
+          canStepBack: runner.canStepBack?.() ?? false,
+          inSession: onPrevious !== undefined,
+          waiting,
+        }) !== 'runner'
+      )
+        askPrevious();
       else runner.command(action);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [runner, confirmAbort, settings?.customKeys, definition.pausable]);
+  }, [runner, confirm, settings?.customKeys, definition.pausable, onPrevious, waiting, askPrevious]);
 
   const showPause = definition.pausable && PAUSE_PHASES.has(snapshot.phase);
   // Large (≥ 64 px, SPEC §12.3): it is tapped with a hand coming off the guitar mid-run. The view's stage places
@@ -187,19 +232,25 @@ function RunningExercise({
       }}
     >
       {howTo && <HowToPanel howTo={howTo} open={false} className="mb-5" />}
-      {confirmAbort && (
+      {confirm && (
         <div
           ref={confirmRef}
           role="alertdialog"
-          aria-label={ko.keys.confirmAbort}
+          aria-label={confirm === 'abort' ? ko.keys.confirmAbort : ko.keys.confirmPrevious}
           tabIndex={-1}
           className="mb-5"
         >
           <Card tone="retry">
-            <p className="text-lg font-semibold">{ko.keys.confirmAbort}</p>
+            <p className="text-lg font-semibold">
+              {confirm === 'abort' ? ko.keys.confirmAbort : ko.keys.confirmPrevious}
+            </p>
             <div className="mt-3 flex flex-wrap gap-3">
-              <Button onClick={() => runner.command('abort')}>{ko.keys.abortYes}</Button>
-              <Button variant="secondary" onClick={() => setConfirmAbort(false)}>
+              {confirm === 'abort' ? (
+                <Button onClick={() => runner.command('abort')}>{ko.keys.abortYes}</Button>
+              ) : (
+                <Button onClick={() => onPrevious?.()}>{ko.keys.previousYes}</Button>
+              )}
+              <Button variant="secondary" onClick={() => setConfirm(null)}>
                 {ko.keys.abortNo}
               </Button>
             </div>
@@ -237,6 +288,8 @@ export function ExerciseHost({
   onActiveChange,
   onPausedChange,
   content,
+  onPrevious,
+  registerPrevious,
 }: ExerciseHostProps) {
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.update);
@@ -248,6 +301,8 @@ export function ExerciseHost({
   const startingRef = useRef(false);
   const finishedRef = useRef(false);
   const mountedRef = useRef(true);
+  /** The run is ending to go to the previous item: that happens once what was played is stored (D-096). */
+  const backAfterRef = useRef(false);
   useMicReleasedOnExit();
 
   useEffect(() => {
@@ -360,10 +415,15 @@ export function ExerciseHost({
         .then(() => {
           setOutcome({ kind: 'saved', attempt });
           onFinished?.(attempt);
+          if (backAfterRef.current) onPrevious?.();
         })
-        .catch(() => setOutcome({ kind: 'saveFailed', attempt }));
+        .catch(() => {
+          // The save's retry stays on screen: going back now would lose the run.
+          backAfterRef.current = false;
+          setOutcome({ kind: 'saveFailed', attempt });
+        });
     },
-    [onFinished],
+    [onFinished, onPrevious],
   );
 
   const onDone = useCallback(() => {
@@ -377,6 +437,7 @@ export function ExerciseHost({
     if (!runner.hasResult()) {
       setOutcome({ kind: 'nothing' });
       onFinished?.(null);
+      if (backAfterRef.current) onPrevious?.();
       return;
     }
     const result = definition.resultSchema.parse(runner.finish());
@@ -395,7 +456,13 @@ export function ExerciseHost({
       reviewOf,
       ...(routineKey ? { routineKey } : {}),
     });
-  }, [running, definition, sessionId, reviewOf, routineKey, onFinished, save]);
+  }, [running, definition, sessionId, reviewOf, routineKey, onFinished, onPrevious, save]);
+
+  // "이전 항목" during a run: the run ends as "중단" ends it (what was played is kept), then the session goes back.
+  const endThenBack = useCallback(() => {
+    backAfterRef.current = true;
+    running?.runner.command('abort');
+  }, [running]);
 
   if (outcome?.kind === 'saved') {
     return (
@@ -446,6 +513,8 @@ export function ExerciseHost({
         running={running}
         onDone={onDone}
         onPausedChange={onPausedChange}
+        onPrevious={onPrevious ? endThenBack : undefined}
+        registerPrevious={registerPrevious}
       />
     );
   const howTo = definition.howTo(params);

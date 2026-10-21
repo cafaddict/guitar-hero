@@ -115,6 +115,83 @@ test('session: after a run Space runs the same item again (even with the focus o
   await expect(header).toHaveAttribute('data-index', '1');
 });
 
+test('session: the self report goes back to the practice with ← or "연습으로 돌아가기" (D-096)', async ({
+  page,
+}) => {
+  await page.goto('/#/settings');
+  await page.getByTestId('setting-mic-disabled').check();
+  await page.goto('/#/session?timeScale=0.25');
+  const header = page.getByTestId('session-header');
+  await expect(header).toHaveAttribute('data-index', '0');
+
+  // "세션 끝내기" by mistake: ← comes back to the same item.
+  await page.getByTestId('end-session').click();
+  await expect(page.getByTestId('self-report')).toBeVisible();
+  await page.keyboard.press('ArrowLeft');
+  await expect(header).toHaveAttribute('data-index', '0');
+
+  // Further on, the touch button does the same.
+  await page.getByTestId('skip-item').click();
+  await expect(header).toHaveAttribute('data-index', '1');
+  await page.getByTestId('end-session').click();
+  await page.getByTestId('report-back').click();
+  await expect(header).toHaveAttribute('data-index', '1');
+  await expect(page.getByTestId('exercise-start')).toBeVisible();
+});
+
+test('session: during a run ← / "이전 항목" ends the run and goes back; skip and end still wait (D-096)', async ({
+  page,
+}) => {
+  await page.goto('/#/settings');
+  await page.getByTestId('setting-mic-disabled').check();
+  await page.goto('/#/session?timeScale=0.25');
+  const header = page.getByTestId('session-header');
+  await expect(header).toHaveAttribute('data-index', '0');
+  const dialog = page.getByRole('alertdialog');
+  const previous = page.getByRole('button', { name: ko.session.previous, exact: true });
+
+  // Item 2 (E5) waits for Space after PageDown: nothing was played yet, so the left pedal goes back at once.
+  await page.getByTestId('skip-item').click();
+  await expect(header).toHaveAttribute('data-item-type', 'E5');
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('armed-start')).toBeVisible();
+  await page.keyboard.press('PageUp');
+  await expect(header).toHaveAttribute('data-index', '0');
+
+  // Under way it asks first: Esc keeps the run, a second left pedal confirms.
+  await page.getByTestId('skip-item').click();
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('armed-start')).toBeVisible();
+  await page.keyboard.press('Space');
+  await expect(page.getByTestId('e5-view')).not.toHaveAttribute('data-phase', 'armed');
+  await page.keyboard.press('PageUp');
+  await expect(dialog).toContainText(ko.keys.confirmPrevious);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(page.getByTestId('e5-view')).toBeVisible();
+  await page.keyboard.press('PageUp');
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('PageUp');
+  await expect(header).toHaveAttribute('data-index', '0');
+
+  // The touch button: enabled during the run while skipping and ending wait; "계속하기" keeps the run.
+  await page.getByTestId('skip-item').click();
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('armed-start')).toBeVisible();
+  await page.keyboard.press('Space');
+  await expect(page.getByTestId('e5-view')).not.toHaveAttribute('data-phase', 'armed');
+  await expect(page.getByTestId('skip-item')).toBeDisabled();
+  await expect(page.getByTestId('end-session')).toBeDisabled();
+  await expect(previous).toBeEnabled();
+  await previous.click();
+  await page.getByRole('button', { name: ko.keys.abortNo }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByTestId('e5-view')).toBeVisible();
+  await previous.click();
+  await page.getByRole('button', { name: ko.keys.previousYes }).click();
+  await expect(header).toHaveAttribute('data-index', '0');
+});
+
 test('the settings key list has pause (P) and song start-over (R) rows (D-085)', async ({ page }) => {
   await page.goto('/#/settings');
   for (const [action, keys] of [
