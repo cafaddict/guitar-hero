@@ -470,7 +470,7 @@ export function SessionScreen() {
   const toHome = { to: '/' };
   if (!loaded)
     return (
-      <FocusScreen title={ko.session.title} exit={toHome}>
+      <FocusScreen title={ko.session.title} exit={toHome} busy>
         {null}
       </FocusScreen>
     );
@@ -489,7 +489,7 @@ export function SessionScreen() {
     );
   if (!state || !sessionId)
     return (
-      <FocusScreen title={ko.session.title} exit={toHome}>
+      <FocusScreen title={ko.session.title} exit={toHome} busy>
         {null}
       </FocusScreen>
     );

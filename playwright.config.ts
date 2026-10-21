@@ -1,12 +1,18 @@
 import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
-const E2E_PORT = 4173;
-const PROD_PORT = 4174;
+/** Overridable (E2E_PORT, PROD_PORT) when another checkout's preview server already holds a default port. */
+const E2E_PORT = Number(process.env.E2E_PORT ?? 4173);
+const PROD_PORT = Number(process.env.PROD_PORT ?? 4174);
 const fakeCaptureWav = join(import.meta.dirname, 'tests', 'fixtures', 'generated', 'fake-capture.wav');
 
-/** Specs that need the injected fake-mic harness or Chromium-only features. */
-const CHROMIUM_ONLY = [/\.mic\.spec\.ts$/, /fake-capture\.spec\.ts$/, /prod-build\.spec\.ts$/];
+/** Specs that need the injected fake-mic harness or Chromium-only features (`*.chromium.spec.ts`). */
+const CHROMIUM_ONLY = [
+  /\.mic\.spec\.ts$/,
+  /fake-capture\.spec\.ts$/,
+  /prod-build\.spec\.ts$/,
+  /\.chromium\.spec\.ts$/,
+];
 /**
  * Playwright's WebKit cannot navigate through a service worker while the context is offline ("WebKit
  * encountered an internal error" on reload, D-048), so the offline PWA check runs on Chromium only.

@@ -42,7 +42,8 @@
 | `npm run bench:guitarset` | GuitarSet 실녹음 벤치마크(dev 00–03 / test 04–05, comp 스트럼·solo 단음·solo 단음 시퀀스) |
 | `npm run bench:real` | 녹음 키트로 만든 내 기기 fixture 벤치마크(`tests/fixtures/real/<기기>/`, 없으면 "no fixtures") |
 | `npm run fixtures:generate` | E2E용 WAV fixture 결정적 생성 |
-| `npm run test:e2e` | Playwright E2E(가짜 마이크·실제 getUserMedia·iPad/iPhone WebKit) |
+| `npm run test:e2e` | Playwright E2E(가짜 마이크·실제 getUserMedia·iPad/iPhone WebKit). 다른 체크아웃이 포트를 쓰고 있으면 `E2E_PORT`·`PROD_PORT`로 바꾼다(기본 4173·4174) |
+| `npm run ui:shots` | 화면별 첫 화면(`-fold`)·전체(`-full`) 스크린샷, 3테마 × 4뷰포트 → `ui-shots/`(다른 곳은 `UI_SHOTS_DIR`). 필터 `UI_SHOTS_THEMES`·`UI_SHOTS_VIEWPORTS`·`UI_SHOTS_SCREENS`, 실행 중인 서버는 `UI_SHOTS_BASE` |
 | `npm run licenses` | 프로덕션 의존성 라이선스 검사(GPL/AGPL 금지) |
 | `npm run verify` | 전체 품질 게이트 + 요약표(`bench-results/verify-summary.txt`). 게이트의 벤치 보고서는 `bench-results/BENCHMARK.md`에 쓰고, `docs/BENCHMARK.md`는 `bench:dsp`·`bench:guitarset`를 직접 실행할 때 갱신된다 |
 | `npm run check:audio-dev` | dev 서버에서 AudioWorklet·DSP worker·메트로놈 worker 로드 점검 |

@@ -113,7 +113,12 @@ export function ProgressScreen() {
   }, []);
   const pairs = useMemo(() => practicedPairs(attempts), [attempts]);
   const selectedPair = pair ?? pairs[0] ?? null;
-  if (!state) return <Screen title={ko.progressScreen.title}>{null}</Screen>;
+  if (!state)
+    return (
+      <Screen title={ko.progressScreen.title} busy>
+        {null}
+      </Screen>
+    );
   const now = Date.now();
   const weeks = weeklyMinutes(state.sessions, now);
   const trend = selectedPair ? pairTrend(attempts, selectedPair) : [];

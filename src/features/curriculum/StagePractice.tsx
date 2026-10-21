@@ -124,7 +124,7 @@ export function StagePracticeScreen() {
   const back = <ButtonLink to={stagePath}>{t.back}</ButtonLink>;
   if (!plan)
     return (
-      <FocusScreen title={ko.curriculum.title} exit={{ to: stagePath }}>
+      <FocusScreen title={ko.curriculum.title} exit={{ to: stagePath }} busy>
         {null}
       </FocusScreen>
     );

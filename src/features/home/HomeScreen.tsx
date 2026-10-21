@@ -235,7 +235,12 @@ export function HomeScreen() {
   }, [redirect, reload]);
 
   if (redirect) return <Navigate to="/onboarding" replace />;
-  if (!data) return <Screen title={ko.home.title}>{null}</Screen>;
+  if (!data)
+    return (
+      <Screen title={ko.home.title} busy>
+        {null}
+      </Screen>
+    );
 
   const now = Date.now();
   // What the next session start will do (expired / new prescriptions, G switch) — shown, saved at session start.

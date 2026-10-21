@@ -741,3 +741,59 @@ v1.1 goal(M9–M15)이 끝난 뒤 사용자가 실제로 써 보며 요청한 �
 - **검사**:
   - `tests/e2e/support/screens.ts`에 `tools` 화면을 더해 레이아웃(가로 스크롤 0, 64 px 버튼)과 axe(3테마) 대상에 넣었다.
   - testid·목록 구조(`routine-items`의 항목당 `li` 하나), `reviews-today` 정확 문구, autofocus 흐름은 그대로다.
+
+## D-088 UI 마감 goal 키트 (`docs/goal/ui/`)
+
+- **요청(사용자)**: "너는 UI 전문가야. 그거에 맞춰서 알아서 해 줘. goal로 세팅해서 돌리자." D-087 위에서 앱 전체 UI를 자율 실행(`/goal`)으로 마감한다.
+- **원인 관찰**(키트 작성 중 측정):
+  - fullPage 스크린샷만 보면 고정 탭바가 첫 화면에서 가리는 것을 못 본다. 홈 "연습 시작"이 iPhone 첫 화면에서 탭바 밑에 있었다(D-087에서 목록 위로 옮김).
+  - 측정한 기준 문제(PROGRESS 표):
+    - 주 조작이 첫 화면 밖: 단계 화면, E9·E11 실행 중(iPad 가로), 루틴 편집 저장, iPhone의 E1·E2·E3·S
+    - 핵심 숫자가 기준보다 작음: E5 BPM 7–10 %, iPad 세로 타이머 13.6 %
+    - 셀렉트 23 px, 슬라이더 16 px
+    - `word-break: normal`
+    - 넓은 화면의 52–55em 문단
+    - 필드 경계 대비 1.4–1.5:1
+- **결정**:
+  - SPEC(`docs/goal/ui/SPEC.md`)과 고정 테스트 3개(`ui-quality.spec.ts`, Chromium 전용 `ui-quality.chromium.spec.ts`, `ui-rules.test.ts`)를 해시로 묶는다. 기존 `layout.spec.ts`·`a11y.spec.ts`·`support/screens.ts`도 함께 묶는다. 실행자가 게이트를 낮추지 못하게 하기 위해서다.
+  - 측정 가능한 것은 테스트로 만든다(UQ-1–UQ-10, UR-1–UR-2):
+    - 첫 화면 주 조작(`data-primary-action`)
+    - 핵심 숫자 15–25 %(`data-core-number`, `BigTimer`·`BigBpm`에 표식을 미리 단다)
+    - 터치 타깃 44 px
+    - 한국어 `keep-all`
+    - 포커스 표시
+    - reduced motion
+    - 색·투명도 전환 금지(D-087 교훈)
+    - 줄 길이 48em
+    - 필드 경계 3:1(WCAG 1.4.11, axe가 보지 않음)
+    - 토큰 색만
+    - safe area 4면
+  - 측정할 수 없는 것(위계, 일관성, 상태 표현, 거리 가독성)은 UI_AUDIT의 휴리스틱 감사와 "fold·full 그림을 둘 다 본다"는 검토 루프로 다룬다.
+  - Chromium 전용 검사는 `test.skip` 대신 파일 이름 `*.chromium.spec.ts`와 `playwright.config.ts`의 CHROMIUM_ONLY 목록으로 나눈다(§14.6-3: skip 금지).
+  - E2E 포트를 `E2E_PORT`·`PROD_PORT` 환경 변수로 바꿀 수 있게 했다. 다른 체크아웃의 preview가 4173을 쓰고 있어서다(기본값은 그대로).
+  - `npm run ui:shots`(`tools/ui/`)를 둔다. SCREENS의 준비 상태를 3테마 × 4뷰포트로 찍고, 첫 화면과 전체를 따로 저장한다.
+- **고르지 않은 대안**:
+  - 게이트 없이 감사만: 실행자의 판단만으로는 끝 조건이 흐려진다.
+  - 실행자가 게이트 테스트를 직접 작성: 자기 작업을 채점하는 테스트는 약해지기 쉽다(vault 교훈 2026-10-07).
+  - 시각 회귀 스냅샷(픽셀 비교): 이번 목표는 "바꾸는 것"이라 기준 그림이 계속 바뀐다.
+- **고정 전 독립 리뷰**(architect 서브에이전트, 반영함):
+  - UQ-1/2 표식은 무엇을 감싸든 통과했다(예: "나가기"를 감싸도 통과). 그래서 화면별로 담아야 할 조작(`PRIMARY`)을 고정하고, 나가기·마치기·세션 끝내기·내비는 담지 못하게 했다. 출력 접두도 UQ-1과 UQ-2로 나눴다.
+  - `openScreen`이 h1만 기다려서 두 가지 문제가 있었다. 데이터를 불러오는 화면의 빈 틀을 쟀고, 첫 홈 방문이 온보딩으로 넘어간 것을 홈으로 쟀다.
+    - `Screen`·`FocusScreen`에 `busy`(`aria-busy`)를 더해 로딩 틀을 표시한다(홈, 커리큘럼, 단계, 시험, 진도, 설정, 루틴 편집, 세션, 단계 연습).
+    - `openScreen`은 busy가 없을 때까지 기다리고, 온보딩으로 넘어가면 다시 연다. 기존 E2E-10·11도 이제 실제 홈을 잰다.
+  - UQ-6 수정:
+    - box-shadow를 포커스 표시로 인정하지 않는다. 버튼의 상시 그림자가 통과시켰기 때문이다.
+    - 세 테마 모두 검사한다.
+    - 그 결과 고대비 테마의 결함을 찾았다. `[data-theme="contrast"] button { outline: 1px }`가 `:focus-visible`의 3 px outline을 덮는다.
+  - 그 밖의 검사 수정:
+    - UQ-3은 표식 안의 가장 큰 글자 크기로 잰다.
+    - UQ-8은 속성과 길이를 위치로 짝짓는다.
+    - UQ-10은 oklab·oklch 계산값도 읽는다.
+  - 조건문 수정:
+    - `main` 해시를 고정한다.
+    - `feat/practice-feedback`은 다른 체크아웃에서 쓰이는 브랜치라 값을 비교하지 않는다.
+    - 마지막 순서를 정했다: 마지막 커밋 → 그 HEAD에서 verify → 추적 파일 수정 없이 출력.
+    - UI_AUDIT 범위표 행 수(111)와 ui-rules 결과를 출력하게 했다.
+  - 스크린샷은 `ui-shots/`(E2E가 비우는 `test-results/` 밖)에 둔다. 빌드는 `dist-shots/`에 해서 E2E 빌드와 겹치지 않게 했다. 시작 전 그림은 `ui-shots/before/`다.
+  - 리뷰 중 찾은 실제 사용 결함: 시퀀스 연습(E9·E10·E11·E17)의 준비 상태는 Space로만 시작된다. iPad 터치로는 시작할 수 없다. `practice-E17-ready`의 UQ-1이 터치 시작 조작을 요구한다(SPEC §4.2).
+- **검사**: 키트 기준 측정값은 PROGRESS 표에 있다. UQ-7·8과 UR-1·2는 통과, 나머지는 위 문제를 잡는다. D-087 커밋에서 기존 E2E 83개가 통과했다.

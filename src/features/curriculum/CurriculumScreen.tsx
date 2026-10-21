@@ -139,7 +139,7 @@ export function CurriculumScreen() {
     );
   };
   return (
-    <Screen title={ko.curriculum.title} width="wide">
+    <Screen title={ko.curriculum.title} width="wide" busy={state === null}>
       {(progression?.completedBeginner1 || progression?.completedBeginner2) && (
         <Card tone="ok" className="mb-6 space-y-1">
           {progression.completedBeginner1 && <p className="text-ok">{ko.home.completedBeginner}</p>}
@@ -204,6 +204,7 @@ export function StageScreen() {
       title={ko.home.stage(def.stage, def.name)}
       eyebrow={`${ko.curriculum.title} · ${ko.curriculum.group(level)}`}
       width="wide"
+      busy={state === null}
     >
       <p className="-mt-3 mb-6 max-w-3xl text-muted">{def.summary}</p>
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">

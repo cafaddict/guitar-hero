@@ -136,9 +136,24 @@ export const SCREENS: ScreenCase[] = [
   },
 ];
 
-/** Opens a screen; the first visit of a fresh profile is sent to onboarding, so "later" is chosen once. */
+/**
+ * Opens a screen in its loaded, prepared state.
+ * - Home sends a fresh profile to onboarding once per page load (a module-level flag), so the first visit of a
+ *   run can land on onboarding: the screen is then opened again.
+ * - A screen that draws its frame while its data loads marks it `aria-busy` (Screen / FocusScreen `busy`,
+ *   D-088); the screen counts as open when no element is busy.
+ */
 export async function openScreen(page: Page, screen: ScreenCase): Promise<void> {
+  const settle = async () => {
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  };
   await page.goto(screen.path);
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await settle();
+  if (screen.name !== 'onboarding' && new URL(page.url()).hash.startsWith('#/onboarding')) {
+    await page.goto(screen.path);
+    await settle();
+  }
   await screen.prepare?.(page);
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
 }

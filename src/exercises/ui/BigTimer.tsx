@@ -7,6 +7,7 @@ export function BigTimer({ remainingMs }: { remainingMs: number | null }) {
   return (
     <p
       className="text-center font-bold tabular-nums leading-none"
+      data-core-number
       style={{ fontSize: 'clamp(3rem, 18vh, 10rem)' }}
     >
       <span className="sr-only">{ko.exercises.common.remaining} </span>

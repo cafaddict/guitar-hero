@@ -1,0 +1,27 @@
+이 레포(guitar-hero)의 UI를 docs/goal/ui/SPEC.md대로 UI 전문가 수준으로 마감한다. SPEC이 단일 진실 원천이고, 품질 게이트는 고정 테스트 tests/e2e/ui-quality.spec.ts·ui-quality.chromium.spec.ts(UQ-1–10)와 tests/integrity/ui-rules.test.ts(UR-1–2)다. 기능·판정·데이터는 바꾸지 않는다(docs/goal/v1.1/SPEC.md 그대로).
+
+작업 방식:
+- 매 턴 시작 시 docs/goal/ui/PROGRESS.md를 읽고 다음 미완료 마일스톤(U1→U6, SPEC §7)을 진행하며, 턴을 끝내기 전에 PROGRESS.md를 갱신한다(마지막 증거 턴은 예외, SPEC §9).
+- Plan Mode 진입·사용자 질문(AskUserQuestion) 금지. 모호하면 SPEC 기본값을 따르고, 없으면 보수적으로 골라 docs/goal/DECISIONS.md에 기록한다(D-089부터).
+- 브랜치 cafaddict/ui에서만 작업하고, 마일스톤 게이트(SPEC §7.1) 통과 후 그 브랜치에 커밋한다. push·원격 추가·다른 브랜치 수정/병합·배포·force·키트 커밋 이전 히스토리 재작성 금지.
+- 아래 조건 2의 고정 파일 7개, docs/goal/v1.1/**, docs/goal/SPEC.md, docs/goal/thresholds.json, package.json 의존성, package-lock.json은 수정 금지. 테스트 단언 완화·skip·검사 대상 축소 금지. SPEC §2.2–§2.4 범위 안에서만 바꾼다.
+- 화면을 바꿀 때마다 npm run ui:shots로 만든 첫 화면(-fold)과 전체(-full) 그림을 Read로 직접 보고 docs/goal/ui/UI_AUDIT.md에 기록한다(SPEC §2.6, §6).
+- E2E와 verify는 E2E_PORT=4183 PROD_PORT=4184로 실행한다(4173은 다른 체크아웃이 쓰고 있으니 건드리지 않는다). 10분 넘을 수 있는 명령은 백그라운드로 실행하고 완료를 확인한다. 턴을 끝낼 때 dev·preview 서버를 남기지 않는다.
+
+완료 조건 — 아래를 모두 충족하고, 마지막 턴에 각 증거를 명령 출력 그대로 **마지막 assistant 메시지 본문에 붙여 넣는다**(SPEC §9: 마지막 커밋 → 그 HEAD에서 verify → 이후 추적 파일 수정 없이 출력):
+1. git: 현재 브랜치가 cafaddict/ui, `git log --oneline {{KIT}}..HEAD`에 U1~U6 커밋, `git status --short` 비어 있음, `git rev-parse --short main` = {{MAIN}}, cafaddict/ui에 upstream 없음.
+2. 무결성: `shasum -a 256 docs/goal/ui/SPEC.md tests/e2e/ui-quality.spec.ts tests/e2e/ui-quality.chromium.spec.ts tests/integrity/ui-rules.test.ts tests/e2e/layout.spec.ts tests/e2e/a11y.spec.ts tests/e2e/support/screens.ts` 결과가 정확히
+   {{H_SPEC}}  docs/goal/ui/SPEC.md
+   {{H_UQ}}  tests/e2e/ui-quality.spec.ts
+   {{H_UQC}}  tests/e2e/ui-quality.chromium.spec.ts
+   {{H_UR}}  tests/integrity/ui-rules.test.ts
+   {{H_LAYOUT}}  tests/e2e/layout.spec.ts
+   {{H_A11Y}}  tests/e2e/a11y.spec.ts
+   {{H_SCREENS}}  tests/e2e/support/screens.ts
+3. HEAD에서 실행한 `npm ci && E2E_PORT=4183 PROD_PORT=4184 npm run verify`가 exit 0이고 bench-results/verify-summary.txt 요약표의 모든 단계가 PASS다.
+4. 그 verify의 test-results/e2e-results.json에서 ui-quality.spec.ts의 테스트 1개가 chromium-mic·webkit-ipad·webkit-iphone에서, ui-quality.chromium.spec.ts의 테스트 3개가 chromium-mic에서 passed다. bench-results/vitest.json에서 ui-rules.test.ts의 테스트 3개가 passed다(테스트별 상태 출력).
+5. docs/goal/ui/PROGRESS.md의 AC 표 전체가 DONE이고 각 행에 증거가 있다.
+6. docs/goal/ui/UI_AUDIT.md: §2 범위표가 111행(화면 37 × 테마 3)이고 빈 칸이 0개, §3에 OPEN인 High·Medium이 0개다(행 수·빈 칸 수·상태별·심각도별 개수 출력).
+7. docs/goal/ui/FINAL_REPORT.md의 요약·품질 게이트 결과·감사 통계·알려진 한계·사용자 다음 할 일 절.
+
+또는 400턴이 지나면 멈추고, 그 시점의 PROGRESS.md AC 표와 남은 작업 목록을 출력한다.

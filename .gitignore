@@ -1,6 +1,8 @@
 node_modules/
 dist/
 dist-e2e/
+dist-shots/
+ui-shots/
 /data/
 bench-results/
 test-results/

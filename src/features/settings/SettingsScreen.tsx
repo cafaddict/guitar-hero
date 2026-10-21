@@ -362,7 +362,12 @@ function ResetSection() {
 export function SettingsScreen() {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
-  if (!settings) return <Screen title={ko.settingsScreen.title}>{null}</Screen>;
+  if (!settings)
+    return (
+      <Screen title={ko.settingsScreen.title} busy>
+        {null}
+      </Screen>
+    );
   const set = (patch: Partial<Settings>) => void update(patch);
   return (
     <Screen title={ko.settingsScreen.title}>

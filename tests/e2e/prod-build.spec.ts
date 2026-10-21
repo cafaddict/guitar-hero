@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 
-const PROD = 'http://localhost:4174';
+const PROD = `http://localhost:${process.env.PROD_PORT ?? 4174}`;
 const DIST = join(import.meta.dirname, '..', '..', 'dist');
 
 function bundleFiles(dir: string): string[] {

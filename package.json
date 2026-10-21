@@ -24,6 +24,7 @@
     "fixtures:generate": "tsx tools/fixtures/generate.ts",
     "licenses": "tsx tools/licenses.ts",
     "test:e2e": "playwright test",
+    "ui:shots": "playwright test -c tools/ui/playwright.config.ts",
     "verify": "tsx tools/verify.ts"
   },
   "dependencies": {

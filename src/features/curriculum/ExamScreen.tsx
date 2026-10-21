@@ -146,7 +146,12 @@ export function ExamScreen() {
     void loadStoredState(Date.now()).then(setState);
   }, []);
   useEffect(reload, [reload]);
-  if (!state) return <Screen title={ko.curriculum.exam}>{null}</Screen>;
+  if (!state)
+    return (
+      <Screen title={ko.curriculum.exam} busy>
+        {null}
+      </Screen>
+    );
   return (
     <Screen title={ko.curriculum.exam}>
       <p className="text-muted">{ko.curriculum.examIntro}</p>

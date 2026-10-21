@@ -60,7 +60,12 @@ export function RoutineEditorScreen() {
     void load();
   }, [load]);
 
-  if (!loaded) return <Screen title={ko.routineEditor.title}>{null}</Screen>;
+  if (!loaded)
+    return (
+      <Screen title={ko.routineEditor.title} busy>
+        {null}
+      </Screen>
+    );
   const totalMin = Math.round(items.reduce((sum, i) => sum + i.durationSec, 0) / 60);
   const option = loaded.options.find((o) => o.id === choice);
 

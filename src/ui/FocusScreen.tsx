@@ -16,12 +16,15 @@ export function FocusScreen({
   exit,
   exitDisabled = false,
   aside,
+  busy = false,
   children,
 }: {
   title: string;
   exit: FocusExit;
   exitDisabled?: boolean;
   aside?: ReactNode;
+  /** Drawn while the screen's data loads (`aria-busy`, see Screen). */
+  busy?: boolean;
   children: ReactNode;
 }) {
   const navigate = useNavigate();
@@ -34,7 +37,11 @@ export function FocusScreen({
     else navigate(exit.back);
   };
   return (
-    <main id="main" className="mx-auto w-full max-w-6xl px-4 pb-10 sm:px-6 lg:px-8">
+    <main
+      id="main"
+      aria-busy={busy || undefined}
+      className="mx-auto w-full max-w-6xl px-4 pb-10 sm:px-6 lg:px-8"
+    >
       <header className="-mx-4 mb-5 flex min-h-16 items-center gap-3 border-b border-border px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <button
           type="button"
