@@ -28,7 +28,7 @@ import type { CustomSessionRequest } from '../curriculum/StagePractice';
 import { practiceOptions, stageContent, stageItems } from '../curriculum/stagePracticeModel';
 import { routineInputFrom } from '../home/homeModel';
 import { itemTitle } from './itemTitle';
-import { type RunIdentity, repeatSuggestion } from './repeat';
+import { type RunIdentity, repeatSuggestion, sameRunParams } from './repeat';
 import { pluginParamsFor } from './routineParams';
 import {
   acknowledgeBreak,
@@ -473,7 +473,8 @@ export function SessionScreen() {
       event.preventDefault();
       if (command === 'retry') {
         if (event.key === ' ') swallowNextSpaceKeyup();
-        retry(repeat?.params, repeat?.identity);
+        // The run's own params: a tempo picked before the start carries over (D-098).
+        retry(repeat?.params ?? sameRunParams(lastAttempt), repeat?.identity);
       } else if (command === 'advance') advance();
       else if (command === 'previous') toPrevious();
       else setState(resume(state, now()));
@@ -493,6 +494,7 @@ export function SessionScreen() {
     transitionEndsAt,
     endTransition,
     repeat,
+    lastAttempt,
   ]);
 
   // The self report reached by mistake goes back (D-096): after "세션 끝내기" to the item it was on, after the last
@@ -719,13 +721,18 @@ export function SessionScreen() {
                   <Button
                     large
                     variant="secondary"
-                    onClick={() => retry(suggestion?.params, suggestion?.identity)}
+                    onClick={() => retry(suggestion?.params ?? sameRunParams(attempt), suggestion?.identity)}
                     data-testid="repeat-item"
                   >
                     {suggestion ? suggestion.label : ko.session.repeat}
                   </Button>
                 )}
-                <Button large variant="secondary" onClick={() => retry()} data-testid="retry-item">
+                <Button
+                  large
+                  variant="secondary"
+                  onClick={() => retry(sameRunParams(attempt))}
+                  data-testid="retry-item"
+                >
                   {repeatable ? ko.session.sameTempo : tempo ? ko.session.retrySameTempo : ko.session.retry}
                 </Button>
                 {tempo && !repeatable && (

@@ -6,7 +6,7 @@ import type { Attempt } from '../../domain/records';
 import { registerAllExercises } from '../../exercises/catalog';
 import { exerciseDefinition } from '../../exercises/registry';
 import { TEST_CONTENT } from '../../exercises/testing/fakes';
-import { repeatSuggestion } from './repeat';
+import { repeatSuggestion, sameRunParams } from './repeat';
 import { pluginParamsFor } from './routineParams';
 import {
   acknowledgeBreak,
@@ -367,5 +367,47 @@ describe('SPEC v1.1 §11.10 repertoire repeat (M15 review)', () => {
       repertoire,
     );
     expect(s?.identity).toBeUndefined();
+  });
+
+  it('a tempo picked before the start carries over (D-098): "+5" after a pass, the same tempo after a stay', () => {
+    const item = { id: 'e', exerciseType: 'E5', block: 'rhythm', key: 'E5|strum:P3' } as RoutineItem;
+    // The routine said 80; the learner picked 70 on the start screen (the attempt records the run's params).
+    const picked = (ladder: 'up' | 'stay') =>
+      ({
+        exerciseType: 'E5',
+        params: {
+          patternId: 'P3',
+          bpm: 70,
+          bars: 8,
+          mode: 'single',
+          chords: ['C'],
+          cuesHidden: false,
+          previousLow: false,
+        },
+        result: {
+          patternId: 'P3',
+          bpm: 70,
+          bars: 8,
+          mode: 'single',
+          hits: 32,
+          misses: 0,
+          extras: 0,
+          meanOffsetMs: 0,
+          sdOffsetMs: 5,
+          hitRate: ladder === 'up' ? 1 : 0.5,
+          hitRateCorrected: ladder === 'up' ? 1 : 0.5,
+          cuesHidden: false,
+          ladder,
+          passed: ladder === 'up',
+          source: 'mic',
+        },
+      }) as unknown as Attempt;
+    expect(repeatSuggestion(item, picked('up'), repertoire)?.params).toMatchObject({ bpm: 75 });
+    // A stay has no suggestion: "same again" replays the run's own params, at the picked tempo.
+    expect(repeatSuggestion(item, picked('stay'), repertoire)).toBeNull();
+    expect(sameRunParams(picked('stay'))).toMatchObject({ patternId: 'P3', bpm: 70 });
+    // Other exercises (a song's recorded chart and loop would change its stage) replay the item's params.
+    expect(sameRunParams(attempt({ songId: 's01', mode: 'perform', bpm: 70 }))).toBeUndefined();
+    expect(sameRunParams(null)).toBeUndefined();
   });
 });

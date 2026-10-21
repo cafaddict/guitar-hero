@@ -46,6 +46,8 @@ export const e5Plugin: ExercisePlugin<E5Params, StrumResult, E5View> = {
         g.mode[params.mode],
         g.keepGoing,
         g.ladder(Math.round(LADDER_UP_HIT_RATE * 100), LADDER_MIN_BARS, LADDER_STEP_BPM),
+        // The exam fixes the tempo (D-098).
+        ...(params.tempoLocked ? [] : [ko.exercises.guide.tempoPick]),
       ],
       terms: params.mode === 'mute' ? ['strumLetters', 'muteStrum'] : ['strumLetters'],
     };

@@ -767,6 +767,8 @@ export const ko = {
           ? '메트로놈 클릭 한 번에 한 음씩 쳐요.'
           : '클릭 한 번에 두 음: 클릭에 다운(↓), 클릭 사이에 업(↑).',
       ladderUp: (rule: string, step: number) => `${rule}이면 다음엔 ${step}\u00a0BPM 올려요.`,
+      tempoPick:
+        '템포는 시작 화면에서 ↑↓나 −5/+5로 직접 골라요. 처음에는 지난번 템포(통과했으면 +5)로 맞춰져 있어요.',
       E0: [
         '6번 줄(가장 굵은 줄)부터 1번 줄까지 차례로 맞춰요.',
         '줄을 한 번 튕기고, 화면 바늘이 가운데(맞음)에 오도록 그 줄의 줄감개를 천천히 돌려요. 화면이 조일지 풀지 알려 줘요.',
@@ -946,6 +948,9 @@ export const ko = {
       pausedRun: '일시정지한 실행이라 진급 기준에는 쓰지 않아요.',
       /** Takes back an early "그만하기" while time is left (D-096). */
       resumeTimer: '아직 안 끝났어요 · 이어서 하기 (←)',
+      /** The −5/+5 steppers before the start of a ladder exercise (D-098). */
+      tempoPick: '템포',
+      tempoPickNote: '시작하기 전에 ↑↓ 키나 −5/+5로 템포를 골라요.',
     },
     /** Live per-bar feedback while playing (D-077). */
     live: {

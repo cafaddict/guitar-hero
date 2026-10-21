@@ -6,6 +6,7 @@
  * tempo, the learner picks it (D-098).
  * Without a microphone the user rates the run (1 nothing missed / 2 sometimes missed / 3 often missed).
  * With a microphone the run waits "armed": the first strum (or Space) starts the count-in (SPEC §12.3).
+ * While it waits, ↑/↓ (or the −5/+5 buttons) pick the tempo; it starts at the ladder's (D-098).
  * P pauses: the interrupted bar is replayed after a one-bar count-in; a paused run is recorded but keeps the
  * ladder where it is (D-085).
  */
@@ -41,6 +42,8 @@ export const e5ParamsSchema = z.object({
    * stored ladder below it ("사다리 상태는 보존").
    */
   ladderBase: z.number().int().optional(),
+  /** The tempo cannot be picked before the start (the exam's fixed tempo, D-098). */
+  tempoLocked: z.boolean().optional(),
 });
 export type E5Params = z.infer<typeof e5ParamsSchema>;
 
@@ -48,6 +51,15 @@ export const LADDER_UP_HIT_RATE = 0.9;
 export const LADDER_STEP_BPM = 5;
 /** The ladder only steps up on a full 8-bar run (SPEC §11.6 "8마디"). */
 export const LADDER_MIN_BARS = 8;
+/** Tempo range of the picker (D-098); 6/8 clicks on eighths at three times the beat, so it stops at 80. */
+const PICK_MIN_BPM = 30;
+const PICK_MAX_BPM = 240;
+const PICK_MAX_BPM_SIX_EIGHT = 80;
+/**
+ * After a pick, a strum heard this long does not start an armed run: tapping −5/+5 on an iPad's glass can sound
+ * like one to the microphone (D-098, design value).
+ */
+const PICK_QUIET_S = 0.6;
 /** Phases in which bars are judged live (D-077); bars before a pause's cut settle while paused (D-085). */
 const LIVE_PHASES: ReadonlySet<string> = new Set(['countIn', 'running', 'paused', 'review']);
 /** Self ratings (no microphone): 1 nothing missed, 2 sometimes missed, 3 often missed. */
@@ -78,6 +90,8 @@ export interface E5View {
   nextBpm: number | null;
   /** Beat number (1-based) under the play head, count-in included (SPEC v1.1 §11.6 "박 번호를 크게"). */
   beat: number | null;
+  /** ↑/↓ and −5/+5 pick the tempo now (waiting to start, not locked, D-098). */
+  tempoPickable: boolean;
   beatsPerBar: number;
   dynamics: boolean;
   /** Dynamics mode: the current bar is played softly (true) or loudly (false); null outside the bars. */
@@ -148,8 +162,15 @@ export function slotGrid(pattern: StrumPattern, bpm: number, bars: number, gridS
 export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
   private readonly pattern: StrumPattern;
   private readonly source: 'mic' | 'self';
-  /** Metronome, strum collection (one slot before the grid to one slot after the end) and the settle wait. */
-  private readonly recorder: GridRecorder;
+  /** The run's tempo: the ladder's, or the one picked before the start (D-098). */
+  private bpm: number;
+  /**
+   * Metronome, strum collection (one slot before the grid to one slot after the end) and the settle wait;
+   * rebuilt when the tempo is picked (it subscribes only once started).
+   */
+  private recorder: GridRecorder;
+  /** Audio-clock time until which a coarse onset does not start an armed run (after a pick, D-098). */
+  private armedQuietUntil = 0;
   private analyzing = false;
   private analysisFailed = false;
   private analysis: E5View['analysis'] = null;
@@ -174,9 +195,14 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     this.pattern = patternById(params.patternId);
     this.source = ctx.audio ? 'mic' : 'self';
     this.cuesHidden = params.cuesHidden;
-    this.recorder = new GridRecorder(
-      ctx,
-      metronomeFor(this.pattern, params.bpm, params.bars, ctx.settings.visualOnlyMetronome),
+    this.bpm = params.bpm;
+    this.recorder = this.makeRecorder();
+  }
+
+  private makeRecorder(): GridRecorder {
+    return new GridRecorder(
+      this.ctx,
+      metronomeFor(this.pattern, this.bpm, this.params.bars, this.ctx.settings.visualOnlyMetronome),
       () => {
         this.position = null;
         this.setPhase('review');
@@ -224,9 +250,29 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     return this.cuesHidden && !this.cuesShownWhilePlaying;
   }
 
-  /** Visual cues as recorded for this run (V key, SPEC v1.1 §11.6 / §12.3). */
+  /** Visual cues and tempo as recorded for this run (V key, ↑/↓, SPEC v1.1 §11.6 / §12.3, D-098). */
   effectiveParams(): E5Params {
-    return { ...this.params, cuesHidden: this.hiddenThroughout };
+    return { ...this.params, bpm: this.bpm, cuesHidden: this.hiddenThroughout };
+  }
+
+  private get tempoPickable(): boolean {
+    return (this.phase === 'armed' || this.phase === 'ready') && this.params.tempoLocked !== true;
+  }
+
+  /** ↑/↓ or −5/+5 before the start (D-098): a new tempo, so a new metronome and slot grid. */
+  private pickTempo(delta: number): void {
+    if (!this.tempoPickable) return;
+    // Even a press that changes nothing (at a limit) can sound like a strum on the glass.
+    this.armedQuietUntil = this.ctx.output.now() + PICK_QUIET_S;
+    const max = this.pattern.timeSignature === '6/8' ? PICK_MAX_BPM_SIX_EIGHT : PICK_MAX_BPM;
+    const bpm = Math.min(max, Math.max(PICK_MIN_BPM, this.bpm + delta));
+    // At a limit nothing changes; a tempo already past it (a 6/8 link at 90) never moves against the key.
+    if ((bpm - this.bpm) * delta <= 0) return;
+    this.bpm = bpm;
+    this.recorder.dispose();
+    this.recorder = this.makeRecorder();
+    this.slotCache = null;
+    this.publish();
   }
 
   /** The dynamics run asks for a self evaluation after scoring (1 clear / 2 a little / 3 not heard). */
@@ -235,7 +281,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
   }
 
   private get slotS(): number {
-    return 60 / this.params.bpm / slotsPerBeat(this.pattern);
+    return 60 / this.bpm / slotsPerBeat(this.pattern);
   }
 
   /**
@@ -244,8 +290,8 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
    */
   private positionAt(elapsed: number, first: number): { bar: number; slot: number } | null {
     if (elapsed < 0) return null;
-    const oneBar = slotGrid(this.pattern, this.params.bpm, 1, 0);
-    const barS = (this.pattern.slots.length / slotsPerBeat(this.pattern)) * (60 / this.params.bpm);
+    const oneBar = slotGrid(this.pattern, this.bpm, 1, 0);
+    const barS = (this.pattern.slots.length / slotsPerBeat(this.pattern)) * (60 / this.bpm);
     const bar = Math.floor(elapsed / barS);
     const within = elapsed - bar * barS;
     let slot = 0;
@@ -260,7 +306,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       const slots = timeline.segments.flatMap((segment) =>
         slotGrid(
           this.pattern,
-          this.params.bpm,
+          this.bpm,
           Math.min(segment.end ?? this.params.bars, this.params.bars) - segment.first,
           segment.grid,
         ),
@@ -287,7 +333,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     const ladder = this.ladder();
     return {
       pattern: this.pattern,
-      bpm: this.params.bpm,
+      bpm: this.bpm,
       bars: this.params.bars,
       mode: this.params.mode,
       chords: this.params.chords,
@@ -300,10 +346,11 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       awaitingSelf: this.source === 'self' && this.phase === 'review' && this.selfRate === null,
       analysis: this.analysis,
       ladder,
-      nextBpm: ladder === null ? null : nextBpmFor(this.params.bpm, ladder),
+      nextBpm: ladder === null ? null : nextBpmFor(this.bpm, ladder),
       beat: this.position
         ? Math.floor(this.position.slot / slotsPerBeat(this.pattern)) + 1
         : this.countInBeat,
+      tempoPickable: this.tempoPickable,
       beatsPerBar: this.pattern.slots.length / slotsPerBeat(this.pattern),
       dynamics: this.params.dynamics === true,
       soft:
@@ -320,7 +367,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     if (mic) {
       this.own(
         mic.onCoarseOnset(() => {
-          if (this.phase === 'armed') this.begin();
+          if (this.phase === 'armed' && this.ctx.output.now() >= this.armedQuietUntil) this.begin();
         }),
       );
       this.own(() => mic.setJob(null));
@@ -373,6 +420,10 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       this.setPhase('done');
       return;
     }
+    if ((this.phase === 'armed' || this.phase === 'ready') && (cmd === 'inc' || cmd === 'dec')) {
+      this.pickTempo(cmd === 'inc' ? LADDER_STEP_BPM : -LADDER_STEP_BPM);
+      return;
+    }
     if ((this.phase === 'armed' || this.phase === 'ready') && (cmd === 'toggle' || cmd === 'next')) {
       this.begin();
       return;
@@ -381,9 +432,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       const rate = cmd === 'manual1' || cmd === 'manual2' || cmd === 'manual3' ? SELF_HIT_RATE[cmd] : null;
       if (rate === null) return;
       this.selfRate = rate;
-      const expected = slotGrid(this.pattern, this.params.bpm, this.params.bars, 0).filter(
-        (s) => s.expected,
-      ).length;
+      const expected = slotGrid(this.pattern, this.bpm, this.params.bars, 0).filter((s) => s.expected).length;
       const hits = Math.round(rate * expected);
       this.analysis = {
         hits,
@@ -413,7 +462,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       }
       if (now < grid) {
         // Count-in: beats of the bar before bar 1 (or the replayed bar), counted aloud too.
-        const beatS = 60 / this.params.bpm;
+        const beatS = 60 / this.bpm;
         const beatsPerBar = this.pattern.slots.length / slotsPerBeat(this.pattern);
         const beat = beatsPerBar - Math.ceil((grid - now) / beatS) + 1;
         if (beat !== this.countInBeat) {
@@ -445,7 +494,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     if (!LIVE_PHASES.has(this.phase)) return;
     const rttS = (this.ctx.calibration?.rttMs ?? 0) / 1000;
     const bars = this.played().bars;
-    const settled = settleBars(bars, this.strums, rttS, this.params.bpm, now, this.liveBars);
+    const settled = settleBars(bars, this.strums, rttS, this.bpm, now, this.liveBars);
     if (settled.length === this.liveBars.length) return;
     this.liveBars = settled;
     this.publish();
@@ -461,7 +510,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
         slots: this.played().slots,
         strumTimes: this.strums,
         rttS: (this.ctx.calibration?.rttMs ?? 0) / 1000,
-        bpm: this.params.bpm,
+        bpm: this.bpm,
         personalOffsetMs: this.ctx.personalOffsetMs ?? null,
       })
       .then((outcome) => {
@@ -529,7 +578,7 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
     const ladder = this.ladder() ?? 'stay';
     return {
       patternId: this.params.patternId,
-      bpm: this.params.bpm,
+      bpm: this.bpm,
       bars: this.params.bars,
       mode: this.params.mode,
       hits: a.hits,

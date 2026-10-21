@@ -128,3 +128,40 @@ test('E2E-22: practice options by key inside the session runner reach the run an
     backingOn: true,
   });
 });
+
+test('D-098: the tempo is picked on the start screen (↑/↓, −5/+5) and recorded as played', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.goto('/#/practice/E5?patternId=P3&bpm=80');
+  await page.getByRole('button', { name: '마이크 없이 쓰기' }).click();
+  const e5 = page.getByTestId('e5-view');
+  const tempo = e5.locator('[data-core-number]');
+  await expect(tempo).toContainText('80');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expect(tempo).toContainText('70');
+  await page.getByTestId('tempo-up').click();
+  await expect(tempo).toContainText('75');
+  // A tap on a stepper lets go of the focus: Space starts the run, it does not press +5 again.
+  await page.keyboard.press('Space');
+  await expect(e5).toHaveAttribute('data-phase', /countIn|running/);
+  await expect(page.getByTestId('tempo-pick')).toHaveCount(0);
+  await expect(tempo).toContainText('75');
+  await expect(e5).toHaveAttribute('data-phase', 'review', { timeout: 60_000 });
+  await page.keyboard.press('1');
+  await expect(page.getByTestId('e5-ladder')).toHaveAttribute('data-next-bpm', '80');
+  await expect(async () => {
+    const attempt = await lastAttempt(page, 'E5');
+    expect(attempt.params).toMatchObject({ bpm: 75 });
+    expect(attempt.result).toMatchObject({ bpm: 75, ladder: 'up' });
+  }).toPass({ timeout: 5_000 });
+
+  // E17 before the run: ↑ picks 65 for the riff written at 60.
+  await page.goto('/#/practice/E17?riffId=R1&bpm=60');
+  await page.getByRole('button', { name: '마이크 없이 쓰기' }).click();
+  const e17 = page.getByTestId('e17-view');
+  await expect(e17).toHaveAttribute('data-phase', 'ready');
+  await page.keyboard.press('ArrowUp');
+  await expect(e17).toContainText('65 BPM');
+});

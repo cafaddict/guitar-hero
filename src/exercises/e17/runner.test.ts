@@ -132,4 +132,25 @@ describe('E17 single-note riff (SPEC v1.1 §11.19)', () => {
     expect(runner.snapshot().view.listening).toBe(false);
     runner.dispose();
   });
+
+  it('↑/↓ in ready pick the tempo (D-098); a pick stops the demo, the next demo plays at the new tempo', () => {
+    const { ctx, output } = testContext({ mic: false });
+    const runner = new RiffRunner(ctx, { riffId: 'R1', bpm: 60, tabHidden: false, previousLow: false });
+    runner.start();
+    runner.command('mark');
+    expect(runner.snapshot().view.listening).toBe(true);
+    runner.command('inc');
+    expect(output.stoppedPlays).toEqual([0]);
+    expect(runner.snapshot().view).toMatchObject({ listening: false, bpm: 65, tempoPickable: true });
+    runner.command('mark');
+    // R1: 16 quarter notes at 65 BPM + 1 s to ring out.
+    expect(output.played[1]!.length / output.sampleRate()).toBeCloseTo((16 * 60) / 65 + 1, 1);
+    runner.command('toggle');
+    expect(output.lastConfig?.bpm).toBe(65);
+    runner.command('manual1');
+    runner.command('next');
+    expect(runner.finish()).toMatchObject({ bpm: 65 });
+    expect(runner.effectiveParams().bpm).toBe(65);
+    runner.dispose();
+  });
 });

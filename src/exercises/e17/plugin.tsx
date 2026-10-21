@@ -100,6 +100,7 @@ export const e17Plugin: ExercisePlugin<E17Params, RiffResult, E17View> = {
         g.E17.cycle,
         g.E17.listen,
         g.E17.judge(FLAWLESS_STREAK_UP, LADDER_STEP_BPM),
+        g.tempoPick,
       ],
       terms: ['tab', 'fingerNumbers', 'stringNumbers'],
     };

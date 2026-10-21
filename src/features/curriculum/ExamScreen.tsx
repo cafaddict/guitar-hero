@@ -50,6 +50,8 @@ function stepsFor(item: ExamItem, seed: number): Step[] {
           chords: ['C'],
           cuesHidden,
           previousLow: false,
+          // The exam's tempo is fixed (D-098).
+          tempoLocked: true,
         },
       }));
     case '5':

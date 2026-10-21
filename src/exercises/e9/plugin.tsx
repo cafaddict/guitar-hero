@@ -57,6 +57,7 @@ export const e9Plugin: ExercisePlugin<E9Params, ChromaticResult, E9View> = {
       ko.exercises.e9.how,
       ko.exercises.guide.perClick(2),
       ko.exercises.guide.E9.ladder(CHROMATIC_STREAK, CHROMATIC_GOAL_BPM, LADDER_STEP_BPM),
+      ko.exercises.guide.tempoPick,
     ],
     terms: ['tab', 'fingerNumbers', 'stringNumbers'],
   }),

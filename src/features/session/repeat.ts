@@ -15,6 +15,17 @@ export interface RunIdentity {
   reviewOf: string | null;
 }
 
+/** Ladder exercises whose tempo is picked before the start (D-098). */
+const TEMPO_PICK_TYPES: ReadonlySet<string> = new Set(['E5', 'E9', 'E10', 'E17']);
+
+/**
+ * The params a "same again" run of a ladder exercise starts from: the run's own (its picked tempo, D-098).
+ * Undefined elsewhere — the item's params, as before (a song's recorded params would change its stage).
+ */
+export function sameRunParams(attempt: Attempt | null | undefined): unknown {
+  return attempt && TEMPO_PICK_TYPES.has(attempt.exerciseType) ? attempt.params : undefined;
+}
+
 /**
  * "이어서 한 번 더" (§7.3-12): the ladder's next tempo — or, in the repertoire block, the next repertoire song
  * (§11.10). Null = no suggestion (repeat at the same params).

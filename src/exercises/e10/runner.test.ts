@@ -180,4 +180,44 @@ describe('E10 scale ladder (SPEC v1.1 §11.13)', () => {
     expect(nextScaleRun(params(), [run(good, 1), run(low)])).toMatchObject({ step: 1, bpm: 70 });
     expect(nextScaleRun(params(), [run(low, 1)])).toMatchObject({ step: 1, bpm: 70 });
   });
+
+  it('↑/↓ in ready pick the tempo (D-098); the backing renders at it; a review keeps the graduation tempo', async () => {
+    const rendered: number[] = [];
+    const backing = (_chords: readonly string[], _pattern: string, bpm: number) => {
+      rendered.push(bpm);
+      return { signal: new Float32Array(16), events: [] };
+    };
+    const t = testContext();
+    const runner = new ScaleRunner(t.ctx, params({ bpm: 70, withBacking: true }), backing);
+    runner.start();
+    expect(runner.snapshot().view.tempoPickable).toBe(true);
+    runner.command('dec');
+    runner.command('toggle');
+    expect(rendered).toEqual([65]);
+    await play(t, runner, 2);
+    expect(t.output.lastConfig?.bpm).toBe(65);
+    // The backing starts one bar (four beats at 65 BPM) before the grid.
+    const grid = t.output.metronome.gridStartTime()!;
+    expect(t.output.backings[0]!.at).toBeCloseTo(grid - (4 * 60) / 65, 9);
+    expect(runner.effectiveParams().bpm).toBe(65);
+    runner.command('abort');
+
+    const review = testContext({ mic: false });
+    const reviewRun = new ScaleRunner(review.ctx, params({ bpm: 80, review: true }));
+    reviewRun.start();
+    expect(reviewRun.snapshot().view.tempoPickable).toBe(false);
+    reviewRun.command('dec');
+    expect(reviewRun.snapshot().view.bpm).toBe(80);
+  });
+
+  it('a picked tempo counts for graduation as played (D-098): four flawless at 80 after picking up from 75', () => {
+    const t = testContext({ mic: false });
+    const runner = new ScaleRunner(t.ctx, params({ bpm: 75 }));
+    runner.start();
+    runner.command('inc');
+    runner.command('toggle');
+    for (let i = 0; i < 4; i++) runner.command('manual1');
+    runner.command('next');
+    expect(runner.finish()).toMatchObject({ bpm: 80, graduated: true, ladder: 'up' });
+  });
 });

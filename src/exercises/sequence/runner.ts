@@ -7,6 +7,8 @@
  * P pauses (D-085): the metronome stops, the interrupted cycle is cut and, after a one-bar count-in on a new grid,
  * played again under a new cycle id (the first cycle after a pause is `resumed`: a flawless streak starts over).
  * Enter while paused ends the run like Space does while playing.
+ *
+ * Ladder exercises (E9, E10, E17) let ↑/↓ pick the tempo while the run waits to start (D-098).
  */
 import { DEFAULT_METRONOME_CONFIG } from '../../audio/metronome';
 import type { SequenceCycle } from '../../domain/exerciseResults';
@@ -40,10 +42,16 @@ export interface SequenceView {
   streak: number;
   countIn: boolean;
   analyzing: boolean;
+  /** ↑/↓ and −5/+5 pick the tempo now (ready, in an exercise that allows it, D-098). */
+  tempoPickable: boolean;
 }
 
 /** Seconds of notes planned ahead of the audio clock. */
 const PLAN_AHEAD_S = 4;
+/** Tempo picked before the start (D-098): steps and range, like the ladder's. */
+const TEMPO_PICK_STEP_BPM = 5;
+const TEMPO_PICK_MIN_BPM = 30;
+const TEMPO_PICK_MAX_BPM = 240;
 
 /**
  * Current run of flawless cycles (uncertain cycles neither extend nor break it; it starts at the first cycle
@@ -70,7 +78,7 @@ export abstract class SequenceRunner<R, V extends SequenceView> extends BaseRunn
   protected readonly source: 'mic' | 'self';
   private tracker: SequenceTracker | null = null;
   /** Slots played so far, one segment per stretch between pauses (unit = one note slot, D-085). */
-  private readonly timeline: Timeline;
+  private timeline: Timeline;
   /** Bumped when a pending metronome start must not open its segment any more (pause, end). */
   private startEpoch = 0;
   private starting = false;
@@ -100,7 +108,8 @@ export abstract class SequenceRunner<R, V extends SequenceView> extends BaseRunn
 
   constructor(
     ctx: ExerciseContext,
-    protected readonly bpm: number,
+    /** The run's tempo: the ladder's, or the one picked before the start (D-098). */
+    protected bpm: number,
     tabHidden: boolean,
     /** Notes per metronome click (1 = quarters, 2 = eighths). */
     private readonly notesPerBeat: number,
@@ -118,6 +127,10 @@ export abstract class SequenceRunner<R, V extends SequenceView> extends BaseRunn
   protected onCycleRecorded(): void {}
   /** Called when a pause stops the take (e.g. E10 stops its backing). */
   protected onPauseTake(): void {}
+  /** ↑/↓ pick the tempo before the start (ladder exercises, D-098); E11 keeps its own ladder tempo. */
+  protected tempoPickable(): boolean {
+    return false;
+  }
 
   /** Matched onset times grouped by the stretch they were played in (sorted), for a pooled ioi_cv (D-085). */
   protected onsetGroups(): number[][] {
@@ -141,6 +154,7 @@ export abstract class SequenceRunner<R, V extends SequenceView> extends BaseRunn
       streak: flawlessStreak(this.cycleRecords),
       countIn: this.phase === 'countIn',
       analyzing: this.waiting,
+      tempoPickable: this.phase === 'ready' && this.tempoPickable(),
     };
   }
 
@@ -174,6 +188,10 @@ export abstract class SequenceRunner<R, V extends SequenceView> extends BaseRunn
       this.publish();
       return;
     }
+    if (this.phase === 'ready' && (cmd === 'inc' || cmd === 'dec')) {
+      if (this.tempoPickable()) this.pickTempo(cmd === 'inc' ? TEMPO_PICK_STEP_BPM : -TEMPO_PICK_STEP_BPM);
+      return;
+    }
     if (this.phase === 'ready' && (cmd === 'toggle' || cmd === 'next')) {
       this.begin();
       return;
@@ -195,6 +213,15 @@ export abstract class SequenceRunner<R, V extends SequenceView> extends BaseRunn
       return;
     }
     if (cmd === 'toggle' || (cmd === 'next' && this.cycleRecords.length > 0)) this.end();
+  }
+
+  /** Nothing is planned before the start: the empty timeline is simply rebuilt at the new tempo. */
+  private pickTempo(delta: number): void {
+    const bpm = Math.min(TEMPO_PICK_MAX_BPM, Math.max(TEMPO_PICK_MIN_BPM, this.bpm + delta));
+    if ((bpm - this.bpm) * delta <= 0) return;
+    this.bpm = bpm;
+    this.timeline = new Timeline(60 / bpm / this.notesPerBeat);
+    this.publish();
   }
 
   private begin(): void {

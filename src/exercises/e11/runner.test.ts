@@ -80,4 +80,14 @@ describe('E11 hammer-on finger gym (SPEC v1.1 §11.16)', () => {
     // Results are newest first: the latest rating of 2-4 is 1.
     expect(nextHammerRun(e11ParamsSchema.parse({}), [r('2-4', 1), ...all, r('3-4', 3)]).pair).toBe('2-4');
   });
+
+  it('keeps its own ladder tempo: ↑/↓ before the start do nothing (D-098 is for E5, E9, E10, E17)', () => {
+    const t = testContext({ mic: false });
+    const runner = new HammerRunner(t.ctx, e11ParamsSchema.parse({ pair: '1-3', bpm: 60 }));
+    runner.start();
+    expect(runner.snapshot().view.tempoPickable).toBe(false);
+    runner.command('inc');
+    expect(runner.snapshot().view.bpm).toBe(60);
+    expect(runner.snapshot().phase).toBe('ready');
+  });
 });

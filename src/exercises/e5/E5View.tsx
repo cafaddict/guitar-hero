@@ -11,6 +11,7 @@ import { useRunnerSnapshot } from '../ui/hooks';
 import { LiveBars } from '../ui/LiveBars';
 import { PracticeStage } from '../ui/PracticeStage';
 import { RESULT_HEADLINE } from '../ui/resultHeadline';
+import { TempoPick } from '../ui/TempoPick';
 import { type E5Beta, type E5Params, nextBpmFor, type E5View as View } from './runner';
 
 /** A slot's identity is its position in the bar (patterns repeat 'D'/'U' symbols). */
@@ -131,8 +132,11 @@ export function E5ViewComponent({
             ? ko.exercises.e5.selfPrompt
             : undefined
       }
+      // Picked before the start (D-098): a row under "시작" on a wide screen, under the tempo on a phone.
+      tools={view.tempoPickable && <TempoPick onPick={(cmd) => runner.command(cmd)} />}
       notes={
         <>
+          {view.tempoPickable && <p className="text-muted">{ko.exercises.common.tempoPickNote}</p>}
           {view.cuesHidden && <p className="text-muted">{ko.exercises.e5.cuesHidden}</p>}
           <p className="text-muted">
             {ko.exercises.e5.modes[view.mode]} · {ko.exercises.e5.keepGoing} {ko.exercises.e5.directionNote}

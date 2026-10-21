@@ -119,6 +119,8 @@ export const e10Plugin: ExercisePlugin<E10Params, ScaleResult, E10View> = {
         g.E10.fingers,
         g.perClick(1),
         g.E10.ladder(SEQUENCE_STREAK, SCALE_GRADUATION_BPM, LADDER_STEP_BPM),
+        // A review runs at the graduation tempo (§7.5); other runs pick theirs (D-098).
+        ...(params.review ? [] : [g.tempoPick]),
       ],
       terms: ['tab', 'fingerNumbers', 'stringNumbers'],
     };

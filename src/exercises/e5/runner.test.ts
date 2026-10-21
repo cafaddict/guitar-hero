@@ -286,6 +286,114 @@ describe('E5 strumming ladder', () => {
   });
 });
 
+describe('E5 tempo picked on the start screen (D-098)', () => {
+  const base: E5Params = {
+    patternId: 'P3',
+    bpm: 80,
+    bars: 2,
+    mode: 'single',
+    chords: ['C'],
+    cuesHidden: false,
+    previousLow: false,
+  };
+  const waiting = (params: Partial<E5Params> = {}, mic = true) => {
+    const t = testContext({ mic });
+    const runner = new StrumLadderRunner(t.ctx, { ...base, ...params });
+    runner.start();
+    return { ...t, runner, view: () => runner.snapshot().view };
+  };
+
+  it('↑/↓ while armed or ready change the run: metronome, slot grid, result and recorded params', async () => {
+    const t = waiting();
+    expect(t.runner.snapshot().phase).toBe('armed');
+    expect(t.view().tempoPickable).toBe(true);
+    t.runner.command('dec');
+    t.runner.command('dec');
+    t.runner.command('inc');
+    expect(t.view().bpm).toBe(75);
+    t.runner.command('toggle');
+    await flush();
+    expect(t.output.lastConfig).toMatchObject({ bpm: 75, stopAfterBars: 2 });
+    expect(t.view().tempoPickable).toBe(false);
+    // Strums on the 75 BPM grid are all hits (at 80 BPM most would miss).
+    const slots = slotGrid(patternById('P3'), 75, 2, 0).filter((x) => x.expected);
+    const grid = t.output.metronome.gridStartTime()!;
+    const pending = slots.map((x) => grid + x.time);
+    t.output.run(t.clock, 14, () => {
+      while (pending.length > 0 && pending[0]! <= t.clock.t - 0.45) {
+        t.mic.judged.emit({
+          time: pending.shift()!,
+          result: null,
+          jobKind: 'onsets',
+          detectorVersion: DETECTOR_VERSION,
+          processingMs: 1,
+        });
+      }
+      t.runner.tick();
+    });
+    await flush();
+    expect(t.view().analysis?.hitRate).toBe(1);
+    expect(t.runner.finish()).toMatchObject({ bpm: 75, ladder: 'stay' });
+    expect(t.runner.effectiveParams().bpm).toBe(75);
+    expect(t.view().nextBpm).toBe(75);
+  });
+
+  it('without a microphone (ready): the picked tempo is the self-rated run, a pass steps up from it', () => {
+    const t = waiting({ bars: 8 }, false);
+    expect(t.runner.snapshot().phase).toBe('ready');
+    t.runner.command('inc');
+    t.runner.command('toggle');
+    t.output.run(t.clock, 30, () => t.runner.tick());
+    t.runner.command('manual1');
+    expect(t.runner.finish()).toMatchObject({ bpm: 85, ladder: 'up', passed: true });
+    expect(t.view().nextBpm).toBe(90);
+  });
+
+  it('is ignored once the run began, when the tempo is locked, and clamps (6/8 at 80)', async () => {
+    const t = waiting();
+    t.runner.command('toggle');
+    await flush();
+    t.runner.command('inc');
+    expect(t.view().bpm).toBe(80);
+    expect(t.output.lastConfig).toMatchObject({ bpm: 80 });
+
+    const locked = waiting({ tempoLocked: true });
+    expect(locked.view().tempoPickable).toBe(false);
+    locked.runner.command('dec');
+    expect(locked.view().bpm).toBe(80);
+    expect(locked.runner.snapshot().phase).toBe('armed');
+
+    const sixEight = waiting({ patternId: 'P5', bpm: 75 });
+    sixEight.runner.command('inc');
+    sixEight.runner.command('inc');
+    expect(sixEight.view().bpm).toBe(80);
+    // A 6/8 run linked above the cap: + does nothing, − steps down from where it is.
+    const linked = waiting({ patternId: 'P5', bpm: 90 });
+    linked.runner.command('inc');
+    expect(linked.view().bpm).toBe(90);
+    linked.runner.command('dec');
+    expect(linked.view().bpm).toBe(80);
+    const slow = waiting({ bpm: 35 });
+    slow.runner.command('dec');
+    slow.runner.command('dec');
+    expect(slow.view().bpm).toBe(30);
+  });
+
+  it('a strum heard right after a pick does not start the armed run; one after the quiet window does', async () => {
+    const t = waiting();
+    t.runner.command('inc');
+    t.output.run(t.clock, 0.3);
+    t.mic.coarse.emit(t.clock.t);
+    await flush();
+    expect(t.runner.snapshot().phase).toBe('armed');
+    t.output.run(t.clock, 0.4);
+    t.mic.coarse.emit(t.clock.t);
+    await flush();
+    expect(t.runner.snapshot().phase).toBe('countIn');
+    expect(t.output.lastConfig).toMatchObject({ bpm: 85 });
+  });
+});
+
 describe('E5 live feedback while playing (D-077)', () => {
   it('bars are judged while the run plays, slot by slot, and agree with the final analysis', async () => {
     const t = await setup({ patternId: 'P3', bpm: 80, bars: 4 }, { rttMs: 20 });

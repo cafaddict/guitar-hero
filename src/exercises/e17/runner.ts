@@ -76,6 +76,11 @@ export class RiffRunner extends SequenceRunner<RiffResult, E17View> {
     return riffNotes(this.riff).map((n) => ({ ...n, midi: positionMidi(n) }));
   }
 
+  /** ↑/↓ before the start pick the tempo (D-098); like any command it stops the demo first. */
+  protected override tempoPickable(): boolean {
+    return true;
+  }
+
   protected view(): E17View {
     return { ...this.baseView(), riff: this.riff, listening: this.stopDemo !== null };
   }
@@ -106,7 +111,7 @@ export class RiffRunner extends SequenceRunner<RiffResult, E17View> {
   private listen(): void {
     this.endDemo();
     const rate = this.ctx.output.sampleRate();
-    const demo = renderRiffDemo(this.riff, this.params.bpm, rate);
+    const demo = renderRiffDemo(this.riff, this.bpm, rate);
     try {
       this.stopDemo = this.ctx.output.playSamples(demo);
     } catch {
@@ -124,9 +129,9 @@ export class RiffRunner extends SequenceRunner<RiffResult, E17View> {
     this.publish();
   }
 
-  /** TAB shown or hidden as it is now (H key, SPEC v1.1 §12.3). */
+  /** TAB shown or hidden as it is now and the tempo picked (H key, ↑/↓, SPEC v1.1 §12.3, D-098). */
   effectiveParams(): E17Params {
-    return { ...this.params, tabHidden: this.tabHidden };
+    return { ...this.params, bpm: this.bpm, tabHidden: this.tabHidden };
   }
 
   notes() {
@@ -137,7 +142,7 @@ export class RiffRunner extends SequenceRunner<RiffResult, E17View> {
     const pauses = this.pauses > 0 ? { pauses: this.pauses } : {};
     return {
       riffId: this.riff.id,
-      bpm: this.params.bpm,
+      bpm: this.bpm,
       tabHidden: this.tabHidden,
       cycles: [...this.cycleRecords],
       // A paused run is recorded but keeps the ladder where it is (D-085).

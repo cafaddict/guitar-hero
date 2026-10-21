@@ -67,12 +67,17 @@ export class ChromaticRunner extends SequenceRunner<ChromaticResult, E9View> {
     }));
   }
 
+  protected override tempoPickable(): boolean {
+    return true;
+  }
+
   protected view(): E9View {
     return { ...this.baseView(), startFret: this.params.startFret };
   }
 
+  /** TAB and tempo as recorded for this run (H, ↑/↓ before the start, D-098). */
   effectiveParams(): E9Params {
-    return { ...this.params, tabHidden: this.tabHidden };
+    return { ...this.params, bpm: this.bpm, tabHidden: this.tabHidden };
   }
 
   finish(): ChromaticResult {
@@ -80,7 +85,7 @@ export class ChromaticRunner extends SequenceRunner<ChromaticResult, E9View> {
     const pauses = this.pauses > 0 ? { pauses: this.pauses } : {};
     return {
       startFret: this.params.startFret,
-      bpm: this.params.bpm,
+      bpm: this.bpm,
       cycles: [...this.cycleRecords],
       // A paused run is recorded but keeps the ladder where it is (D-085).
       ladder: countsForCriteria(pauses) ? chromaticLadder(this.cycleRecords) : 'stay',

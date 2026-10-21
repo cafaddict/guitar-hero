@@ -12,6 +12,7 @@ import { Tab } from '../../ui/Tab';
 import type { ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { PracticeStage } from '../ui/PracticeStage';
+import { TempoPick } from '../ui/TempoPick';
 import type { SequenceView } from './runner';
 
 export function SequenceStage<R, V extends SequenceView>({
@@ -117,19 +118,27 @@ export function SequenceStage<R, V extends SequenceView>({
       primaryLabel={primaryLabel}
       secondary={secondary}
       tools={
-        playing && (
-          <>
-            <Button variant="secondary" onClick={() => runner.command('hide')} data-testid="seq-hide">
-              {view.tabHidden ? t.showTab : t.hideTab}
-            </Button>
-            <Button variant="secondary" onClick={() => runner.command('toggle')} data-testid="seq-finish">
-              {t.finish}
-            </Button>
-          </>
+        // The tempo is picked before the start (D-098); the TAB and finish controls belong to the run.
+        phase === 'ready' && view.tempoPickable ? (
+          <TempoPick onPick={(cmd) => runner.command(cmd)} />
+        ) : (
+          playing && (
+            <>
+              <Button variant="secondary" onClick={() => runner.command('hide')} data-testid="seq-hide">
+                {view.tabHidden ? t.showTab : t.hideTab}
+              </Button>
+              <Button variant="secondary" onClick={() => runner.command('toggle')} data-testid="seq-finish">
+                {t.finish}
+              </Button>
+            </>
+          )
         )
       }
       notes={
         <>
+          {phase === 'ready' && view.tempoPickable && (
+            <p className="text-muted">{ko.exercises.common.tempoPickNote}</p>
+          )}
           {words}
           {children}
           <p className="text-muted">{view.source === 'mic' ? t.micNote : t.selfNote}</p>

@@ -62,4 +62,24 @@ describe('E9 chromatic 1-2-3-4 (SPEC v1.1 §11.14)', () => {
       [6, 6],
     ]);
   });
+
+  it('↑/↓ in ready pick the tempo (D-098): metronome, result and recorded params; ignored once running', () => {
+    const t = testContext({ mic: false });
+    const runner = new ChromaticRunner(t.ctx, e9ParamsSchema.parse({ startFret: 3, bpm: 60 }));
+    runner.start();
+    expect(runner.snapshot().view.tempoPickable).toBe(true);
+    runner.command('inc');
+    runner.command('inc');
+    runner.command('dec');
+    expect(runner.snapshot().view.bpm).toBe(65);
+    runner.command('toggle');
+    expect(t.output.lastConfig?.bpm).toBe(65);
+    expect(runner.snapshot().view.tempoPickable).toBe(false);
+    runner.command('inc');
+    expect(runner.snapshot().view.bpm).toBe(65);
+    runner.command('manual2');
+    runner.command('next');
+    expect(runner.finish()).toMatchObject({ bpm: 65, ladder: 'stay' });
+    expect(runner.effectiveParams().bpm).toBe(65);
+  });
 });

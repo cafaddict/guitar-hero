@@ -89,7 +89,7 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
    */
   protected override onGrid(gridStart: number): void {
     if (!this.backing) return;
-    const barS = (4 * 60) / this.params.bpm;
+    const barS = (4 * 60) / this.bpm;
     this.stopBacking = this.ctx.output.playBacking(this.backing.signal, gridStart - barS);
     this.own(() => this.stopBacking?.());
   }
@@ -109,11 +109,8 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
     // Rendered before the count-in is scheduled, so the backing cannot start late (≈ 0.3 s to render).
     if (this.phase === 'ready' && (cmd === 'toggle' || cmd === 'next') && this.params.withBacking)
       this.backing ??=
-        this.renderBacking?.(
-          Array(1 + 32).fill(SCALE_BACKING_CHORD[this.params.scaleId]),
-          'P0',
-          this.params.bpm,
-        ) ?? null;
+        this.renderBacking?.(Array(1 + 32).fill(SCALE_BACKING_CHORD[this.params.scaleId]), 'P0', this.bpm) ??
+        null;
     super.command(cmd);
     if (this.phase === 'review' || this.phase === 'done') this.stopBacking?.();
   }
@@ -124,6 +121,11 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
       const n = this.scale.notes[i]!;
       return { string: n.string, fret: n.fret, finger: n.finger, midi: positionMidi(n) };
     });
+  }
+
+  /** A review runs at the graduation tempo by definition (§7.5); other runs pick theirs (D-098). */
+  protected override tempoPickable(): boolean {
+    return this.params.review !== true;
   }
 
   protected view(): E10View {
@@ -138,7 +140,7 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
   }
 
   effectiveParams(): E10Params {
-    return { ...this.params, tabHidden: this.tabHidden, earphones: this.earphones };
+    return { ...this.params, bpm: this.bpm, tabHidden: this.tabHidden, earphones: this.earphones };
   }
 
   finish(): ScaleResult {
@@ -149,7 +151,7 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
     return {
       scaleId: this.scale.id,
       step: this.params.step,
-      bpm: this.params.bpm,
+      bpm: this.bpm,
       tabHidden: this.tabHidden,
       hiddenThroughout: this.hiddenThroughout,
       withBacking: this.params.withBacking,
@@ -157,12 +159,12 @@ export class ScaleRunner extends SequenceRunner<ScaleResult, E10View> {
       ...(this.params.review ? { review: true } : {}),
       cycles: [...this.cycleRecords],
       ladder: counts ? sequenceLadder(this.cycleRecords) : 'stay',
-      graduated: run >= SEQUENCE_STREAK && this.params.bpm >= SCALE_GRADUATION_BPM,
+      graduated: run >= SEQUENCE_STREAK && this.bpm >= SCALE_GRADUATION_BPM,
       memorized:
         this.params.step === 1 &&
         this.hiddenThroughout &&
         run >= SEQUENCE_STREAK &&
-        this.params.bpm >= SCALE_MEMORIZE_MIN_BPM,
+        this.bpm >= SCALE_MEMORIZE_MIN_BPM,
       source: this.source,
       ...(this.params.ladderBase !== undefined ? { ladderBase: this.params.ladderBase } : {}),
       ...pauses,
