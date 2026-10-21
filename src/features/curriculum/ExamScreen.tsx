@@ -3,7 +3,7 @@ import { repo } from '../../app/services';
 import { loadStoredState } from '../../app/storedState';
 import { BEGINNER_CHORD_CLASSES } from '../../content/voicings';
 import { newId } from '../../domain/ids';
-import { dayKey } from '../../domain/records';
+import { type Attempt, dayKey } from '../../domain/records';
 import { contentContextFor } from '../../exercises/contentContext';
 import { exerciseDefinition } from '../../exercises/registry';
 import { ExerciseHost } from '../../exercises/ui/ExerciseHost';
@@ -57,7 +57,11 @@ function stepsFor(item: ExamItem, seed: number): Step[] {
   }
 }
 
-/** One exam item: its exercises in sequence, then the verdict (recorded as an EXAM attempt). */
+/**
+ * One exam item: its exercises in sequence, then the verdict (recorded as an EXAM attempt). Each step's result is
+ * shown before the next step, and the next step's start screen can look back at the steps done (D-097). A step is
+ * never redone on its own: that would turn "5 random pairs" into best-of-N per pair; the whole item is retaken.
+ */
 function ExamRun({
   item,
   state,
@@ -70,8 +74,13 @@ function ExamRun({
   const [seed] = useState(() => Date.now() % 2 ** 31);
   const steps = stepsFor(item, seed);
   const [index, setIndex] = useState(0);
-  const [results, setResults] = useState<unknown[]>([]);
+  /** The stored attempt of each step done (null: stopped before anything was recorded). */
+  const [attempts, setAttempts] = useState<(Attempt | null)[]>([]);
   const [verdict, setVerdict] = useState<boolean | null>(null);
+  /** No run of the current step is starting or in progress. */
+  const [stepIdle, setStepIdle] = useState(true);
+  /** The earlier step whose result is shown instead of the current step's start screen. */
+  const [viewing, setViewing] = useState<number | null>(null);
   const recordedRef = useRef(false);
 
   const record = useCallback(
@@ -117,25 +126,70 @@ function ExamRun({
         {verdict ? ko.curriculum.examPassedAt(dayKey(Date.now())) : ko.curriculum.examNotYet}
       </p>
     );
+  const viewed = viewing === null ? null : attempts[viewing];
+  const viewedDefinition = viewing === null ? undefined : exerciseDefinition(steps[viewing]?.type ?? '');
+  if (viewing !== null && viewed && viewedDefinition)
+    return (
+      <section data-testid="exam-step-result" data-step={viewing + 1}>
+        <Card>
+          <p className="mb-4 font-semibold text-muted">{ko.curriculum.examStepResult(viewing + 1)}</p>
+          {viewedDefinition.renderSummary({ result: viewed.result, params: viewed.params })}
+        </Card>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <div data-primary-action>
+            <Button large autoFocus onClick={() => setViewing(null)} data-testid="exam-back-to-step">
+              {ko.curriculum.examBackToStep}
+            </Button>
+          </div>
+          {viewing > 0 && (
+            <Button large variant="secondary" onClick={() => setViewing(viewing - 1)}>
+              {ko.curriculum.examPrevResult}
+            </Button>
+          )}
+        </div>
+      </section>
+    );
   const step = steps[index];
   const definition = step ? exerciseDefinition(step.type) : undefined;
   if (!step || !definition) return null;
   const content = contentContextFor(state.progression);
+  const last = index + 1 >= steps.length;
   return (
-    <ExerciseHost
-      key={`${item}-${index}`}
-      definition={definition}
-      params={definition.parseParams({
-        ...(definition.defaultParams(content) as object),
-        ...(step.params as object),
-      })}
-      onFinished={(attempt) => {
-        const next = [...results, attempt?.result ?? null];
-        setResults(next);
-        if (attempt === null || index + 1 >= steps.length) void record(next);
-        else setIndex(index + 1);
-      }}
-    />
+    <>
+      <ExerciseHost
+        key={`${item}-${index}`}
+        definition={definition}
+        params={definition.parseParams({
+          ...(definition.defaultParams(content) as object),
+          ...(step.params as object),
+        })}
+        onActiveChange={(active) => setStepIdle(!active)}
+        onFinished={(attempt) => {
+          const next = [...attempts, attempt];
+          setAttempts(next);
+          // Stopped, or the last step: the verdict now. Otherwise the result shows until "다음 단계".
+          if (attempt === null || last) void record(next.map((a) => a?.result ?? null));
+        }}
+        renderAfter={(attempt) =>
+          attempt !== null &&
+          !last && (
+            <div className="mt-5" data-primary-action>
+              <Button large autoFocus onClick={() => setIndex(index + 1)} data-testid="exam-next-step">
+                {ko.curriculum.examNextStep(index + 2, steps.length)}
+              </Button>
+            </div>
+          )
+        }
+      />
+      {/* On the next step's start screen (not run yet): its host can unmount, nothing is lost. */}
+      {index > 0 && stepIdle && attempts.length === index && (
+        <div className="mt-4">
+          <Button variant="secondary" onClick={() => setViewing(index - 1)} data-testid="exam-prev-result">
+            {ko.curriculum.examPrevResult}
+          </Button>
+        </div>
+      )}
+    </>
   );
 }
 

@@ -16,6 +16,7 @@ import {
   PermissionStep,
   type RttOutcome,
   RttStep,
+  StepBack,
   type StringTemplate,
   TemplateStep,
   type TuningResult,
@@ -28,9 +29,11 @@ type StepId = (typeof STEPS)[number];
 function Summary({
   draft,
   onSave,
+  onBack,
 }: {
   draft: Omit<CalibrationDraft, 'id' | 'createdAt'>;
   onSave: () => void;
+  onBack: () => void;
 }) {
   const warnings = calibrationWarnings(draft);
   return (
@@ -70,6 +73,7 @@ function Summary({
           {ko.onboarding.summary.save}
         </Button>
       </div>
+      <StepBack onBack={onBack} />
     </div>
   );
 }
@@ -121,6 +125,9 @@ export function OnboardingScreen() {
   };
 
   const index = STEPS.indexOf(step);
+  // A step done by mistake (e.g. "건너뛰기" on the tuning) is redone: the step before opens fresh (D-097).
+  // Later results stay until their step is done again, and nothing is saved before the summary.
+  const back = () => setStep(STEPS[index - 1] ?? 'permission');
   const midStepError = step !== 'permission' && (status.kind === 'error' || status.kind === 'interrupted');
   return (
     <Screen title={ko.onboarding.title}>
@@ -154,6 +161,7 @@ export function OnboardingScreen() {
         )}
         {step === 'noise' && (
           <NoiseStep
+            onBack={back}
             onDone={(r) => {
               setNoise(r);
               setStep('tuning');
@@ -162,6 +170,7 @@ export function OnboardingScreen() {
         )}
         {step === 'tuning' && (
           <TuningStep
+            onBack={back}
             onDone={(r) => {
               setTuning(r);
               setStep('templates');
@@ -171,6 +180,7 @@ export function OnboardingScreen() {
         {step === 'templates' && tuning && (
           <TemplateStep
             tuningCents={tuning.cents}
+            onBack={back}
             onDone={(t) => {
               setTemplates(t);
               setStep('rtt');
@@ -179,13 +189,14 @@ export function OnboardingScreen() {
         )}
         {step === 'rtt' && (
           <RttStep
+            onBack={back}
             onDone={(r) => {
               setRtt(r);
               setStep('summary');
             }}
           />
         )}
-        {step === 'summary' && draft && <Summary draft={draft} onSave={() => void save()} />}
+        {step === 'summary' && draft && <Summary draft={draft} onSave={() => void save()} onBack={back} />}
       </div>
     </Screen>
   );

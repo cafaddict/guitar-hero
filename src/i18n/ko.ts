@@ -515,6 +515,10 @@ export const ko = {
     examSongs: (n: number) => `악보 숨김 완주 ${n}/5곡`,
     examCheck: '결과 확인',
     examNotYet: '아직 기준에 못 미쳤어요. 다시 해 봐요.',
+    examNextStep: (n: number, total: number) => `다음 단계 ${n}/${total} (Enter)`,
+    examPrevResult: '← 앞 단계 결과 보기',
+    examBackToStep: '지금 단계로 돌아가기',
+    examStepResult: (n: number) => `${n}단계 결과`,
   },
   progressScreen: {
     title: '진도',
@@ -1402,6 +1406,7 @@ export const ko = {
       summary: '요약',
     },
     stepOf: (index: number, total: number, name: string) => `${index}/${total} ${name}`,
+    back: '이전 단계',
     permission: {
       explain: '기기를 기타에서 30–60cm 떨어진 곳에 두세요. 기기 내장 마이크를 권장해요.',
       allow: '마이크 허용',

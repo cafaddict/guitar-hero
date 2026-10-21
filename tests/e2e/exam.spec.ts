@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
+import { ko } from '../../src/i18n/ko';
 import { putRows, readStore } from './support/idb';
 
 interface Progression {
@@ -60,4 +61,48 @@ test('graduation exam: items are checked one by one, attempts recorded, passes k
   expect(Object.keys(progression[0]!.exam)).toEqual(['5']);
   await page.reload();
   await expect(page.getByTestId('exam-item-5')).toHaveAttribute('data-passed', 'true');
+});
+
+test('exam: each step shows its result before the next; the next step can look back; one verdict (D-097)', async ({
+  page,
+}) => {
+  test.setTimeout(150_000); // two 8-bar E5 runs on the audio clock
+  await page.goto('/#/settings');
+  await page.getByTestId('setting-mic-disabled').check();
+  await page.goto('/#/exam');
+  const item4 = page.getByTestId('exam-item-4');
+  await item4.getByRole('button', { name: '시작' }).click();
+
+  const playStep = async () => {
+    await item4.getByTestId('exercise-start').click();
+    await expect(item4.getByTestId('armed-start')).toBeVisible();
+    await page.keyboard.press('Space');
+    await expect(item4.getByTestId('e5-view')).toHaveAttribute('data-phase', 'review', { timeout: 60_000 });
+    await page.keyboard.press('1');
+  };
+
+  // Step 1: its result stays until "다음 단계".
+  await playStep();
+  await expect(item4.getByTestId('exercise-summary')).toBeVisible();
+  await expect(item4.getByTestId('exam-next-step')).toBeFocused();
+  const stepOne = await item4.getByTestId('exercise-summary').innerText();
+  await page.keyboard.press('Enter');
+
+  // Step 2's start screen looks back at step 1's result (read-only) and returns.
+  await expect(item4.getByTestId('exercise-start')).toBeVisible();
+  await item4.getByTestId('exam-prev-result').click();
+  const result = item4.getByTestId('exam-step-result');
+  await expect(result).toHaveAttribute('data-step', '1');
+  const shown = [ko.exercises.common.saved, ko.curriculum.examNextStep(2, 2)];
+  for (const line of stepOne.split('\n').filter((l) => l.trim() && !shown.includes(l.trim())))
+    await expect(result).toContainText(line.trim());
+  await item4.getByTestId('exam-back-to-step').click();
+  await expect(item4.getByTestId('exam-prev-result')).toBeVisible();
+
+  // Step 2 is the last: the verdict follows at once and is recorded once.
+  await playStep();
+  await expect(item4.getByTestId('exam-prev-result')).toBeHidden();
+  await expect(item4).toContainText(/통과|아직 기준에 못 미쳤어요/);
+  const exams = (await examAttempts(page)).filter((a) => a.result.item === '4');
+  expect(exams).toHaveLength(1);
 });

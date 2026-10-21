@@ -58,6 +58,20 @@ const noteOf = (idx: number) => midiName(STANDARD_TUNING.openMidi[idx]!);
 const ADVANCE_DELAY_MS = 600;
 const PROBE_GAIN = 0.8;
 
+/**
+ * "이전 단계" (D-097): the step before opens fresh and is done again. Disabled while a measurement runs — the
+ * metronome's stop does not end a tap run, so leaving mid-measurement would strand its promise and listeners.
+ */
+export function StepBack({ onBack, disabled = false }: { onBack: () => void; disabled?: boolean }) {
+  return (
+    <div className="mt-6">
+      <Button variant="ghost" onClick={onBack} disabled={disabled} data-testid="onboarding-back">
+        {ko.onboarding.back}
+      </Button>
+    </div>
+  );
+}
+
 // --- 1. permission & device -----------------------------------------------------------------
 
 export function PermissionStep({
@@ -142,7 +156,7 @@ export function PermissionStep({
 
 // --- 2. noise -------------------------------------------------------------------------------
 
-export function NoiseStep({ onDone }: { onDone: (result: NoiseResult) => void }) {
+export function NoiseStep({ onDone, onBack }: { onDone: (result: NoiseResult) => void; onBack: () => void }) {
   const [phase, setPhase] = useState<'idle' | 'measuring' | 'done'>('idle');
   const [result, setResult] = useState<NoiseResult | null>(null);
   const measure = async () => {
@@ -189,6 +203,7 @@ export function NoiseStep({ onDone }: { onDone: (result: NoiseResult) => void })
           </div>
         </div>
       )}
+      <StepBack onBack={onBack} disabled={phase === 'measuring'} />
     </div>
   );
 }
@@ -209,7 +224,13 @@ function verdictText(verdict: TuningVerdict | null): string {
   }
 }
 
-export function TuningStep({ onDone }: { onDone: (result: TuningResult) => void }) {
+export function TuningStep({
+  onDone,
+  onBack,
+}: {
+  onDone: (result: TuningResult) => void;
+  onBack: () => void;
+}) {
   const headStyle = useSettingsStore((s) => s.settings?.headStyle ?? '3+3');
   const [idx, setIdx] = useState(0);
   const [cents, setCents] = useState<(number | null)[]>(() => Array(STRING_COUNT).fill(null));
@@ -329,6 +350,7 @@ export function TuningStep({ onDone }: { onDone: (result: TuningResult) => void 
           </div>
         </div>
       )}
+      <StepBack onBack={onBack} />
     </div>
   );
 }
@@ -338,9 +360,11 @@ export function TuningStep({ onDone }: { onDone: (result: TuningResult) => void 
 export function TemplateStep({
   tuningCents,
   onDone,
+  onBack,
 }: {
   tuningCents: readonly (number | null)[];
   onDone: (templates: (StringTemplate | null)[]) => void;
+  onBack: () => void;
 }) {
   const [idx, setIdx] = useState(0);
   const [count, setCount] = useState(0);
@@ -427,6 +451,7 @@ export function TemplateStep({
           </div>
         </div>
       )}
+      <StepBack onBack={onBack} />
     </div>
   );
 }
@@ -497,7 +522,7 @@ async function measureTapOnce(): Promise<{ rttMs: number; madMs: number } | null
 
 type RttPhase = 'ready' | 'measuring' | 'tapReady' | 'tapRunning' | 'tapFailed' | 'done';
 
-export function RttStep({ onDone }: { onDone: (result: RttOutcome) => void }) {
+export function RttStep({ onDone, onBack }: { onDone: (result: RttOutcome) => void; onBack: () => void }) {
   const [phase, setPhase] = useState<RttPhase>('ready');
   const [attempt, setAttempt] = useState(0);
   const [history, setHistory] = useState<LoopbackMeasurement[]>([]);
@@ -629,6 +654,7 @@ export function RttStep({ onDone }: { onDone: (result: RttOutcome) => void }) {
           </div>
         </div>
       )}
+      <StepBack onBack={onBack} disabled={phase === 'measuring' || phase === 'tapRunning'} />
     </div>
   );
 }

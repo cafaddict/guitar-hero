@@ -147,3 +147,37 @@ test('E2E-01: first run → onboarding (permission, noise, tuning, templates, lo
   expect(c.noiseFloorDbfs).toBeLessThan(-45);
   expect([44100, 48000]).toContain(c.sampleRate);
 });
+
+test('onboarding: "이전 단계" reopens the step before fresh, so an accidental skip can be redone (D-097)', async ({
+  page,
+}) => {
+  await page.addInitScript(installFakeMic, { loopbackDelayMs: SIMULATED_DELAY_MS, deny: false });
+  await page.goto('/');
+  await expect(page).toHaveURL(/#\/onboarding$/);
+  const step = page.getByTestId('onboarding-step');
+  const back = page.getByTestId('onboarding-back');
+  await page.getByRole('button', { name: '마이크 허용' }).click();
+  await expect(page.getByTestId('onboarding-device')).toBeVisible();
+  await expect(back).toBeHidden(); // the first step has nothing before it
+  await next(page);
+
+  await expect(step).toHaveAttribute('data-step', 'noise');
+  await page.getByRole('button', { name: '소음 측정' }).click();
+  await expect(page.getByTestId('noise-result')).toBeVisible({ timeout: 15_000 });
+  await next(page);
+  await expect(step).toHaveAttribute('data-step', 'tuning');
+  await back.click();
+  await expect(step).toHaveAttribute('data-step', 'noise');
+
+  // Tuning skipped by mistake: back from the templates, the tuning starts over with no string passed.
+  await page.getByRole('button', { name: '소음 측정' }).click();
+  await expect(page.getByTestId('noise-result')).toBeVisible({ timeout: 15_000 });
+  await next(page);
+  await page.getByTestId('tuning-skip').click();
+  await expect(step).toHaveAttribute('data-step', 'templates');
+  await back.click();
+  await expect(step).toHaveAttribute('data-step', 'tuning');
+  await expect(page.getByTestId('tuning-target')).toHaveAttribute('data-string', '6');
+  for (const stringNo of [6, 5, 4, 3, 2, 1])
+    await expect(page.getByTestId(`tuning-string-${stringNo}`)).toHaveAttribute('data-passed', 'false');
+});
