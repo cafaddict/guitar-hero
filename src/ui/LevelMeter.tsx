@@ -85,10 +85,10 @@ export function LevelMeter({
       )}
       <meter ref={meter} className="sr-only" aria-label={label} min={FLOOR_DB} max={0} value={FLOOR_DB} />
       <div aria-hidden="true">
-        <canvas ref={canvas} className="block h-3 w-full rounded" />
+        <canvas ref={canvas} className="block h-3 w-full rounded-full" />
       </div>
       {lines.length > 0 && (
-        <p className="text-xs text-muted" data-testid="level-lines">
+        <p className="text-sm text-muted" data-testid="level-lines">
           {lines.map((l) => `${l.label} ${l.db.toFixed(0)} dBFS`).join(' · ')}
         </p>
       )}

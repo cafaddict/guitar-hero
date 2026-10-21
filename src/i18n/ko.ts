@@ -295,6 +295,7 @@ export const ko = {
   tuner: {
     title: '튜너',
     start: '튜너 켜기',
+    idle: '튜너를 켜고 줄을 하나 튕겨 보세요.',
     stop: '튜너 끄기',
     auto: '자동(크로매틱)',
     listening: '줄을 하나 튕겨 주세요.',
@@ -482,6 +483,8 @@ export const ko = {
       intro:
         '하나를 골라 바로 하거나, 여러 개를 골라 순서대로 세션으로 할 수 있어요. 기록은 평소처럼 남아요.',
       now: '바로 하기',
+      quickTitle: '먼저 해 볼 연습',
+      pickMany: '여러 개 골라 세션으로',
       add: '세션에 넣기',
       start: (n: number) => (n === 0 ? '세션에 넣을 연습을 골라요' : `고른 ${n}개로 세션 시작`),
       none: '지금은 없음',
@@ -547,6 +550,8 @@ export const ko = {
     back: '코드 목록',
   },
   settingsScreen: {
+    /** Setting groups (D-093): one card each. */
+    groups: { display: '화면', judging: '판정', practice: '연습·세션', more: '설정 더 보기' },
     title: '설정',
     devices: '입력 장치·진단',
     recalibrate: '캘리브레이션 다시 하기',
@@ -600,6 +605,7 @@ export const ko = {
     keys: '키·페달',
   },
   recording: {
+    progress: (done: number, total: number) => `${total}개 중 ${done}개 녹음했어요`,
     title: '녹음 키트',
     intro: '내 기타·내 방 소리로 판정기를 확인하는 데 쓰는 짧은 녹음이에요. 녹음은 기기 안에만 저장돼요.',
     record: '녹음',

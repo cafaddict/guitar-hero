@@ -65,29 +65,31 @@ export function RoutineEditorScreen() {
   const totalMin = Math.round(items.reduce((sum, i) => sum + i.durationSec, 0) / 60);
   const option = loaded.options.find((o) => o.id === choice);
 
+  const save = () =>
+    void repo.saveRoutineTemplate(toTemplate(items, loaded.stage, Date.now())).then(() => navigate('/'));
   return (
     <Screen title={ko.routineEditor.title}>
-      <p className="text-muted">{ko.routineEditor.intro}</p>
-      <p className="mt-2 font-semibold" data-testid="editor-total">
-        {ko.home.totalTime(totalMin)}
-      </p>
-      <ol className="mt-3 divide-y divide-surface-2" data-testid="editor-items">
+      <p className="text-lg text-muted">{ko.routineEditor.intro}</p>
+      <ol className="mt-5 flex flex-col gap-3" data-testid="editor-items">
         {items.map((item, index) => (
           <li
             key={item.id}
-            className="flex flex-wrap items-center justify-between gap-2 py-2"
+            className="card flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border bg-surface px-4 py-3"
             data-testid="editor-item"
           >
-            <span>
-              <span className="text-muted">{ko.home.blocks[item.block]} · </span>
-              {item.exerciseType === 'REST' ? ko.home.restItem : itemTitle(item)}
-              <span className="ml-2 tabular-nums text-muted">
+            <span className="min-w-0 flex-1 basis-56">
+              <span className="block text-sm font-medium text-muted">{ko.home.blocks[item.block]}</span>
+              <span className="font-semibold">
+                {item.exerciseType === 'REST' ? ko.home.restItem : itemTitle(item)}
+              </span>
+              <span className="ml-2 whitespace-nowrap tabular-nums text-muted">
                 {ko.routineEditor.seconds(item.durationSec)}
               </span>
             </span>
-            <span className="flex flex-wrap gap-1">
+            <span className="flex flex-wrap gap-2">
               <Button
                 variant="secondary"
+                className="min-w-12"
                 disabled={index === 0}
                 onClick={() => setItems((list) => moveItem(list, item.id, -1))}
                 aria-label={ko.routineEditor.moveUp}
@@ -96,6 +98,7 @@ export function RoutineEditorScreen() {
               </Button>
               <Button
                 variant="secondary"
+                className="min-w-12"
                 disabled={index === items.length - 1}
                 onClick={() => setItems((list) => moveItem(list, item.id, 1))}
                 aria-label={ko.routineEditor.moveDown}
@@ -119,7 +122,7 @@ export function RoutineEditorScreen() {
                 +30
               </Button>
               <Button
-                variant="secondary"
+                variant="ghost"
                 onClick={() => setItems((list) => removeItem(list, item.id))}
                 data-testid="editor-remove"
               >
@@ -129,8 +132,8 @@ export function RoutineEditorScreen() {
           </li>
         ))}
       </ol>
-      <div className="mt-4 flex flex-wrap items-end gap-2">
-        <Field label={ko.routineEditor.addLabel}>
+      <div className="mt-5 flex flex-wrap items-end gap-3">
+        <Field label={ko.routineEditor.addLabel} className="min-w-0 flex-1 basis-64">
           <Select value={choice} onChange={(e) => setChoice(e.target.value)} data-testid="editor-add-choice">
             {loaded.options.map((o) => (
               <option key={o.id} value={o.id}>
@@ -148,18 +151,16 @@ export function RoutineEditorScreen() {
           {ko.routineEditor.add}
         </Button>
       </div>
-      <div className="mt-6 flex flex-wrap gap-2">
-        <Button
-          large
-          onClick={() =>
-            void repo
-              .saveRoutineTemplate(toTemplate(items, loaded.stage, Date.now()))
-              .then(() => navigate('/'))
-          }
-          data-testid="editor-save"
-        >
-          {ko.routineEditor.save}
-        </Button>
+      {/*
+       * Save stays on the first screen (SPEC §4.5): a bar stuck above the bottom tab bar (its height plus the
+       * safe area), at the window's bottom where the sidebar replaces the tab bar.
+       */}
+      <div className="sticky bottom-[calc(3.625rem+env(safe-area-inset-bottom))] z-10 -mx-4 mt-6 flex flex-wrap items-center gap-3 border-t border-border bg-bg px-4 py-3 sm:-mx-6 sm:px-6 lg:bottom-0 lg:-mx-8 lg:px-8">
+        <div data-primary-action>
+          <Button large onClick={save} data-testid="editor-save">
+            {ko.routineEditor.save}
+          </Button>
+        </div>
         {loaded.hasTemplate && (
           <Button
             variant="secondary"
@@ -172,6 +173,9 @@ export function RoutineEditorScreen() {
         <Button variant="secondary" onClick={() => navigate('/')}>
           {ko.routineEditor.cancel}
         </Button>
+        <p className="ml-auto font-semibold tabular-nums" data-testid="editor-total">
+          {ko.home.totalTime(totalMin)}
+        </p>
       </div>
     </Screen>
   );

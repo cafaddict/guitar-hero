@@ -7,6 +7,7 @@ import { midiName, STANDARD_TUNING } from '../../domain/theory';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { CentsNeedle } from '../../ui/CentsNeedle';
+import { Icon } from '../../ui/icons';
 import { LevelMeter } from '../../ui/LevelMeter';
 import { Screen } from '../../ui/Screen';
 import { TuningDirection } from '../../ui/TuningDirection';
@@ -56,78 +57,84 @@ export function TunerScreen() {
   const start = () => void audioEngine.startMic({ deviceId: settings?.preferredInputDeviceId ?? null });
 
   return (
-    <Screen title={ko.tuner.title}>
-      <div className="flex flex-wrap gap-2">
-        {running ? (
-          <Button variant="secondary" onClick={() => audioEngine.stopMic()}>
-            {ko.tuner.stop}
-          </Button>
-        ) : (
-          <Button large onClick={start}>
-            {ko.tuner.start}
-          </Button>
-        )}
-      </div>
-      <MicStatusPanel status={status} onRetry={start} />
-      <fieldset className="mt-4">
-        <legend className="text-sm text-muted">{ko.tuner.stringMode}</legend>
-        <div className="mt-1 flex flex-wrap gap-2">
-          <Button
-            variant={target.kind === 'auto' ? 'primary' : 'secondary'}
-            aria-pressed={target.kind === 'auto'}
-            onClick={() => setTarget({ kind: 'auto' })}
-          >
-            {ko.tuner.auto}
-          </Button>
-          {STRING_INDICES.map((idx) => {
-            const selected = target.kind === 'string' && target.idx === idx;
-            return (
-              <Button
-                key={idx}
-                variant={selected ? 'primary' : 'secondary'}
-                aria-pressed={selected}
-                onClick={() => setTarget({ kind: 'string', idx })}
-              >
-                {ko.common.stringLabel(stringNumber(idx), midiName(STANDARD_TUNING.openMidi[idx]!))}
+    <Screen title={ko.tuner.title} width="wide">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-8">
+        <div className="flex flex-col gap-5 lg:col-start-2 lg:row-start-1">
+          <div className="flex flex-wrap gap-3" data-primary-action>
+            {running ? (
+              <Button large variant="secondary" onClick={() => audioEngine.stopMic()}>
+                {ko.tuner.stop}
               </Button>
-            );
-          })}
+            ) : (
+              <Button large onClick={start}>
+                <Icon name="tuner" />
+                {ko.tuner.start}
+              </Button>
+            )}
+          </div>
+          <MicStatusPanel status={status} onRetry={start} />
+          <fieldset>
+            <legend className="mb-2 font-semibold">{ko.tuner.stringMode}</legend>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                aria-pressed={target.kind === 'auto'}
+                selected={target.kind === 'auto' ? 'accent' : null}
+                onClick={() => setTarget({ kind: 'auto' })}
+              >
+                {ko.tuner.auto}
+              </Button>
+              {STRING_INDICES.map((idx) => {
+                const selected = target.kind === 'string' && target.idx === idx;
+                return (
+                  <Button
+                    key={idx}
+                    variant="secondary"
+                    aria-pressed={selected}
+                    selected={selected ? 'accent' : null}
+                    onClick={() => setTarget({ kind: 'string', idx })}
+                  >
+                    {ko.common.stringLabel(stringNumber(idx), midiName(STANDARD_TUNING.openMidi[idx]!))}
+                  </Button>
+                );
+              })}
+            </div>
+          </fieldset>
+          <LevelMeter read={readLevel} label={ko.diagnostics.level} />
+          <p className="text-muted">{ko.tuner.judgingOff}</p>
         </div>
-      </fieldset>
-      <section className="mt-6 card rounded-2xl border border-border bg-surface p-4" aria-live="polite">
-        <p className="text-center text-5xl font-bold" data-testid="tuner-note">
-          {display?.note ?? '—'}
-        </p>
-        <p className="mt-1 text-center text-muted" data-testid="tuner-cents">
-          {display ? ko.common.cents(display.cents) : running ? ko.tuner.listening : ''}
-        </p>
-        <div className="mt-3">
-          <CentsNeedle cents={display?.cents ?? null} passCents={IN_TUNE_CENTS} label={ko.tuner.title} />
-        </div>
-        <div className="mt-3 flex justify-center">
-          <TuningDirection
-            cents={display?.cents ?? null}
-            stringIdx={target.kind === 'string' ? target.idx : null}
-            head={headStyle}
-          />
-        </div>
-        <p
-          className={`mt-3 text-center text-xl font-bold ${inTune ? 'text-ok' : 'text-retry'}`}
-          data-testid="tuner-status"
+        <section
+          className="card flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:p-8 lg:col-start-1 lg:row-start-1"
+          aria-live="polite"
         >
-          {display === null
-            ? ''
-            : inTune
-              ? ko.tuner.inTune
-              : display.cents < 0
-                ? ko.tuner.tuneUp
-                : ko.tuner.tuneDown}
-        </p>
-      </section>
-      <div className="mt-4">
-        <LevelMeter read={readLevel} label={ko.diagnostics.level} />
+          <p className="text-center text-7xl font-bold sm:text-8xl" data-testid="tuner-note">
+            {display?.note ?? '—'}
+          </p>
+          <p className="min-h-8 text-center text-2xl tabular-nums text-muted" data-testid="tuner-cents">
+            {display ? ko.common.cents(display.cents) : running ? ko.tuner.listening : ko.tuner.idle}
+          </p>
+          <CentsNeedle cents={display?.cents ?? null} passCents={IN_TUNE_CENTS} label={ko.tuner.title} />
+          <div className="flex justify-center">
+            <TuningDirection
+              cents={display?.cents ?? null}
+              stringIdx={target.kind === 'string' ? target.idx : null}
+              head={headStyle}
+            />
+          </div>
+          <p
+            className={`min-h-9 text-center text-2xl font-bold ${inTune ? 'text-ok' : 'text-retry'}`}
+            data-testid="tuner-status"
+          >
+            {display === null
+              ? ''
+              : inTune
+                ? ko.tuner.inTune
+                : display.cents < 0
+                  ? ko.tuner.tuneUp
+                  : ko.tuner.tuneDown}
+          </p>
+        </section>
       </div>
-      <p className="mt-4 text-sm text-muted">{ko.tuner.judgingOff}</p>
     </Screen>
   );
 }

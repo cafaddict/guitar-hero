@@ -216,10 +216,10 @@ export function ProgressScreen() {
         </Card>
 
         <Card title={ko.progressScreen.heatmap} testId="progress-heatmap">
-          <table className="w-full border-separate border-spacing-1 text-center text-sm">
+          <table className="w-full table-fixed border-separate border-spacing-1 text-center text-sm">
             <thead>
               <tr>
-                <th scope="col" />
+                <th scope="col" className="w-14" />
                 {[6, 5, 4, 3, 2, 1].map((n) => (
                   <th key={n} scope="col" className="font-semibold text-muted">
                     {n}
@@ -230,7 +230,7 @@ export function ProgressScreen() {
             <tbody>
               {heat.map((row) => (
                 <tr key={row.voicingId}>
-                  <th scope="row" className="pr-2 text-left font-semibold">
+                  <th scope="row" className="pr-2 text-left font-semibold whitespace-nowrap">
                     {row.voicingId}
                   </th>
                   {row.cells.map((cell) => (

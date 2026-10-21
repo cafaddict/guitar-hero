@@ -122,8 +122,17 @@ export function OnboardingScreen() {
   const midStepError = step !== 'permission' && (status.kind === 'error' || status.kind === 'interrupted');
   return (
     <Screen title={ko.onboarding.title}>
-      {step === 'permission' && <p className="mb-3 text-muted">{ko.onboarding.intro}</p>}
-      <p className="mb-3 font-semibold" data-testid="onboarding-progress">
+      {step === 'permission' && <p className="mb-5 text-lg text-muted">{ko.onboarding.intro}</p>}
+      {/* Where the setup is: done steps filled, the current one half-lit (like the session runner). */}
+      <div aria-hidden="true" className="mb-3 flex max-w-md gap-1.5">
+        {STEPS.map((s, i) => (
+          <span
+            key={s}
+            className={`h-1.5 flex-1 rounded-full ${i < index ? 'bg-accent' : i === index ? 'bg-accent/50' : 'bg-surface-2'}`}
+          />
+        ))}
+      </div>
+      <p className="mb-4 text-lg font-semibold" data-testid="onboarding-progress">
         {ko.onboarding.stepOf(index + 1, STEPS.length, ko.onboarding.stepNames[step])}
       </p>
       {midStepError && (

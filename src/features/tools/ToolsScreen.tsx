@@ -24,7 +24,7 @@ export function ToolsScreen() {
                 <Icon name={tool.icon} size={26} />
               </span>
               <span className="text-lg font-bold">{tool.title}</span>
-              <span className="text-sm text-muted">{tool.text}</span>
+              <span className="text-muted">{tool.text}</span>
             </Link>
           </li>
         ))}

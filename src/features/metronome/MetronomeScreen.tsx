@@ -17,6 +17,7 @@ import { wakeLock } from '../../audio/wakeLock';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { Choice, Field, Select, TextInput } from '../../ui/Field';
+import { Icon } from '../../ui/icons';
 import { Screen } from '../../ui/Screen';
 
 const MUTED_OPTIONS: (MetronomeConfig['mutedBars'] | null)[] = [
@@ -157,171 +158,179 @@ export function MetronomeScreen() {
   };
 
   const beats = beatsPerBar(config.meter);
+  const step = (d: number) => (
+    <Button
+      key={d}
+      variant="secondary"
+      large
+      className="min-w-16"
+      aria-label={d < 0 ? ko.metronome.decrease(-d) : ko.metronome.increase(d)}
+      onClick={() => setBpm(config.bpm + d)}
+    >
+      {d > 0 ? `+${d}` : d}
+    </Button>
+  );
   return (
-    <Screen title={ko.metronome.title}>
-      <section className="card rounded-2xl border border-border bg-surface p-4">
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {[-5, -1].map((d) => (
-            <Button
-              key={d}
-              variant="secondary"
-              large
-              aria-label={ko.metronome.decrease(-d)}
-              onClick={() => setBpm(config.bpm + d)}
+    <Screen title={ko.metronome.title} width="wide">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-8">
+        <section className="card flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface p-4 sm:p-6">
+          {/* Read from a music stand like a practice screen's tempo: a key number (UQ-3, 15–25 % of the height). */}
+          <p className="flex items-baseline gap-2 leading-none" data-core-number>
+            <span
+              className="font-black tabular-nums tracking-tight"
+              style={{ fontSize: 'clamp(2.75rem, 16vh, 13rem)' }}
+              data-testid="metronome-bpm"
             >
-              {d}
-            </Button>
-          ))}
-          <p className="order-first w-full min-w-28 text-center sm:order-none sm:w-auto">
-            <span className="block text-5xl font-bold tabular-nums" data-testid="metronome-bpm">
               {config.bpm}
-            </span>
-            <span className="text-sm text-muted">{ko.metronome.bpm}</span>
+            </span>{' '}
+            <span className="text-2xl font-bold text-muted">{ko.metronome.bpm}</span>
           </p>
-          {[1, 5].map((d) => (
-            <Button
-              key={d}
-              variant="secondary"
-              large
-              aria-label={ko.metronome.increase(d)}
-              onClick={() => setBpm(config.bpm + d)}
-            >
-              +{d}
-            </Button>
-          ))}
-        </div>
-        <input
-          type="range"
-          min={30}
-          max={240}
-          value={config.bpm}
-          aria-label={ko.metronome.bpm}
-          className="mt-4 w-full"
-          onChange={(e) => setBpm(Number(e.target.value))}
-        />
-        <div className="mt-4 flex justify-center gap-2" aria-hidden="true" data-testid="metronome-pulse">
-          {BEAT_NUMBERS.slice(0, beats).map((beat) => {
-            const active = pulse !== null && pulse.beat === beat && pulse.sub === 0;
-            const accent = beat === 0;
-            return (
-              <span
-                key={beat}
-                data-active={active}
-                className={`rounded-full ${accent ? 'h-10 w-10' : 'h-7 w-7'} ${active ? (pulse?.countIn ? 'bg-info' : 'bg-accent') : 'bg-surface-2'}`}
-              />
-            );
-          })}
-        </div>
-        <p className="mt-2 text-center text-sm text-muted" aria-live="off">
-          {pulse
-            ? pulse.countIn
-              ? ko.metronome.countingIn
-              : ko.metronome.barBeat(pulse.bar, pulse.beat)
-            : ''}
-        </p>
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          <Button large onClick={() => void toggle()} data-testid="metronome-toggle">
-            {running ? ko.metronome.stop : ko.metronome.start}
-          </Button>
-          <Button
-            large
-            variant="secondary"
-            onClick={() => {
-              const bpm = tap.current.tap(performance.now());
-              if (bpm !== null) setBpm(bpm);
-            }}
+          <div className="flex flex-wrap justify-center gap-2">
+            {[-5, -1].map(step)}
+            {[1, 5].map(step)}
+          </div>
+          <input
+            type="range"
+            min={30}
+            max={240}
+            value={config.bpm}
+            aria-label={ko.metronome.bpm}
+            className="w-full"
+            onChange={(e) => setBpm(Number(e.target.value))}
+          />
+          <div
+            className="flex items-center justify-center gap-3"
+            aria-hidden="true"
+            data-testid="metronome-pulse"
           >
-            {ko.metronome.tap}
-          </Button>
-        </div>
-        {ended && (
-          <p className="mt-2 text-center text-ok" role="status">
-            {ko.metronome.ended}
+            {BEAT_NUMBERS.slice(0, beats).map((beat) => {
+              const active = pulse !== null && pulse.beat === beat && pulse.sub === 0;
+              const accent = beat === 0;
+              return (
+                <span
+                  key={beat}
+                  data-active={active}
+                  className={`rounded-full ${accent ? 'size-11' : 'size-8'} ${active ? (pulse?.countIn ? 'bg-info' : 'bg-accent') : 'bg-surface-2'}`}
+                />
+              );
+            })}
+          </div>
+          <p className="min-h-6 text-center text-muted" aria-live="off">
+            {pulse
+              ? pulse.countIn
+                ? ko.metronome.countingIn
+                : ko.metronome.barBeat(pulse.bar, pulse.beat)
+              : ''}
           </p>
-        )}
-      </section>
+          <div className="flex flex-wrap justify-center gap-3">
+            <div data-primary-action>
+              <Button large className="min-w-32" onClick={() => void toggle()} data-testid="metronome-toggle">
+                <Icon name={running ? 'pause' : 'play'} />
+                {running ? ko.metronome.stop : ko.metronome.start}
+              </Button>
+            </div>
+            <Button
+              large
+              variant="secondary"
+              onClick={() => {
+                const bpm = tap.current.tap(performance.now());
+                if (bpm !== null) setBpm(bpm);
+              }}
+            >
+              {ko.metronome.tap}
+            </Button>
+          </div>
+          {ended && (
+            <p className="text-center text-ok" role="status">
+              {ko.metronome.ended}
+            </p>
+          )}
+        </section>
 
-      <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <OptionSelect
-          testId="metronome-meter"
-          label={ko.metronome.meter}
-          options={['4/4', '3/4', '6/8'] as Meter[]}
-          value={config.meter}
-          render={(m) => m}
-          onChange={(meter) => update({ meter })}
-        />
-        <OptionSelect
-          testId="metronome-subdivision"
-          label={ko.metronome.subdivision}
-          options={[1, 2, 3, 4] as Subdivision[]}
-          value={config.subdivision}
-          render={(s) => ko.metronome.subdivisionNames[s] ?? String(s)}
-          onChange={(subdivision) => update({ subdivision })}
-        />
-        <OptionSelect
-          testId="metronome-countin"
-          label={ko.metronome.countIn}
-          options={[0, 1, 2] as const}
-          value={config.countInBars}
-          render={ko.metronome.countInBars}
-          onChange={(countInBars) => update({ countInBars })}
-        />
-        <OptionSelect
-          testId="metronome-muted"
-          label={ko.metronome.mutedBars}
-          options={MUTED_OPTIONS}
-          value={config.mutedBars}
-          render={(m) => (m ? ko.metronome.mutedPattern(m.play, m.mute) : ko.metronome.mutedOff)}
-          onChange={(mutedBars) => update({ mutedBars })}
-        />
-        <OptionSelect
-          testId="metronome-limit"
-          label={ko.metronome.limit}
-          options={LIMIT_OPTIONS}
-          value={limit}
-          render={limitLabel}
-          onChange={setLimit}
-        />
-        <Choice
-          type="checkbox"
-          label={ko.metronome.visualOnly}
-          className="self-end"
-          checked={config.visualOnly}
-          onChange={(e) => update({ visualOnly: e.target.checked })}
-        />
-      </section>
+        <div className="flex flex-col gap-5">
+          <section className="card grid grid-cols-1 gap-4 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-1 xl:grid-cols-2">
+            <OptionSelect
+              testId="metronome-meter"
+              label={ko.metronome.meter}
+              options={['4/4', '3/4', '6/8'] as Meter[]}
+              value={config.meter}
+              render={(m) => m}
+              onChange={(meter) => update({ meter })}
+            />
+            <OptionSelect
+              testId="metronome-subdivision"
+              label={ko.metronome.subdivision}
+              options={[1, 2, 3, 4] as Subdivision[]}
+              value={config.subdivision}
+              render={(s) => ko.metronome.subdivisionNames[s] ?? String(s)}
+              onChange={(subdivision) => update({ subdivision })}
+            />
+            <OptionSelect
+              testId="metronome-countin"
+              label={ko.metronome.countIn}
+              options={[0, 1, 2] as const}
+              value={config.countInBars}
+              render={ko.metronome.countInBars}
+              onChange={(countInBars) => update({ countInBars })}
+            />
+            <OptionSelect
+              testId="metronome-muted"
+              label={ko.metronome.mutedBars}
+              options={MUTED_OPTIONS}
+              value={config.mutedBars}
+              render={(m) => (m ? ko.metronome.mutedPattern(m.play, m.mute) : ko.metronome.mutedOff)}
+              onChange={(mutedBars) => update({ mutedBars })}
+            />
+            <OptionSelect
+              testId="metronome-limit"
+              label={ko.metronome.limit}
+              options={LIMIT_OPTIONS}
+              value={limit}
+              render={limitLabel}
+              onChange={setLimit}
+            />
+            <Choice
+              type="checkbox"
+              label={ko.metronome.visualOnly}
+              className="self-end"
+              checked={config.visualOnly}
+              onChange={(e) => update({ visualOnly: e.target.checked })}
+            />
+          </section>
 
-      <section className="mt-4 card rounded-2xl border border-border bg-surface p-4">
-        <h2 className="font-semibold">{ko.metronome.ladder}</h2>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {(
-            [
-              ['startBpm', ko.metronome.ladderStart],
-              ['targetBpm', ko.metronome.ladderTarget],
-              ['stepBpm', ko.metronome.ladderStep],
-            ] as const
-          ).map(([key, label]) => (
-            <Field key={key} label={label}>
-              <TextInput
-                type="number"
-                min={key === 'stepBpm' ? 1 : 30}
-                max={key === 'stepBpm' ? 20 : 240}
-                value={ladder[key]}
-                className="w-full min-w-0"
-                onChange={(e) => setLadder({ ...ladder, [key]: Number(e.target.value) })}
-              />
-            </Field>
-          ))}
+          <section className="card rounded-2xl border border-border bg-surface p-4 sm:p-5">
+            <h2 className="text-lg font-bold">{ko.metronome.ladder}</h2>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {(
+                [
+                  ['startBpm', ko.metronome.ladderStart],
+                  ['targetBpm', ko.metronome.ladderTarget],
+                  ['stepBpm', ko.metronome.ladderStep],
+                ] as const
+              ).map(([key, label]) => (
+                <Field key={key} label={label}>
+                  <TextInput
+                    type="number"
+                    min={key === 'stepBpm' ? 1 : 30}
+                    max={key === 'stepBpm' ? 20 : 240}
+                    value={ladder[key]}
+                    className="w-full min-w-0"
+                    onChange={(e) => setLadder({ ...ladder, [key]: Number(e.target.value) })}
+                  />
+                </Field>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => setBpm(ladder.startBpm)}>
+                {ko.metronome.ladderStart}
+              </Button>
+              <Button variant="secondary" onClick={() => setBpm(nextLadderBpm(ladder, config.bpm, true))}>
+                {ko.metronome.ladderUp}
+              </Button>
+            </div>
+          </section>
         </div>
-        <div className="mt-2 flex gap-2">
-          <Button variant="secondary" onClick={() => setBpm(ladder.startBpm)}>
-            {ko.metronome.ladderStart}
-          </Button>
-          <Button onClick={() => setBpm(nextLadderBpm(ladder, config.bpm, true))}>
-            {ko.metronome.ladderUp}
-          </Button>
-        </div>
-      </section>
+      </div>
     </Screen>
   );
 }

@@ -90,15 +90,17 @@ export function PermissionStep({
 
   return (
     <div>
-      <p>{ko.onboarding.permission.explain}</p>
+      <p className="text-lg">{ko.onboarding.permission.explain}</p>
       {!running && status.kind !== 'error' && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button large onClick={() => start()} disabled={status.kind === 'starting'}>
-            {ko.onboarding.permission.allow}
-          </Button>
-          <Button large variant="secondary" onClick={onWithoutMic}>
-            {ko.common.withoutMic}
-          </Button>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-3" data-primary-action>
+            <Button large onClick={() => start()} disabled={status.kind === 'starting'}>
+              {ko.onboarding.permission.allow}
+            </Button>
+            <Button large variant="secondary" onClick={onWithoutMic}>
+              {ko.common.withoutMic}
+            </Button>
+          </div>
           <Button variant="ghost" onClick={onLater}>
             {ko.common.later}
           </Button>

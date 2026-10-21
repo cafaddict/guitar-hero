@@ -14,7 +14,7 @@ import { Screen } from '../../ui/Screen';
 import { type StoredState, stageChecklist } from '../home/homeModel';
 import { RuleChecklist } from '../home/RuleChecklist';
 import { practiceRefLabel } from './practiceRefLabel';
-import { StagePracticeList } from './StagePractice';
+import { StagePracticeList, StageQuickStart } from './StagePractice';
 
 type StageStatus = 'passed' | 'current' | 'upcoming';
 
@@ -206,7 +206,8 @@ export function StageScreen() {
       width="wide"
       busy={state === null}
     >
-      <p className="-mt-3 mb-6 max-w-3xl text-muted">{def.summary}</p>
+      <p className="-mt-3 mb-6 max-w-3xl text-lg text-muted">{def.summary}</p>
+      {state && <StageQuickStart stage={def.stage} state={state} />}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="flex flex-col gap-5">
           <Card as="section">

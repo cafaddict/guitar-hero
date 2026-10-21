@@ -9,44 +9,40 @@ import { stringNumber } from '../../domain/strings';
 import { midiName, STANDARD_TUNING } from '../../domain/theory';
 import { expectedNotes, partialCollisionMap } from '../../domain/voicing';
 import { ko } from '../../i18n/ko';
-import { Button } from '../../ui/Button';
+import { Button, ButtonLink } from '../../ui/Button';
 import { ChordDiagram } from '../../ui/ChordDiagram';
+import { Icon } from '../../ui/icons';
 import { Screen } from '../../ui/Screen';
 import { renderChordPreview } from './chordAudio';
 
-const linkClass = 'inline-flex min-h-12 items-center rounded-lg px-4 font-semibold';
-
-/** Chord library (SPEC §12.1): voicing grid by stage. */
+/** Chord library (SPEC §12.1): every voicing in one grid, in stage order, each tile saying its stage and level. */
 export function LibraryScreen() {
   const settings = useSettingsStore((s) => s.settings);
   const [skills, setSkills] = useState<Map<string, SkillState>>(new Map());
   useEffect(() => {
     void repo.skillMap().then(setSkills);
   }, []);
-  const stages = [...new Set(SEED_VOICINGS.map((v) => v.stage))].sort((a, b) => a - b);
+  const voicings = [...SEED_VOICINGS].sort((a, b) => a.stage - b.stage);
   return (
     <Screen title={ko.library.title} width="wide">
-      {stages.map((stage) => (
-        <section key={stage} className="mb-6">
-          <h2 className="mb-3 font-bold">{ko.library.stage(stage)}</h2>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
-            {SEED_VOICINGS.filter((v) => v.stage === stage).map((v) => (
-              <li key={v.id}>
-                <Link
-                  to={`/library/${encodeURIComponent(v.id)}`}
-                  className="flex flex-col items-center rounded-xl border border-border bg-surface p-2 transition-[border-color] hover:border-accent"
-                  data-testid={`library-${v.id}`}
-                >
-                  <ChordDiagram voicing={v} leftHanded={settings?.leftHanded ?? false} />
-                  <span className="text-sm text-muted">
-                    {ko.library.level[chordLevel(skills.get(`chord:${v.id}`))]}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
+        {voicings.map((v) => (
+          <li key={v.id}>
+            <Link
+              to={`/library/${encodeURIComponent(v.id)}`}
+              className="card flex h-full flex-col items-center gap-1 rounded-2xl border border-border bg-surface p-3 transition-[border-color] hover:border-accent"
+              data-testid={`library-${v.id}`}
+            >
+              <ChordDiagram voicing={v} leftHanded={settings?.leftHanded ?? false} />
+              <span className="flex flex-wrap items-center justify-center gap-x-2 text-sm text-muted">
+                <span>{ko.library.stage(v.stage)}</span>
+                <span aria-hidden="true">·</span>
+                <span>{ko.library.level[chordLevel(skills.get(`chord:${v.id}`))]}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </Screen>
   );
 }
@@ -72,45 +68,53 @@ export function ChordDetailScreen() {
     });
   };
   return (
-    <Screen title={voicing.nameKo ?? voicing.symbol}>
-      <div className="grid gap-4 md:grid-cols-2">
-        <ChordDiagram voicing={voicing} leftHanded={settings?.leftHanded ?? false} />
-        <div className="flex flex-col gap-3">
+    <Screen title={voicing.nameKo ?? voicing.symbol} eyebrow={ko.library.stage(voicing.stage)} width="wide">
+      <div className="grid items-start gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-10">
+        <div className="card flex justify-center rounded-2xl border border-border bg-surface p-4 sm:p-6">
+          <ChordDiagram voicing={voicing} leftHanded={settings?.leftHanded ?? false} className="max-w-sm" />
+        </div>
+        <div className="flex flex-col gap-6">
           <section>
-            <h2 className="font-bold">{ko.library.expected}</h2>
-            <ul className="flex flex-wrap gap-3" data-testid="expected-notes">
+            <h2 className="mb-2 text-lg font-bold">{ko.library.expected}</h2>
+            <ul className="flex flex-wrap gap-2" data-testid="expected-notes">
               {notes.map((n) => (
-                <li key={n.idx}>
+                <li key={n.idx} className="rounded-xl bg-surface-2 px-3 py-1.5 text-lg tabular-nums">
                   {stringNumber(n.idx)}: {midiName(n.midi)}
                 </li>
               ))}
             </ul>
           </section>
           <section>
-            <h2 className="font-bold">{ko.library.verifiable}</h2>
-            <ul className="flex flex-wrap gap-3">
+            <h2 className="mb-2 text-lg font-bold">{ko.library.verifiable}</h2>
+            <ul className="flex flex-wrap gap-2">
               {verifiable.map((s) => (
-                <li key={s.idx} className={s.verifiable ? 'text-ok' : 'text-muted'}>
+                <li
+                  key={s.idx}
+                  className={`rounded-xl px-3 py-1.5 text-lg ${s.verifiable ? 'bg-ok-soft text-ok' : 'bg-surface-2 text-muted'}`}
+                >
                   {stringNumber(s.idx)} {s.verifiable ? '✓' : '–'}
                 </li>
               ))}
             </ul>
-            <p className="text-sm text-muted">{ko.library.notVerifiable}</p>
+            <p className="mt-2 text-muted">{ko.library.notVerifiable}</p>
           </section>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" disabled={playing} onClick={listen}>
+          <div className="flex flex-wrap gap-3">
+            <ButtonLink
+              to={`/practice/E1?voicingId=${encodeURIComponent(voicing.id)}&mode=pluck`}
+              variant="primary"
+              large
+            >
+              <Icon name="play" size={18} />
+              {ko.library.practice}
+            </ButtonLink>
+            <Button large variant="secondary" disabled={playing} onClick={listen}>
               {ko.library.listen}
             </Button>
-            <Link
-              className={`${linkClass} bg-accent text-accent-fg`}
-              to={`/practice/E1?voicingId=${encodeURIComponent(voicing.id)}&mode=pluck`}
-            >
-              {ko.library.practice}
-            </Link>
           </div>
-          <Link className={`${linkClass} bg-surface-2`} to="/library">
+          <ButtonLink to="/library" variant="ghost" className="self-start">
+            <Icon name="back" size={18} />
             {ko.library.back}
-          </Link>
+          </ButtonLink>
         </div>
       </div>
     </Screen>

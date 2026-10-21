@@ -27,11 +27,9 @@ export interface CustomSessionRequest {
   options: number[];
 }
 
-export function StagePracticeList({ stage, state }: { stage: number; state: StoredState }) {
-  const navigate = useNavigate();
-  const [picked, setPicked] = useState<number[]>([]);
-  const t = ko.curriculum.practice;
-  const options = useMemo(() => {
+/** The stage's exercises as the learner sees them: named after what they will be, available or not. */
+function useStageOptions(stage: number, state: StoredState) {
+  return useMemo(() => {
     const now = Date.now();
     const seen = new Set<string>();
     return practiceOptions(stage).flatMap((option, index) => {
@@ -45,11 +43,54 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
       return [{ option, index, label, available: items.length > 0 }];
     });
   }, [stage, state]);
+}
+
+/**
+ * The stage page's first step (SPEC §4.4): the stage's first available exercise, one tap away, above the
+ * reading. The full list (one now, or several as a session) stays further down.
+ */
+export function StageQuickStart({ stage, state }: { stage: number; state: StoredState }) {
+  const first = useStageOptions(stage, state).find((o) => o.available);
+  const t = ko.curriculum.practice;
+  if (!first) return null;
+  return (
+    <Card
+      tone="accent"
+      className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-3"
+      data-testid="stage-quick-start"
+    >
+      <div className="min-w-0 flex-1 basis-56">
+        <p className="text-sm font-semibold text-accent">{t.quickTitle}</p>
+        <p className="text-xl font-bold">{first.label}</p>
+      </div>
+      <div data-primary-action>
+        <ButtonLink
+          to={`/curriculum/${stage}/practice/${first.index}`}
+          variant="primary"
+          large
+          data-testid="stage-practice-now"
+        >
+          <Icon name="play" size={18} />
+          {t.now}
+        </ButtonLink>
+      </div>
+      <Button variant="ghost" onClick={() => document.getElementById('stage-practice')?.scrollIntoView()}>
+        {t.pickMany}
+      </Button>
+    </Card>
+  );
+}
+
+export function StagePracticeList({ stage, state }: { stage: number; state: StoredState }) {
+  const navigate = useNavigate();
+  const [picked, setPicked] = useState<number[]>([]);
+  const t = ko.curriculum.practice;
+  const options = useStageOptions(stage, state);
   const toggle = (index: number) =>
     setPicked((p) => (p.includes(index) ? p.filter((i) => i !== index) : [...p, index]));
   const request: CustomSessionRequest = { stage, options: picked };
   return (
-    <Card as="section" className="mt-5" data-testid="stage-practice">
+    <Card as="section" className="mt-5 scroll-mt-6" id="stage-practice" data-testid="stage-practice">
       <CardHeader title={t.title} className="mb-1" />
       <p className="text-sm text-muted">{t.intro}</p>
       {stage !== state.progression.stage && <p className="mt-1 text-sm text-info">{t.otherStage}</p>}
@@ -62,7 +103,8 @@ export function StagePracticeList({ stage, state }: { stage: number; state: Stor
               className="flex flex-wrap items-center justify-between gap-2 py-2"
               data-testid="stage-practice-item"
             >
-              <span className="min-w-0 flex-1">{label}</span>
+              {/* At least a phrase wide: on a phone the controls wrap under the name (F-18). */}
+              <span className="min-w-0 flex-1 basis-48 font-medium">{label}</span>
               {available ? (
                 <span className="flex flex-wrap items-center gap-2">
                   <Choice

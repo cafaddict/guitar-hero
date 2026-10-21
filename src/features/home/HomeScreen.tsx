@@ -72,6 +72,7 @@ function RoutineCard({
   doneItems,
   dueKeys,
   onLonger,
+  primary,
 }: {
   plan: RoutinePlan;
   state: StoredState;
@@ -80,6 +81,8 @@ function RoutineCard({
   /** What was practised today (attempts), shown above the next session once today's session is done. */
   doneItems: readonly DoneToday[];
   onLonger: () => void;
+  /** Starting the routine is the screen's next step (not while a split half waits to be resumed). */
+  primary: boolean;
 }) {
   const now = Date.now();
   if (plan.kind === 'rest') {
@@ -163,16 +166,18 @@ function RoutineCard({
       )}
       {/* Above the list: on a phone the list fills the first screen, and the start must not hide behind the tab bar. */}
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <ButtonLink
-          to="/session"
-          variant="primary"
-          large
-          className="grow sm:grow-0"
-          data-testid="start-session"
-        >
-          <Icon name="play" size={18} />
-          {done ? ko.home.again : ko.home.start}
-        </ButtonLink>
+        <div className="flex grow sm:grow-0" data-primary-action={primary ? '' : undefined}>
+          <ButtonLink
+            to="/session"
+            variant={primary ? 'primary' : 'secondary'}
+            large
+            className="grow"
+            data-testid="start-session"
+          >
+            <Icon name="play" size={18} />
+            {done ? ko.home.again : ko.home.start}
+          </ButtonLink>
+        </div>
         <ButtonLink to="/routine/edit" data-testid="edit-routine">
           {ko.home.editRoutine}
         </ButtonLink>
@@ -274,16 +279,19 @@ export function HomeScreen() {
         {split && (
           <Card tone="accent" className="flex flex-wrap items-center gap-4" data-testid="split-resume">
             <p className="min-w-0 flex-1 font-medium">{ko.home.splitResume}</p>
-            <ButtonLink to="/session?resume=1" variant="primary" large data-testid="resume-session">
-              <Icon name="play" size={18} />
-              {ko.home.resumeSession}
-            </ButtonLink>
+            <div data-primary-action>
+              <ButtonLink to="/session?resume=1" variant="primary" large data-testid="resume-session">
+                <Icon name="play" size={18} />
+                {ko.home.resumeSession}
+              </ButtonLink>
+            </div>
           </Card>
         )}
         {needsOnboarding && (
           <Card tone="notice" className="flex flex-wrap items-center gap-4">
             <p className="min-w-0 flex-1">{ko.home.firstRun}</p>
-            <ButtonLink to="/onboarding" variant="primary">
+            {/* Secondary: the routine's start stays the one amber action on the screen (F-29). */}
+            <ButtonLink to="/onboarding" variant="secondary">
               {ko.home.startOnboarding}
             </ButtonLink>
           </Card>
@@ -310,6 +318,7 @@ export function HomeScreen() {
           onLonger={() => {
             void updateSettings({ confirmedOverCap: true }).then(reload);
           }}
+          primary={split === null}
         />
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-3 gap-2" data-testid="week-card">

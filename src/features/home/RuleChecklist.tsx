@@ -1,3 +1,4 @@
+import { scaleById } from '../../content/scales';
 import type { RuleEvaluation } from '../../domain/progression';
 import { ko } from '../../i18n/ko';
 import { Icon } from '../../ui/icons';
@@ -24,9 +25,10 @@ export function ruleText(evaluation: RuleEvaluation): string {
     case 'songsCompletedAtLeast':
       return ko.rules.songsCompletedAtLeast(rule.count, rule.filter.stage ?? null);
     case 'scaleStepGraduated':
-      return ko.rules.scaleStepGraduated(rule.scaleId, rule.step, rule.bpm);
+      // The scale's name, never its id ("am-pent-pos1", F-30).
+      return ko.rules.scaleStepGraduated(scaleById(rule.scaleId).name, rule.step, rule.bpm);
     case 'scaleMemorized':
-      return ko.rules.scaleMemorized(rule.scaleId);
+      return ko.rules.scaleMemorized(scaleById(rule.scaleId).name);
     case 'chordCleanRatioAtLeast':
       return ko.rules.chordCleanRatioAtLeast(rule.voicingIds.join('·'), rule.ratio);
     case 'quizRunAtLeast':
@@ -79,7 +81,7 @@ export function RuleChecklist({ rules }: { rules: readonly RuleEvaluation[] }) {
               LISTS_MISSING.has(r.rule.kind) &&
               r.missing.length > 0 &&
               r.missing.length <= 8 && (
-                <span className="text-xs text-muted">{ko.rules.missing(r.missing.join(', '))}</span>
+                <span className="text-sm text-muted">{ko.rules.missing(r.missing.join(', '))}</span>
               )
             )}
           </div>
