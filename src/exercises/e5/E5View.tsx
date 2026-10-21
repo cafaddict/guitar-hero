@@ -2,6 +2,7 @@ import { patternById, type StrumSlot } from '../../content/patterns';
 import type { StrumResult } from '../../domain/exerciseResults';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
+import { Phrases } from '../../ui/Phrases';
 import type { ExerciseContext, ExerciseRunner } from '../types';
 import { ArmedPrompt, armedStartButton } from '../ui/ArmedStart';
 import { BigBpm } from '../ui/BigBpm';
@@ -136,7 +137,9 @@ export function E5ViewComponent({
           <p className="text-muted">
             {ko.exercises.e5.modes[view.mode]} · {ko.exercises.e5.keepGoing} {ko.exercises.e5.directionNote}
           </p>
-          <p className="text-muted">{ko.exercises.e5.optionKeys}</p>
+          <p className="text-muted">
+            <Phrases text={ko.exercises.e5.optionKeys} />
+          </p>
         </>
       }
     >

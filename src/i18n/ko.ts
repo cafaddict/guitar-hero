@@ -196,7 +196,7 @@ export const ko = {
             : `${subject} ${count}회`,
     metricAtLeast: (subject: string, value: number) => {
       if (subject === 'quiz:diagram') return `다이어그램 퀴즈 ${(value * 100).toFixed(0)}% 이상`;
-      if (subject === 'altpick:any') return `한 줄 교대 피킹 ${value} BPM 통과`;
+      if (subject === 'altpick:any') return `한 줄 교대 피킹 ${value}\u00a0BPM 통과`;
       const m = /^strum:(P\d)(?::(\w+))?$/.exec(subject);
       if (m) {
         const mode =
@@ -207,7 +207,7 @@ export const ko = {
               : m[2] === 'single'
                 ? ' 단일 코드'
                 : '';
-        return `${m[1]}${mode} ${value} BPM 통과`;
+        return `${m[1]}${mode} ${value}\u00a0BPM 통과`;
       }
       return `${subject} ≥ ${value}`;
     },
@@ -223,7 +223,8 @@ export const ko = {
       stage === null
         ? `F가 들어간 곡 ${count}곡 연주 모드 완주`
         : `Stage ${stage} 곡 ${count}곡 연주 모드 완주`,
-    scaleStepGraduated: (scale: string, step: number, bpm: number) => `${scale} ${step}단계 ${bpm} BPM 졸업`,
+    scaleStepGraduated: (scale: string, step: number, bpm: number) =>
+      `${scale} ${step}단계 ${bpm}\u00a0BPM 졸업`,
     scaleMemorized: (scale: string) => `${scale} 외워서 치기(TAB 숨김)`,
     chordCleanRatioAtLeast: (chords: string, ratio: number) =>
       `${chords} 중 하나 최근 10회 깨끗한 비율 ${(ratio * 100).toFixed(0)}% 이상`,
@@ -754,7 +755,7 @@ export const ko = {
         notes === 1
           ? '메트로놈 클릭 한 번에 한 음씩 쳐요.'
           : '클릭 한 번에 두 음: 클릭에 다운(↓), 클릭 사이에 업(↑).',
-      ladderUp: (rule: string, step: number) => `${rule}이면 다음엔 ${step} BPM 올려요.`,
+      ladderUp: (rule: string, step: number) => `${rule}이면 다음엔 ${step}\u00a0BPM 올려요.`,
       E0: [
         '6번 줄(가장 굵은 줄)부터 1번 줄까지 차례로 맞춰요.',
         '줄을 한 번 튕기고, 화면 바늘이 가운데(맞음)에 오도록 그 줄의 줄감개를 천천히 돌려요. 화면이 조일지 풀지 알려 줘요.',
@@ -816,7 +817,7 @@ export const ko = {
         },
         keepGoing: '놓쳐도 멈추지 말고 계속 쳐요.',
         ladder: (up: number, down: number, bars: number, step: number) =>
-          `${bars}마디 이상 쳐서 놓친 칸 없이 ${up}% 이상 맞추면 다음엔 ${step} BPM 올리고, 두 번 연속 ${down}% 아래면 ${step} BPM 내려요.`,
+          `${bars}마디 이상 쳐서 놓친 칸 없이 ${up}% 이상 맞추면 다음엔 ${step}\u00a0BPM 올리고, 두 번 연속 ${down}% 아래면 ${step}\u00a0BPM 내려요.`,
       },
       E6: {
         chords: (progression: string) =>
@@ -826,7 +827,7 @@ export const ko = {
           '다음 마디 첫 박에 새 코드가 울리도록 앞 마디 마지막 박에 미리 손을 옮겨요. 멈추지 말고 계속 쳐요.',
         live: '마이크를 켜면 마디가 끝날 때마다 제때 바꿨는지 바로 보여 줘요.',
         pass: (ok: number, bars: number, step: number) =>
-          `${bars}마디 중 ${ok}마디 이상 첫 박을 제때 치고 멈춘 마디가 없으면 다음엔 ${step} BPM 올려요.`,
+          `${bars}마디 중 ${ok}마디 이상 첫 박을 제때 치고 멈춘 마디가 없으면 다음엔 ${step}\u00a0BPM 올려요.`,
       },
       E7: {
         report:
@@ -836,20 +837,20 @@ export const ko = {
         string: (stringNo: number) => `${stringNo}번 줄 하나만 쳐요. 왼손은 누르지 않아요(개방현).`,
         start: '한 마디를 세고 바로 시작해요. 손목을 작게 움직이고 피크 끝만 줄에 닿게 해요.',
         pass: (hit: number, cv: number, bars: number, step: number) =>
-          `${bars}마디 동안 ${hit}% 이상 맞추고 간격 흔들림이 ${cv}% 이하면 다음엔 ${step} BPM 올려요.`,
+          `${bars}마디 동안 ${hit}% 이상 맞추고 간격 흔들림이 ${cv}% 이하면 다음엔 ${step}\u00a0BPM 올려요.`,
       },
       E9: {
         ladder: (streak: number, goal: number, step: number) =>
-          `${streak}묶음 연속 실수 없으면 ${step} BPM 올려요. 목표는 ${goal} BPM이에요.`,
+          `${streak}묶음 연속 실수 없으면 ${step}\u00a0BPM 올려요. 목표는 ${goal}\u00a0BPM이에요.`,
       },
       E10: {
         fingers: 'TAB 아래 숫자가 누를 손가락이에요. 한 프렛에 한 손가락을 써요.',
         ladder: (streak: number, graduate: number, step: number) =>
-          `TAB 끝까지가 한 바퀴예요. ${streak}바퀴 연속 실수 없으면 ${step} BPM 올리고, ${graduate} BPM 이상에서 ${streak}바퀴 연속이면 이 단계를 졸업해요.`,
+          `TAB 끝까지가 한 바퀴예요. ${streak}바퀴 연속 실수 없으면 ${step}\u00a0BPM 올리고, ${graduate}\u00a0BPM 이상에서 ${streak}바퀴 연속이면 이 단계를 졸업해요.`,
       },
       E11: {
         ladder: (hit: number, max: number, step: number) =>
-          `피킹한 음을 ${hit}% 이상 맞추고 "고르게"(3)를 고르면 다음엔 ${step} BPM 올려요(최대 ${max} BPM).`,
+          `피킹한 음을 ${hit}% 이상 맞추고 "고르게"(3)를 고르면 다음엔 ${step}\u00a0BPM 올려요(최대 ${max}\u00a0BPM).`,
       },
       E12: {
         report: '끝나면 새끼손가락 음이 또렷했는지(1–3)와 통증(0–10)을 입력해요.',
@@ -870,7 +871,7 @@ export const ko = {
           'TAB 끝까지가 한 바퀴예요. 끝나면 멈추지 말고 바로 처음으로 돌아가 반복해요. 색칠된 칸이 지금 칠 음이에요.',
         listen: '시작하기 전에 "들어 보기"(M)로 어떻게 들리는지 먼저 들어 봐요.',
         judge: (streak: number, step: number) =>
-          `바퀴마다 마이크가 음과 박을 확인해요(마이크 없이는 1 실수 없음 · 2 실수 있음). ${streak}바퀴 연속 실수 없으면 다음엔 ${step} BPM 올려요.`,
+          `바퀴마다 마이크가 음과 박을 확인해요(마이크 없이는 1\u00a0실수 없음 · 2\u00a0실수 있음). ${streak}바퀴 연속 실수 없으면 다음엔 ${step}\u00a0BPM 올려요.`,
       },
       Q1: [
         '다이어그램을 보고 맞는 답을 1/2/3(또는 버튼)으로 골라요.',
@@ -1188,7 +1189,8 @@ export const ko = {
       title: (fret: number) => `크로매틱 ${fret}프렛부터`,
       tabLabel: (fret: number) => `크로매틱 ${fret}프렛 TAB`,
       how: '줄마다 1-2-3-4번 손가락으로 한 프렛씩, 다운·업 교대 피킹. 6번 줄에서 1번 줄로 올라간 뒤 4-3-2-1로 돌아와요. 네 음이 한 묶음이에요.',
-      goal: '목표 100 BPM. 10묶음 연속 실수 없으면 5 BPM 올려요.',
+      // No-break space: a number and its unit never split across lines ("5 / BPM", H9).
+      goal: '목표 100\u00a0BPM. 10묶음 연속 실수 없으면 5\u00a0BPM 올려요.',
     },
     e11: {
       title: (pair: string) => `해머온 ${pair}번 손가락`,

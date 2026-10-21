@@ -6,6 +6,7 @@ import { renderBacking } from '../../dsp/synth/backing';
 import { ko } from '../../i18n/ko';
 import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/icons';
+import { Phrases } from '../../ui/Phrases';
 import type { ExerciseContext, ExercisePlugin, ExerciseRunner } from '../types';
 import { useRunnerSnapshot } from '../ui/hooks';
 import { PracticeStage } from '../ui/PracticeStage';
@@ -114,7 +115,9 @@ function SongViewComponent({
       notes={
         <>
           {view.backingAudible && <p className="text-muted">{ko.exercises.song.speakerNote}</p>}
-          <p className="text-muted">{ko.exercises.song.optionKeys}</p>
+          <p className="text-muted">
+            <Phrases text={ko.exercises.song.optionKeys} />
+          </p>
         </>
       }
     >

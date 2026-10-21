@@ -260,7 +260,13 @@ function KeysSection() {
               </th>
               <td className="tabular-nums text-muted">{defaultKeysFor(action).map(keyName).join(' · ')}</td>
               <td className="text-right">
-                <Button variant="ghost" onClick={() => setLearning(action)} data-testid={`learn-${action}`}>
+                {/* One line on a phone: the narrow column would split it into "페달 / 학습" (H9). */}
+                <Button
+                  variant="ghost"
+                  className="whitespace-nowrap"
+                  onClick={() => setLearning(action)}
+                  data-testid={`learn-${action}`}
+                >
                   {ko.keys.learn}
                 </Button>
               </td>

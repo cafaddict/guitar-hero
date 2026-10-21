@@ -25,6 +25,7 @@ import { Button } from '../../ui/Button';
 import { Card } from '../../ui/Card';
 import { useExitGuard } from '../../ui/FocusScreen';
 import { Icon } from '../../ui/icons';
+import { Phrases } from '../../ui/Phrases';
 import { createExerciseMic, createExerciseOutput } from '../audioAdapter';
 import { contentContextFor } from '../contentContext';
 import type { ExerciseDefinition } from '../registry';
@@ -211,7 +212,9 @@ function RunningExercise({
           {ko.exercises.common.finish}
         </Button>
         {!ctx.audio && definition.usesMicrophone && <p className="text-muted">{ko.exercises.common.noMic}</p>}
-        <p className="text-muted sm:ml-auto">{ko.keys.hint(definition.pausable)}</p>
+        <p className="text-muted sm:ml-auto">
+          <Phrases text={ko.keys.hint(definition.pausable)} />
+        </p>
       </div>
     </RunControlsContext.Provider>
   );

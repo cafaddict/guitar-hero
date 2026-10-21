@@ -6,6 +6,7 @@ import { ko } from '../../i18n/ko';
 import { Badge } from '../../ui/Badge';
 import { Button } from '../../ui/Button';
 import { ChordDiagram, type DiagramMark } from '../../ui/ChordDiagram';
+import { Phrases } from '../../ui/Phrases';
 import type { ExerciseContext, ExerciseRunner } from '../types';
 import { BigTimer } from '../ui/BigTimer';
 import { useRunnerSnapshot } from '../ui/hooks';
@@ -142,7 +143,7 @@ export function makeE1View(voicingOf: (id: string) => ChordVoicing) {
         notes={
           (view.step === 'place' || view.step === 'release') && (
             <p className="text-muted" data-testid="e1-option-keys">
-              {ko.exercises.e1.optionKeys}
+              <Phrases text={ko.exercises.e1.optionKeys} />
             </p>
           )
         }

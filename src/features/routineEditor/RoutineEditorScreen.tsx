@@ -174,9 +174,10 @@ export function RoutineEditorScreen() {
       </div>
       {/*
        * Save stays on the first screen (SPEC §4.5): one row stuck above the bottom tab bar (its height plus the
-       * safe area), at the window's bottom where the sidebar replaces the tab bar; as wide as the cards above.
+       * safe area), at the window's bottom where the sidebar replaces the tab bar; as wide as the cards above plus
+       * their 1 px contrast-theme outline, which would otherwise show at its edges.
        */}
-      <div className="sticky bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] z-10 mt-6 flex items-center gap-3 border-t border-border bg-bg py-3 [--pinned-bottom:0px] lg:bottom-0">
+      <div className="sticky bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] z-10 -mx-px mt-6 flex items-center gap-3 border-t border-border bg-bg px-px py-3 [--pinned-bottom:0px] lg:bottom-0">
         <div data-primary-action>
           <Button large onClick={save} data-testid="editor-save">
             {ko.routineEditor.save}
