@@ -4,7 +4,7 @@
  */
 import type { PracticeSong, RoutineItem, RoutineTemplate, StageDef } from '../../content/schemas';
 import type { Settings } from '../../data/settings';
-import type { PracticeHistory } from '../../domain/history';
+import { countedSessions, type PracticeHistory } from '../../domain/history';
 import { pairKey, parsePairId } from '../../domain/pairs';
 import { deriveSeed } from '../../domain/prng';
 import { evaluateStage, type StageEvaluation, unlockedPairIds } from '../../domain/progression';
@@ -110,8 +110,13 @@ export function streakWeeks(sessions: readonly Session[], now: number): number {
   );
 }
 
-export function practicedToday(sessions: readonly Session[], now: number): boolean {
-  return finished(sessions).some((s) => dayKey(s.startedAt) === dayKey(now));
+/** A session today holds practice (D-095: the rotation's rule, so home and the next routine agree). */
+export function practicedToday(
+  sessions: readonly Session[],
+  attempts: readonly Pick<Attempt, 'sessionId'>[],
+  now: number,
+): boolean {
+  return countedSessions(sessions, attempts).some((s) => dayKey(s.startedAt) === dayKey(now));
 }
 
 /**

@@ -8,7 +8,7 @@ import { stageDef } from '../../content/curriculum';
 import type { RoutineBlock } from '../../content/schemas';
 import type { GVoicing } from '../../content/voicings';
 import { FINAL_STAGE, promote } from '../../domain/progression';
-import { startOfDay } from '../../domain/records';
+import { type Attempt, startOfDay } from '../../domain/records';
 import { generateRoutine, type RoutinePlan } from '../../domain/routine';
 import { prepareSession } from '../../domain/sessionPrep';
 import { dueReviews } from '../../domain/srs';
@@ -71,6 +71,7 @@ function RoutineCard({
   plan,
   state,
   doneItems,
+  practiced,
   dueKeys,
   onLonger,
   primary,
@@ -79,13 +80,14 @@ function RoutineCard({
   state: StoredState;
   /** Subjects of the reviews due now: items serving any of them carry a "복습" badge. */
   dueKeys: ReadonlySet<string>;
-  /** What was practised today (attempts), shown above the next session once today's session is done. */
+  /** What was practised today (attempts in or out of a session), listed whenever there is any (D-095). */
   doneItems: readonly DoneToday[];
+  /** A session today holds practice, so the routine below is the next session's (rotation moved, D-095). */
+  practiced: boolean;
   onLonger: () => void;
   /** Starting the routine is the screen's next step (not while a split half waits to be resumed). */
   primary: boolean;
 }) {
-  const now = Date.now();
   if (plan.kind === 'rest') {
     return (
       <Card as="section" data-testid="routine-card" data-kind="rest">
@@ -95,7 +97,9 @@ function RoutineCard({
     );
   }
   const minutes = Math.round(plan.totalSec / 60);
-  const done = practicedToday(state.sessions, now);
+  const done = practiced;
+  // primary is false exactly while a split half waits: its first half is today's practice so far.
+  const splitPending = !primary;
   return (
     <Card as="section" data-testid="routine-card" data-kind="practice">
       <CardHeader
@@ -109,33 +113,32 @@ function RoutineCard({
           )
         }
       />
+      {doneItems.length > 0 && (
+        // Runs outside a session (single practice, stage picks) list too; the routine below is then still today's.
+        <div className={done ? undefined : 'mb-4 border-b border-border pb-4'}>
+          <h3 className="font-semibold">{ko.home.doneItems}</h3>
+          <ul className="mt-2 space-y-1.5" data-testid="done-items">
+            {doneItems.map((line) => (
+              <li key={line.key} className="flex items-center gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className="grid size-5 shrink-0 place-items-center rounded-full bg-ok text-bg"
+                >
+                  <Icon name="check" size={14} />
+                </span>
+                <span className="min-w-0 flex-1">{line.title}</span>
+                {line.count > 1 && (
+                  <span className="shrink-0 tabular-nums text-muted">{ko.home.doneCount(line.count)}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {done && (
         <>
-          {doneItems.length > 0 && (
-            <>
-              <h3 className="font-semibold">{ko.home.doneItems}</h3>
-              <ul className="mt-2 space-y-1.5" data-testid="done-items">
-                {doneItems.map((line) => (
-                  <li key={line.key} className="flex items-center gap-2.5">
-                    <span
-                      aria-hidden="true"
-                      className="grid size-5 shrink-0 place-items-center rounded-full bg-ok text-bg"
-                    >
-                      <Icon name="check" size={14} />
-                    </span>
-                    <span className="min-w-0 flex-1">{line.title}</span>
-                    {line.count > 1 && (
-                      <span className="shrink-0 tabular-nums text-muted">
-                        {ko.home.doneCount(line.count)}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
           <p className="mt-4 font-semibold text-ok" data-testid="done-today">
-            {ko.home.doneToday}
+            {splitPending ? ko.home.splitHalfDone : ko.home.doneToday}
           </p>
           <div className="mt-5 flex items-baseline justify-between gap-3 border-t border-border pt-4">
             <h3 className="font-semibold">{ko.home.nextRoutine}</h3>
@@ -228,13 +231,16 @@ export function HomeScreen() {
 
   /** The first half of a split session that can be resumed today (§7.3-11). */
   const [split, setSplit] = useState<SplitResume | null>(null);
-  const [doneItems, setDoneItems] = useState<DoneToday[]>([]);
+  const [today, setToday] = useState<Attempt[]>([]);
   const reload = useCallback(() => {
     void (async () => {
       // A half from an earlier day is closed first, so it counts in the stored state.
       setSplit(await pendingSplit(Date.now()));
-      setData(await loadStoredState(Date.now()));
-      setDoneItems(todayPractice(await repo.attemptsSince(startOfDay(Date.now())), Date.now()));
+      // Today's attempts land with the state, so the list and "마쳤어요" never show one without the other.
+      const attempts = await repo.attemptsSince(startOfDay(Date.now()));
+      const state = await loadStoredState(Date.now());
+      setToday(attempts);
+      setData(state);
     })();
   }, []);
 
@@ -320,7 +326,8 @@ export function HomeScreen() {
         <RoutineCard
           plan={plan}
           state={data}
-          doneItems={doneItems}
+          doneItems={todayPractice(today, now)}
+          practiced={practicedToday(data.sessions, today, now)}
           dueKeys={dueKeys}
           onLonger={() => {
             void updateSettings({ confirmedOverCap: true }).then(reload);

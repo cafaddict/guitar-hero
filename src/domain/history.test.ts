@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { attemptAppearanceKeys, practiceDaysSince, practiceHistory, sessionsSince } from './history';
+import {
+  attemptAppearanceKeys,
+  countedSessions,
+  practiceDaysSince,
+  practiceHistory,
+  sessionsSince,
+} from './history';
 import { type Attempt, DAY_MS, type Session } from './records';
 
 const T0 = new Date(2026, 9, 1, 19).getTime();
@@ -73,5 +79,8 @@ describe('practice history (SPEC v1.1 §7.3 input)', () => {
     const h = practiceHistory(sessions, attempts, T0 + 2 * DAY_MS);
     expect(h.sessionNumber).toBe(3);
     expect(h.appearances.get('E5|strum:P1')).toEqual({ session: 2, day: 2 });
+    // The same rule home reads (D-095); an open session with nothing in it does not count.
+    expect(countedSessions(sessions, attempts).map((s) => s.id)).toEqual(['a', 'left']);
+    expect(countedSessions(sessions, []).map((s) => s.id)).toEqual(['a']);
   });
 });

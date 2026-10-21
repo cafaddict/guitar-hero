@@ -15,6 +15,8 @@ export function patternLabel(id: string): string {
 
 export function itemTitle(item: Pick<RoutineItem, 'exerciseType' | 'params'>): string {
   if (item.exerciseType === 'REST') return ko.home.restItem;
+  if (item.exerciseType === 'EXAM' && typeof item.params.item === 'string')
+    return ko.home.examLine(item.params.item);
   const title =
     ko.exercises.titles[item.exerciseType as keyof typeof ko.exercises.titles] ?? item.exerciseType;
   const p = item.params;

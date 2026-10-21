@@ -179,6 +179,7 @@ function SelfReportForm({ onSave }: { onSave: (report: SelfReport) => void }) {
           {ko.session.save}
         </Button>
       </div>
+      <p className="text-sm text-muted">{ko.session.exitWithoutReport}</p>
     </Card>
   );
 }
@@ -452,7 +453,8 @@ export function SessionScreen() {
     repeat,
   ]);
 
-  const finishSession = async (report: SelfReport) => {
+  /** Ends the session; `null` = left with "나가기" without the self report (D-095: the practice still counts). */
+  const finishSession = async (report: SelfReport | null) => {
     if (!state || !sessionId) return;
     await repo.finishSession(sessionId, Date.now(), state.recorded.length, report, practiceMs(state, now()));
     await clearSplit(sessionId);
@@ -488,7 +490,8 @@ export function SessionScreen() {
 
   if (ending || isFinished(state, items)) {
     return (
-      <FocusScreen title={ko.session.title} exit={toHome}>
+      // "나가기" here ends the session without a report: leaving must not lose today's practice (D-095).
+      <FocusScreen title={ko.session.title} exit={{ onExit: () => void finishSession(null) }}>
         <SelfReportForm onSave={(report) => void finishSession(report)} />
       </FocusScreen>
     );

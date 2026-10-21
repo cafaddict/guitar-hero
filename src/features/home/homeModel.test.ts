@@ -83,10 +83,31 @@ describe('home model', () => {
     // A session left open overnight counts its practice time (pauses excluded), not start → report.
     const overnight = session(NOW - 3600_000, 11 * 60, { practiceMs: 25 * 60_000 });
     expect(weekPracticeMinutes([overnight], NOW)).toBe(25);
-    expect(practicedToday(sessions, NOW)).toBe(true);
+    expect(practicedToday(sessions, [], NOW)).toBe(true);
     expect(backupReminderDue(null, sessions, NOW)).toBe(true);
     expect(backupReminderDue(NOW - 6 * DAY_MS, sessions, NOW)).toBe(false);
     expect(backupReminderDue(null, [], NOW)).toBe(false);
+  });
+
+  it('today counts a session holding practice, finished or not, like the rotation does (D-095)', () => {
+    const open = session(NOW - 3600_000, 0, { id: 'open', endedAt: null, completedItems: 0 });
+    // Left with the self report's "나가기" before D-095 (or a reload): open, but it holds a run.
+    expect(practicedToday([open], [{ sessionId: 'open' }], NOW)).toBe(true);
+    expect(practicedToday([open], [], NOW)).toBe(false);
+    // Ended with nothing played (started, then "세션 끝내기" at once): no practice today.
+    expect(practicedToday([session(NOW - 3600_000, 5, { completedItems: 0 })], [], NOW)).toBe(false);
+    // Single runs outside a session are listed, but the routine has not moved on.
+    expect(practicedToday([], [{ sessionId: null }], NOW)).toBe(false);
+    // A session from yesterday is not today's.
+    expect(practicedToday([session(NOW - DAY_MS, 20)], [], NOW)).toBe(false);
+  });
+
+  it('an exam attempt reads as the exam item, not its internal id (§12.4)', () => {
+    const lines = todayPractice(
+      [{ exerciseType: 'EXAM', params: { item: '3' }, startedAt: NOW - 60_000 }],
+      NOW,
+    );
+    expect(lines.map((l) => l.title)).toEqual(['졸업 시험 · 3번 항목']);
   });
 
   it('weak pairs: lowest recent medians first, then unpractised', () => {

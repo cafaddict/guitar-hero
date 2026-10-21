@@ -58,3 +58,37 @@ test("E2E-07: today's routine end to end with the keyboard only (manual items, t
   await expect(page.getByTestId('week-minutes')).toBeVisible();
   test.info().annotations.push({ type: 'items', description: played.join(' → ') });
 });
+
+test('D-095: "나가기" on the self report ends the session without a report; home lists today', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(installFakeMic, { loopbackDelayMs: null, deny: false });
+  await page.goto('/');
+  await pressOn(page, 'onboarding-step', 'Tab');
+  await page.getByRole('button', { name: '마이크 없이 쓰기' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#\/$/);
+
+  await page.goto('/#/session?timeScale=0.25');
+  await expect(page.getByTestId('session-header')).toBeVisible();
+  await playItem(page);
+  await page.getByTestId('end-session').click();
+  await expect(page.getByTestId('self-report')).toBeVisible();
+  await page.getByTestId('focus-exit').click();
+  await expect(page).toHaveURL(/#\/$/);
+
+  const sessions = await readStore<StoredSession>(page, 'sessions');
+  expect(sessions).toHaveLength(1);
+  const session = sessions[0]!;
+  expect(session.endedAt).not.toBeNull();
+  expect(session.selfReport).toBeNull();
+  const attempts = await readStore<StoredAttempt & { sessionId: string | null }>(page, 'attempts');
+  expect(attempts.length).toBeGreaterThan(0);
+  expect(session.completedItems).toBe(attempts.length);
+
+  // Home: what was played and "마쳤어요", not a fresh routine as if nothing happened.
+  await expect(page.getByTestId('done-today')).toBeVisible();
+  await expect(page.getByTestId('done-items').locator('li')).not.toHaveCount(0);
+  await expect(page.getByTestId('start-session')).toHaveText(/한 번 더 하기/);
+});
