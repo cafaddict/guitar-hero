@@ -5,10 +5,10 @@
 
 ## 현재 상태
 
-- 현재 마일스톤: **U6 (마감)** — 독립 리뷰(코드·UI), 문서(README·MANUAL_VALIDATION, 초안 scratchpad `readme-screen.md`·`manual-ui.md`), 전 화면 888장 검토와 §2, FINAL_REPORT, 최종 verify
+- 현재 마일스톤: **U6 (마감) DONE** — 남은 것: 이 문서 커밋 뒤 HEAD에서 `npm ci && E2E_PORT=4183 PROD_PORT=4184 npm run verify`, 증거 출력(SPEC §9)
 - 시작 지점: `cafaddict/ui`, 키트 커밋(D-088). 그 부모는 D-087 UI 개편 커밋.
 - 마지막 갱신: 2026-10-21 (goal 실행자)
-- 누적 턴(대략): 6
+- 누적 턴(대략): 8
 - 턴 상한: **400**
 - 막힌 점: 없음
 - 메모:
@@ -29,7 +29,7 @@
 | U3 | 세션 러너 | DONE | `UI U3: 세션 러너` | 실행 뒤·블록 전환·일시정지·자가 평가 위계(D-091), 상태 촬영 도구 `tools/ui/states.spec.ts`, UQ-1 0 유지 |
 | U4 | 앱 화면 | DONE | `UI U4: 앱 화면` | 홈·단계·튜너·메트로놈·루틴 편집·온보딩·라이브러리·코드·시험·진도(D-092). E2E 92개 전부 통과(UQ 게이트 4개 포함) |
 | U5 | 폼·도구·테마 | DONE | `UI U5: 폼·도구·테마` | 설정 세 카드, 진단·녹음 키트 카드, 고대비 칸 경계, 온보딩 단계(D-093). 감사 OPEN High·Medium 0 |
-| U6 | 마감 | DOING | `UI U6: 마감`(`2a3d1b0`) | 독립 리뷰 2개 처리(코드 11·UI 16, D-094, F-44–F-68, F-34 고침), 회귀 E2E 1개(`keys.spec.ts`), README·MANUAL_VALIDATION 5d·FINAL_REPORT. 게이트: typecheck·lint·단위 1910, E2E 95개 전부 통과(UQ 0). 888장 재검토 → F-69–F-72(Low) 수정, 바뀐 26화면 재촬영·재검토 중. 남음: 두 번째 U6 커밋 → §2 → 문서 커밋 → 최종 verify |
+| U6 | 마감 | DONE | `2a3d1b0`, `fdc09b4`, `5dbeadd` + 문서 커밋 | 독립 리뷰 2개 처리(코드 11·UI 16, D-094, F-44–F-68, F-34 고침), 회귀 E2E 1개(`keys.spec.ts`), 전 화면 재검토 F-40–F-43·F-69–F-73, README·MANUAL_VALIDATION 5d·FINAL_REPORT. E2E 95 통과, UQ 0, §2 111행 빈 칸 0 |
 
 ## UQ 문제 수 (SPEC §7.1-3)
 
@@ -63,16 +63,16 @@
 
 | AC | 요약 | 상태 | 증거 |
 |---|---|---|---|
-| AC-UG1 | 키트 이후 U1–U6 커밋, main·feat/practice-feedback 그대로, upstream 없음, clean | TODO | |
-| AC-UG2 | 고정 파일 7개 SHA-256 일치 | TODO | |
-| AC-UG3 | `npm ci && E2E_PORT=4183 PROD_PORT=4184 npm run verify` exit 0, 전 단계 PASS | TODO | |
-| AC-UQ | ui-quality 테스트 4개 통과(1부 3프로젝트, 2부 chromium-mic), ui-rules 통과 | TODO | |
-| AC-UX1 | UI_AUDIT §2 범위표 완성(전 화면 × 4뷰포트 × 3테마, 마지막 변경 이후) | TODO | |
-| AC-UX2 | UI_AUDIT §3 OPEN High·Medium 0 | TODO | |
-| AC-UX3 | 연습 화면 공통 뼈대, iPad 가로·MacBook 2단 | TODO | |
-| AC-UX4 | 동작 보존, 고친 기존 테스트 목록 | TODO | |
-| AC-UD1 | DECISIONS·README·MANUAL_VALIDATION 갱신 | TODO | |
-| AC-UD2 | U2·U6 독립 리뷰와 처리 기록 | TODO | |
+| AC-UG1 | 키트 이후 U1–U6 커밋, main·feat/practice-feedback 그대로, upstream 없음, clean | DONE | `git log --oneline cae46b0..HEAD`: `0a940a8` U1, `14ce3b8` U2, `1957e09` U3, `c909607` U4, `afd095e` U5, `2a3d1b0`·`fdc09b4`·`5dbeadd` U6(+ 마지막 문서 커밋). `git rev-parse --short main` = `9e7eda6`. `@{u}` 없음("no upstream configured"). 다른 브랜치에 쓰지 않음. clean은 마지막 커밋 뒤 출력으로 확인 |
+| AC-UG2 | 고정 파일 7개 SHA-256 일치 | DONE | `shasum -a 256` 7개가 조건문 값과 같다(SPEC `00186ab1…`, ui-quality `5b200a27…`, chromium `b534947b…`, ui-rules `846dcd9d…`, layout `801b3c5c…`, a11y `d2b321dd…`, screens `15f50405…`) |
+| AC-UG3 | `npm ci && E2E_PORT=4183 PROD_PORT=4184 npm run verify` exit 0, 전 단계 PASS | DONE | 마지막 코드 커밋 `5dbeadd`에서 `E2E_PORT=4183 PROD_PORT=4184 npm run verify` exit 0, `bench-results/verify-summary.txt` 전 단계 PASS(licenses·typecheck·lint·test 1910/1910·bench:dsp·bench:guitarset hard 6/6·build·test:e2e 95/95). 문서 커밋 뒤 HEAD에서 `npm ci &&` 포함해 다시 실행하고 출력은 마지막 메시지(SPEC §9) |
+| AC-UQ | ui-quality 테스트 4개 통과(1부 3프로젝트, 2부 chromium-mic), ui-rules 통과 | DONE | U6 게이트 E2E(`5dbeadd` 트리) 95개 통과: "UQ-1–5, UQ-9" chromium-mic·webkit-ipad·webkit-iphone, "UQ-6", "UQ-7 … UQ-8", "UQ-10" chromium-mic 통과, UQ 문제 줄 0. `ui-rules.test.ts` 3개 통과. 최종 verify의 테스트별 상태는 마지막 메시지 |
+| AC-UX1 | UI_AUDIT §2 범위표 완성(전 화면 × 4뷰포트 × 3테마, 마지막 변경 이후) | DONE | §2 111행, 빈 칸 0. 칸은 `2a3d1b0`/`fdc09b4`/`5dbeadd`. `5dbeadd`에서 888장 재촬영·픽셀 비교로 앞선 검토가 유효함을 확인(§2 머리말) |
+| AC-UX2 | UI_AUDIT §3 OPEN High·Medium 0 | DONE | 발견 73(High 13·Medium 29·Low 31), FIXED 71·WONTFIX 2(Low)·OPEN 0. FINAL_REPORT §4 |
+| AC-UX3 | 연습 화면 공통 뼈대, iPad 가로·MacBook 2단 | DONE | 모든 연습·시작 화면이 `src/exercises/ui/PracticeStage.tsx`(D-090). 화면별 2단 구성은 UI_AUDIT §1. 그림 없는 화면(시작 전 하는 법 없음·결과)만 한 단 |
+| AC-UX4 | 동작 보존, 고친 기존 테스트 목록 | DONE | 키·autofocus·aria-live·판정 E2E가 단언 그대로 통과(E2E 95). 바꾼 기존 테스트 파일은 `pause.spec.ts`·`keys.spec.ts`에 새 테스트 각 1개 추가뿐(FINAL_REPORT §5). `src/domain`·`dsp`·`audio`·`data`·`content` 변경 없음 |
+| AC-UD1 | DECISIONS·README·MANUAL_VALIDATION 갱신 | DONE | DECISIONS D-089–D-094, README "화면 구성" 문단, `docs/MANUAL_VALIDATION.md` 5d(safe area·sticky 막대·터치·60–80 cm·세 테마·일시정지 포커스·한국어 줄바꿈·나가기) |
+| AC-UD2 | U2·U6 독립 리뷰와 처리 기록 | DONE | U2: D-090 "U2 독립 리뷰" 10건. U6: D-094 코드 리뷰 11건·UI 리뷰 16건과 처리, 전체 재검토 F-69–F-73 |
 
 ## 턴 로그
 
@@ -86,3 +86,4 @@
 | 5 | U5: 설정 "화면·판정·연습·세션" 카드, 진단·녹음 키트 카드와 진행 줄, 고대비 `bg-surface` 칸 안쪽 외곽선, 온보딩 단계 tint(D-093). 3테마 × iPad 가로·iPhone 검토. 감사 OPEN은 Low 0(F-34 WONTFIX) | U6 |
 | 6 | U6: 전 화면 재검토 중 F-40–F-43(배너 정렬, 진급 링 트랙, 코드 시작 프렛 표시 High, 코드 상세 주 조작). 독립 리뷰 2개 → Medium 9·Low 18 처리(D-094): 실행 중 "나가기" 확인, 시작 전 계획 길이, 결과 머리줄, `Phrases`, TAB 최소 배율(F-34 Medium로 재분류·고침), 포커스 가림 방지, 루틴 저장 막대, 퀴즈 키 안내, Q1 점 테, 튜너 범위 경계 등. typecheck·lint·단위 1910 통과, 바꾼 화면 다크 iPad 가로·iPhone + 상태 그림 검토 | 게이트(E2E) → U6 코드 커밋 → 888장 재촬영·재검토 → §2·FINAL_REPORT §3·§4·AC → 문서 커밋 → 최종 verify |
 | 7 | U6: 시스템 과부하(load 200, 메모리 압박)로 첫 E2E가 깨져 사용자 요청으로 Safari 종료·iStatistica 재시작 뒤 재실행 95개 통과, `2a3d1b0` 커밋. 888장 재촬영 뒤 dark 37화면·light/contrast 미변경 11화면 검토, Low 4건(F-69–F-72) 수정. E2E-07 경쟁 상태 1회(반복 5/5 통과, D-094) | 바뀐 26화면 재검토 → 두 번째 U6 커밋 → §2·FINAL_REPORT·AC → 문서 커밋 → verify |
+| 8 | U6: 재검토 2회차(F-69 키 칸·F-73 E2 시작 화면·E17 하는 법 줄바꿈) → `5dbeadd`. 888장 재촬영·픽셀 비교, §2 111행 채움, 커밋 자리표시 해시로, FINAL_REPORT §3·§4, AC 표 DONE, `5dbeadd`에서 사전 verify | 문서 커밋 → `npm ci && verify` → 증거 출력 |
