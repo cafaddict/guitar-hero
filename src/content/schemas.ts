@@ -173,6 +173,8 @@ export const ROUTINE_BLOCKS = [
   'warmup',
   'selfCheck',
   'stageReview',
+  /** A new chord of the stage never played yet, right after tuning (D-099). */
+  'newChord',
   'chord',
   'changes',
   'rest',

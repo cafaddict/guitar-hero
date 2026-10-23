@@ -54,6 +54,7 @@ const BLOCK_DOT: Record<RoutineBlock, string> = {
   selfCheck: 'bg-muted',
   knowledge: 'bg-muted',
   rest: 'bg-muted',
+  newChord: 'bg-accent',
   chord: 'bg-accent',
   changes: 'bg-accent',
   recall: 'bg-accent',

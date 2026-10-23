@@ -58,6 +58,14 @@ describe('curriculum stage practice (D-072)', () => {
     }
   });
 
+  it('runs just the chosen exercises: no new-chord intro and no notice for it (D-099 is the daily routine)', () => {
+    const s = state();
+    const { items, notices } = stageItems(s, 8, practiceOptions(8).slice(0, 2), NOW);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.some((i) => i.block === 'newChord')).toBe(false);
+    expect(notices.some((n) => n.code === 'newChords')).toBe(false);
+  });
+
   it('parameters come from the records like the daily routine (E6 ladder tempo at Stage 2)', () => {
     const subject = 'onebeat:A-D-E-A';
     const s = state({

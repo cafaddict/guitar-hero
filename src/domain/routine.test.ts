@@ -4,7 +4,15 @@ import { PRACTICE_SONGS } from '../content/songs';
 import { EMPTY_HISTORY, type PracticeHistory } from './history';
 import { pairId, parseDirected } from './pairs';
 import { DAY_MS, dayKey, type MetricSample, type ReviewItem, type SkillState } from './records';
-import { entryKey, generateRoutine, interleave, nextRepertoireSong, type RoutineInput } from './routine';
+import {
+  entryKey,
+  generateRoutine,
+  interleave,
+  NEW_CHORD_INTRO_SEC,
+  nextRepertoireSong,
+  type RoutineInput,
+  type RoutinePlan,
+} from './routine';
 import { stageTemplate, templateTotal } from './routineTemplates';
 import { buildSkills } from './skills';
 
@@ -12,6 +20,11 @@ const NOW = new Date(2026, 9, 7, 19, 0, 0).getTime();
 
 function sample(subjectKey: string, metric: string, value: number, at: number): MetricSample {
   return { subjectKey, metric, value, at, day: dayKey(at), attemptId: `a-${subjectKey}-${at}` };
+}
+
+/** E1 records for these voicings: the chords count as played, so they get no new-chord intro (D-099). */
+function played(...voicingIds: readonly string[]): Map<string, SkillState> {
+  return buildSkills(voicingIds.map((id) => sample(`chord:${id}`, 'clean', 1, NOW - DAY_MS)));
 }
 
 function input(overrides: Partial<RoutineInput> = {}): RoutineInput {
@@ -199,7 +212,7 @@ describe('AC-R1 routine generation (SPEC §7.3)', () => {
       review('pair:A|D', 'pair', 1000),
       review('song:s01', 'song', 1000),
     ];
-    const plan = generateRoutine(input({ stage: 3, dueReviews: due }));
+    const plan = generateRoutine(input({ stage: 3, dueReviews: due, skills: played('Em', 'Am') }));
     // Chord: the weak/review E1 slot takes the chord due first.
     expect(plan.items.find((i) => i.reviewOf?.startsWith('chord:'))).toMatchObject({
       exerciseType: 'E1',
@@ -342,7 +355,13 @@ describe('AC-R1 routine generation (SPEC §7.3)', () => {
   it('rule 1 (L < T): the song block gives time first (to 300 s), then knowledge and technique; Stage 7+ too', () => {
     const t = (stage: number, minutes: number) =>
       generateRoutine(
-        input({ stage, sessionMinutes: minutes, sessionsInStage: 9, firstPracticeAt: NOW - 90 * DAY_MS }),
+        input({
+          stage,
+          sessionMinutes: minutes,
+          sessionsInStage: 9,
+          firstPracticeAt: NOW - 90 * DAY_MS,
+          skills: played(...stageDef(stage).newChords),
+        }),
       );
     const eight = t(8, 20);
     expect(eight.items.find((i) => i.block === 'song')?.durationSec).toBe(300);
@@ -540,5 +559,123 @@ describe('SPEC v1.1 §11.10 repertoire block: "차례로 친다"', () => {
     expect(e10(new Map([stepOne([1], 3)])).params.tabHidden).toBeUndefined();
     // Runs on two earlier days → this is the third assignment → hidden, step 1.
     expect(e10(new Map([stepOne([2, 1], 2)])).params).toMatchObject({ tabHidden: true, step: 1 });
+  });
+});
+
+describe("D-099: the stage's never-played chords open the session (SPEC v1.1 §7.3-4 first exposure)", () => {
+  const intro = (plan: RoutinePlan) =>
+    plan.items.filter((i) => i.block === 'newChord').map((i) => i.params.voicingId);
+  const introNotice = (plan: RoutinePlan) => plan.notices.find((n) => n.code === 'newChords');
+  const afterFourWeeks = { firstPracticeAt: NOW - 90 * DAY_MS };
+  const dueChordD: ReviewItem = {
+    subjectKey: 'chord:D',
+    kind: 'chord',
+    step: 1,
+    due: NOW - DAY_MS,
+    enqueuedAt: NOW - 5 * DAY_MS,
+    lastReviewedAt: null,
+    lapses: 0,
+  };
+
+  it('Stage 3: tuning, then Em and Am in one block; no chord twice; the notice names them', () => {
+    const plan = generateRoutine(input({ stage: 3 }));
+    expect(plan.items.slice(0, 4).map((i) => [i.block, i.exerciseType, i.params.voicingId])).toEqual([
+      ['tuning', 'E0', undefined],
+      ['newChord', 'E1', 'Em'],
+      ['newChord', 'E1', 'Am'],
+      expect.not.arrayContaining(['newChord']),
+    ]);
+    const chords = plan.items.filter((i) => i.exerciseType === 'E1').map((i) => i.subjectKey);
+    expect(new Set(chords).size).toBe(chords.length);
+    expect(introNotice(plan)).toMatchObject({ voicingIds: ['Em', 'Am'] });
+  });
+
+  it('only the chords without an E1 record; none left → the routine has no intro', () => {
+    expect(intro(generateRoutine(input({ stage: 3, skills: played('Em') })))).toEqual(['Am']);
+    const done = generateRoutine(input({ stage: 3, skills: played('Em', 'Am') }));
+    expect(intro(done)).toEqual([]);
+    expect(introNotice(done)).toBeUndefined();
+  });
+
+  it('Stage 1: the fixed D and A rows become the intro with their own time; the day is not longer', () => {
+    const plan = generateRoutine(input({ stage: 1, ...afterFourWeeks }));
+    expect(plan.items.slice(1, 3).map((i) => [i.block, i.params.voicingId, i.durationSec])).toEqual([
+      ['newChord', 'D', 120],
+      ['newChord', 'A', 120],
+    ]);
+    expect(introNotice(plan)).toMatchObject({ extraSec: 0 });
+    expect(plan.totalSec).toBe(1200);
+  });
+
+  it('Stage 8: all five before the repertoire warm-up; the day grows by the chords it did not already hold', () => {
+    const plan = generateRoutine(input({ stage: 8, sessionMinutes: 30, ...afterFourWeeks }));
+    expect(plan.items[0]!.block).toBe('tuning');
+    expect(intro(plan)).toEqual(['G-4f', 'Cadd9', 'Dsus4', 'A7sus4', 'Em7']);
+    expect(plan.items.slice(1, 6).every((i) => i.block === 'newChord')).toBe(true);
+    // The new-chord row already held one of them (moved, not repeated); four are added.
+    expect(introNotice(plan)).toMatchObject({ extraSec: 4 * NEW_CHORD_INTRO_SEC });
+    expect(plan.totalSec).toBe(1800 + 4 * NEW_CHORD_INTRO_SEC);
+  });
+
+  it('Stage 6: the G the user plays (one class, one intro)', () => {
+    expect(intro(generateRoutine(input({ stage: 6 })))).toEqual(['G-2f']);
+    expect(intro(generateRoutine(input({ stage: 6, gVoicing: 'G-3f' })))).toEqual(['G-3f']);
+  });
+
+  it('the first four weeks keep the 20 minutes: the song gives the time instead', () => {
+    // A due chord review takes the weak-chord row, so Am is added rather than moved.
+    const plan = generateRoutine(input({ stage: 3, dueReviews: [dueChordD] }));
+    expect(intro(plan)).toEqual(['Em', 'Am']);
+    expect(introNotice(plan)).toMatchObject({ extraSec: 0 });
+    expect(plan.totalSec).toBe(1200);
+    const later = generateRoutine(input({ stage: 3, dueReviews: [dueChordD], ...afterFourWeeks }));
+    expect(later.totalSec).toBe(1200 + NEW_CHORD_INTRO_SEC);
+  });
+
+  it('a pain day halves the intro like any E1 (rule 7)', () => {
+    const plan = generateRoutine(
+      input({ stage: 3, lastSelfReport: { pain: 6, dangerFlags: [], difficulty: 3, note: '' } }),
+    );
+    expect(plan.items.filter((i) => i.block === 'newChord').map((i) => i.durationSec)).toEqual([30, 30]);
+  });
+
+  it('after a > 3-day gap the stage review stays first (rule 5), the intro right after it', () => {
+    const plan = generateRoutine(input({ stage: 3, lastPracticeAt: NOW - 5 * DAY_MS }));
+    expect(plan.items.slice(0, 4).map((i) => i.block)).toEqual([
+      'tuning',
+      'stageReview',
+      'newChord',
+      'newChord',
+    ]);
+    expect(plan.notices.map((n) => n.code).slice(0, 2)).toEqual(['gapReview', 'newChords']);
+  });
+
+  it('an edited routine keeps its own items: no intro', () => {
+    const row = (id: string, exerciseType: string, block: 'tuning' | 'chord', slot: object) => ({
+      id,
+      exerciseType,
+      params: {},
+      durationSec: 60,
+      block,
+      slot: JSON.stringify(slot),
+    });
+    const plan = generateRoutine(
+      input({
+        stage: 3,
+        userTemplate: {
+          id: 'user-3',
+          source: 'user',
+          stage: 3,
+          name: '',
+          createdAt: NOW,
+          items: [
+            row('r01', 'E0', 'tuning', { kind: 'tuning' }),
+            row('r02', 'E1', 'chord', { kind: 'chordNew' }),
+          ],
+        },
+      }),
+    );
+    expect(intro(plan)).toEqual([]);
+    expect(introNotice(plan)).toBeUndefined();
   });
 });

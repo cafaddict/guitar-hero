@@ -132,6 +132,7 @@ export const ko = {
       warmup: '워밍업',
       selfCheck: '자가 체크',
       stageReview: '지난 단계 복습',
+      newChord: '새 코드',
       chord: '코드',
       changes: '체인지',
       rest: '휴식',
@@ -150,6 +151,8 @@ export const ko = {
       capApplied: (minutes: number) => `처음 4주는 하루 ${minutes}분으로 맞췄어요.`,
       changesCapReached: '오늘 1분 체인지는 충분히 했어요(하루 6회).',
       userTemplate: '내가 편집한 루틴 구성으로 짰어요.',
+      newChords: (names: string, extraMinutes: number) =>
+        `새 코드를 배워봅시다: ${names}. 튜닝 다음에 먼저 연습해요${extraMinutes > 0 ? `(오늘은 ${extraMinutes}분 더)` : ''}.`,
     },
     editRoutine: '루틴 편집',
     recommendations: '추천',

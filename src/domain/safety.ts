@@ -18,6 +18,16 @@ export interface SessionLengthDecision {
   capped: boolean;
 }
 
+/** The 20-minute cap of the first four weeks is in force (rule 1): early period and not confirmed past it. */
+export function earlyCapApplies(
+  firstPracticeAt: number | null,
+  now: number,
+  confirmedOverCap: boolean,
+): boolean {
+  const inEarlyPeriod = firstPracticeAt === null || now - firstPracticeAt < EARLY_PERIOD_DAYS * DAY_MS;
+  return inEarlyPeriod && !confirmedOverCap;
+}
+
 /** First four weeks: sessions are capped at 20 minutes unless the user confirms (rule 1). */
 export function decideSessionLength(
   requestedMinutes: number,
@@ -25,11 +35,9 @@ export function decideSessionLength(
   now: number,
   confirmedOverCap: boolean,
 ): SessionLengthDecision {
-  const inEarlyPeriod = firstPracticeAt === null || now - firstPracticeAt < EARLY_PERIOD_DAYS * DAY_MS;
-  if (!inEarlyPeriod || requestedMinutes <= EARLY_CAP_MINUTES) {
+  if (!earlyCapApplies(firstPracticeAt, now, confirmedOverCap) || requestedMinutes <= EARLY_CAP_MINUTES) {
     return { minutes: requestedMinutes, needsConfirmation: false, capped: false };
   }
-  if (confirmedOverCap) return { minutes: requestedMinutes, needsConfirmation: false, capped: false };
   return { minutes: EARLY_CAP_MINUTES, needsConfirmation: true, capped: true };
 }
 

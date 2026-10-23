@@ -84,7 +84,7 @@ function templateSeconds(item: RoutineItem, stage: number, k1Day: boolean): numb
   return row ? rowSeconds(row, k1Day) : undefined;
 }
 
-/** §14.9-4 "합계": Σ block time = T, or T minus the pain reductions on pain-reduced days. */
+/** §14.9-4 "합계": Σ block time = T (+ a new-chord day's extra, D-099), minus the pain reductions on pain days. */
 function sumErrors(run: SimResult): string[] {
   const errors: string[] = [];
   for (const s of run.sessions) {
@@ -110,6 +110,8 @@ function sumErrors(run: SimResult): string[] {
         )
           expected -= rowSeconds(row, k1Day);
     }
+    // D-099: a day that introduces the stage's never-played chords is longer by what the notice says.
+    for (const n of s.plan.notices) if (n.code === 'newChords') expected += n.extraSec;
     if (s.plan.totalSec !== expected) errors.push(`day ${s.day}: ${s.plan.totalSec} ≠ ${expected}`);
   }
   return errors;

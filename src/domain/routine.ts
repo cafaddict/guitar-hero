@@ -44,6 +44,8 @@ import {
 } from './routineTemplates';
 import {
   decideSessionLength,
+  EARLY_CAP_MINUTES,
+  earlyCapApplies,
   FINGERTIP_LOAD_TYPES,
   PAIN_REDUCTION_FACTOR,
   type PainAdvice,
@@ -87,7 +89,9 @@ export type RoutineNotice =
   | { code: 'gapReview'; days: number }
   | { code: 'capApplied'; minutes: number }
   | { code: 'changesCapReached' }
-  | { code: 'userTemplate' };
+  | { code: 'userTemplate' }
+  /** The stage's never-played chords open the session after tuning; `extraSec` = how much longer the day is (D-099). */
+  | { code: 'newChords'; voicingIds: string[]; extraSec: number };
 
 export interface RoutinePlan {
   kind: 'practice' | 'rest';
@@ -273,6 +277,46 @@ function weakChordDraft(ctx: Ctx, sec: number, slot: TemplateSlot): Draft | null
     .map((cls, order) => ({ cls, order, ratio: cleanRatio(ctx.input.skills.get(subjectOf(cls))) ?? -1 }))
     .sort((a, b) => a.ratio - b.ratio || a.order - b.order)[0]!.cls;
   return chordDraft(ctx, weakest, sec, 'chord', slot);
+}
+
+// --- new chords of the stage (D-099) ---------------------------------------------------------------------------
+
+/** Seconds of a new-chord item the routine did not already hold. */
+export const NEW_CHORD_INTRO_SEC = 60;
+
+/**
+ * The stage's new chords never played yet (no E1 record), in curriculum order and in the user's G voicing. They
+ * open the session as a short blocked practice (SPEC v1.1 §7.3-4 "신규 코드의 첫 노출은 짧은 blocked 연습", D-099).
+ */
+export function newChordIntro(
+  input: Pick<RoutineInput, 'skills' | 'gVoicing'>,
+  def: Pick<StageDef, 'newChords'>,
+): string[] {
+  return [...new Set(def.newChords.map(classOfVoicing))]
+    .map((cls) => voicingForClass(cls, input.gVoicing))
+    .filter((id) => !input.skills.has(`chord:${id}`));
+}
+
+/**
+ * One E1 per intro chord in the `newChord` block, right after tuning — after the stage review on a gap day, so
+ * rule 5's review stays first. A chord the routine already practises today moves there with its time; any other
+ * gets NEW_CHORD_INTRO_SEC, returned as `addedSec`.
+ */
+function introduceNewChords(
+  ctx: Ctx,
+  drafts: readonly Draft[],
+  voicingIds: readonly string[],
+): { drafts: Draft[]; addedSec: number } {
+  const rest = [...drafts];
+  let addedSec = 0;
+  const intro = voicingIds.map((id): Draft => {
+    const at = rest.findIndex((d) => d.exerciseType === 'E1' && d.subjectKey === `chord:${id}`);
+    if (at >= 0) return { ...rest.splice(at, 1)[0]!, block: 'newChord' };
+    addedSec += NEW_CHORD_INTRO_SEC;
+    return chordDraft(ctx, classOfVoicing(id), NEW_CHORD_INTRO_SEC, 'newChord', { kind: 'chordNew' });
+  });
+  rest.splice(rest.findLastIndex((d) => d.block === 'tuning' || d.block === 'stageReview') + 1, 0, ...intro);
+  return { drafts: rest, addedSec };
 }
 
 // --- one-minute changes (rule 3) -------------------------------------------------------------------------------
@@ -1155,8 +1199,25 @@ export function generateRoutine(input: RoutineInput): RoutinePlan {
     if (allowed === 0) notices.push({ code: 'changesCapReached' });
   }
   let needsCapConfirmation = length.needsConfirmation;
-  if (!input.userTemplate) drafts = applySessionLength(drafts, input.stage, length.minutes * 60);
-  else {
+  if (!input.userTemplate) {
+    const introChords = newChordIntro(input, def);
+    let introSec = 0;
+    if (introChords.length > 0)
+      ({ drafts, addedSec: introSec } = introduceNewChords(ctx, drafts, introChords));
+    // New chords lengthen the day (D-099), but never past the first four weeks' 20 minutes (rule 1).
+    const baseSec = length.minutes * 60;
+    const early =
+      input.stage <= 7 && earlyCapApplies(input.firstPracticeAt, input.now, input.confirmedOverCap);
+    const extraSec = early ? Math.max(0, Math.min(introSec, EARLY_CAP_MINUTES * 60 - baseSec)) : introSec;
+    drafts = applySessionLength(drafts, input.stage, baseSec + extraSec);
+    // Right after a gap notice: the stage review comes first that day.
+    if (introChords.length > 0)
+      notices.splice(notices[0]?.code === 'gapReview' ? 1 : 0, 0, {
+        code: 'newChords',
+        voicingIds: introChords,
+        extraSec,
+      });
+  } else {
     // An edited routine keeps its own block times, but the first-four-weeks cap still applies (§7.3-9).
     const cap = decideSessionLength(
       Math.ceil(drafts.reduce((sum, d) => sum + d.durationSec, 0) / 60),
