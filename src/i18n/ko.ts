@@ -361,6 +361,7 @@ export const ko = {
     transitionNext: (block: string) => `다음 블록 · ${block}`,
     transitionIn: (seconds: number) => `${seconds}초 뒤 시작`,
     transitionStart: '바로 시작 (Enter)',
+    newChordsIntro: '새 코드를 배워봅시다',
     skip: '건너뛰기',
     previous: '이전 항목',
     pause: '일시정지',

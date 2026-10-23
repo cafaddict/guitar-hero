@@ -126,6 +126,17 @@ export function opensNewBlock(
   return previous === undefined || previous.block !== next.block;
 }
 
+/**
+ * The new-chord intro ("새 코드를 배워봅시다", D-099) opens whenever its block starts: after a skip too, and with the
+ * block transition screens turned off (it comes once, when a stage brings chords never played).
+ */
+export function opensNewChordIntro(
+  previous: Pick<RoutineItem, 'block'> | undefined,
+  next: Pick<RoutineItem, 'block'> | undefined,
+): boolean {
+  return next?.block === 'newChord' && previous?.block !== 'newChord';
+}
+
 export const BLOCK_TRANSITION_MS = 5000;
 
 export function previousItem(state: SessionState, now: number): SessionState {

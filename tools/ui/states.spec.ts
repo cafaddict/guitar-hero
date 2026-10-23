@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { expect, type Page, test } from '@playwright/test';
+import { putRows } from '../../tests/e2e/support/idb';
 
 /**
  * States outside `tests/e2e/support/screens.ts` for the visual review (`ui-shots/states/<theme>/...`), with the
@@ -23,9 +24,26 @@ interface State {
   open: (page: Page) => Promise<void>;
 }
 
-/** A session with the microphone off (keyboard and taps only), on its first item. */
-async function session(page: Page): Promise<void> {
-  await page.goto('/#/session?timeScale=0.25');
+/**
+ * A session with the microphone off (keyboard and taps only), on its first item, at `stage` just entered (Stage 0
+ * unless a state asks otherwise; set every time, so one state's stage does not leak into the next).
+ */
+async function session(page: Page, stage = 0, timeScale = 0.25): Promise<void> {
+  await putRows(page, 'progression', [
+    {
+      key: 'current',
+      stage,
+      stageEnteredAt: Date.now(),
+      sessionsInStage: 0,
+      gVoicing: 'G-2f',
+      history: [],
+      exam: {},
+      completedBeginner1: false,
+      completedBeginner2: false,
+      prescriptions: [],
+    },
+  ]);
+  await page.goto(`/#/session?timeScale=${timeScale}`);
   await expect(page.getByTestId('session-header')).toHaveAttribute('data-index', '0');
 }
 
@@ -80,6 +98,15 @@ const STATES: State[] = [
       await stopFirstItem(page);
       await page.getByTestId('next-item').click();
       await expect(page.getByTestId('block-transition')).toBeVisible();
+    },
+  },
+  {
+    // D-099: Stage 10's six power chords, the longest intro (real time, so the 5-second screen is still up).
+    name: 'session-new-chords',
+    open: async (page) => {
+      await session(page, 10, 1);
+      await page.getByTestId('skip-item').click();
+      await expect(page.getByTestId('new-chords')).toBeVisible();
     },
   },
   {

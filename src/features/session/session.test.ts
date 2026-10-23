@@ -18,6 +18,7 @@ import {
   itemRemainingSec,
   markRecorded,
   opensNewBlock,
+  opensNewChordIntro,
   pause,
   practiceMs,
   previousItem,
@@ -260,6 +261,13 @@ describe('SPEC v1.1 §7.3-12·13 block time in the session runner', () => {
     expect(opensNewBlock(at('changes', 'E2'), at('rest', 'REST'))).toBe(false);
     expect(opensNewBlock(at('rest', 'REST'), at('changes', 'E2'))).toBe(false);
     expect(opensNewBlock(at('chord'), undefined)).toBe(false);
+  });
+
+  it('D-099: the new-chord intro opens when its block starts, not between its chords', () => {
+    expect(opensNewChordIntro({ block: 'tuning' }, { block: 'newChord' })).toBe(true);
+    expect(opensNewChordIntro(undefined, { block: 'newChord' })).toBe(true);
+    expect(opensNewChordIntro({ block: 'newChord' }, { block: 'newChord' })).toBe(false);
+    expect(opensNewChordIntro({ block: 'tuning' }, { block: 'chord' })).toBe(false);
   });
 
   it('the block time starts after the transition screen', () => {

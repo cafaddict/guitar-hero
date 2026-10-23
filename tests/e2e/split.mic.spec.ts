@@ -52,10 +52,12 @@ test('E2E-18: a Stage 8 30-minute routine with the keyboard — repertoire first
   await page.goto('/#/session?timeScale=0.25');
   await expect(header(page)).toBeVisible();
   const total = Number(await header(page).getAttribute('data-count'));
-  // Tuning, then the repertoire block (Stage 7+ warm-up, §7.3-2).
+  // Tuning, the stage's five never-played chords (D-099), then the repertoire block (Stage 7+ warm-up, §7.3-2).
   await expect(header(page)).toHaveAttribute('data-item-type', 'E0');
   expect(await playItem(page)).toBe('E0');
-  await expect(header(page)).toHaveAttribute('data-block', 'repertoire');
+  await expect(header(page)).toHaveAttribute('data-block', 'newChord');
+  await skipUntil(page, async () => (await header(page).getAttribute('data-block')) === 'repertoire');
+  await expect(header(page)).toHaveAttribute('data-index', '6');
 
   // The split point comes after the rhythm block (§7.3-11).
   await skipUntil(page, () => page.getByTestId('split-point').isVisible());

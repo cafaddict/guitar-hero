@@ -27,6 +27,7 @@ import { Phrases } from '../../ui/Phrases';
 import type { CustomSessionRequest } from '../curriculum/StagePractice';
 import { practiceOptions, stageContent, stageItems } from '../curriculum/stagePracticeModel';
 import { routineInputFrom } from '../home/homeModel';
+import { subjectLabel } from '../home/subjectLabel';
 import { itemTitle } from './itemTitle';
 import { type RunIdentity, repeatSuggestion, sameRunParams } from './repeat';
 import { pluginParamsFor } from './routineParams';
@@ -41,6 +42,7 @@ import {
   itemRemainingSec,
   markRecorded,
   opensNewBlock,
+  opensNewChordIntro,
   pause,
   practiceMs,
   previousItem,
@@ -390,9 +392,15 @@ export function SessionScreen() {
   const advance = useCallback(() => {
     go((s) => completeItem(s, items, now()));
     const index = state?.index ?? 0;
-    if (blockTransition && opensNewBlock(items[index], items[index + 1]))
+    const [from, to] = [items[index], items[index + 1]];
+    if ((blockTransition && opensNewBlock(from, to)) || opensNewChordIntro(from, to))
       setTransitionEndsAt(now() + BLOCK_TRANSITION_MS);
   }, [go, items, now, state?.index, blockTransition]);
+  const skip = useCallback(() => {
+    go((s) => skipItem(s, items, now()));
+    const index = state?.index ?? 0;
+    if (opensNewChordIntro(items[index], items[index + 1])) setTransitionEndsAt(now() + BLOCK_TRANSITION_MS);
+  }, [go, items, now, state?.index]);
   const endTransition = useCallback(() => {
     setTransitionEndsAt(null);
     // The block's own time starts after the transition screen (§7.3-13).
@@ -566,6 +574,13 @@ export function SessionScreen() {
   const next = items[state.index + 1];
   const budget = itemRemainingSec(state, items, now());
   const definition = item.exerciseType === 'REST' ? null : exerciseDefinition(item.exerciseType);
+  // The new-chord intro names every chord of its block (D-099).
+  const newChords =
+    item.block === 'newChord'
+      ? items
+          .filter((i) => i.block === 'newChord' && typeof i.params.voicingId === 'string')
+          .map((i) => subjectLabel(`chord:${String(i.params.voicingId)}`))
+      : null;
 
   return (
     // "나가기" is the session's own end (self report), like "세션 끝내기"; locked while a run is active.
@@ -644,11 +659,17 @@ export function SessionScreen() {
             {ko.session.transitionNext(ko.home.blocks[item.block])}
           </p>
           <p className="text-3xl font-bold sm:text-4xl">
-            <Phrases text={itemTitle(item)} />
+            <Phrases text={newChords ? ko.session.newChordsIntro : itemTitle(item)} />
           </p>
+          {newChords && (
+            <p className="text-xl font-semibold" data-testid="new-chords">
+              <Phrases text={newChords.join(' · ')} />
+            </p>
+          )}
           {item.exerciseType === 'E1' && typeof item.params.voicingId === 'string' && (
-            // Smaller on a phone: the diagram, the countdown and "바로 시작" all fit the first screen (F-52).
-            <div className="w-28 sm:w-40">
+            // Smaller on a phone: the diagram, the countdown and "바로 시작" all fit the first screen (F-52); the
+            // new-chord intro's extra line of names takes its height back from the diagram (iPad landscape).
+            <div className={newChords ? 'w-28 sm:w-32' : 'w-28 sm:w-40'}>
               <ChordDiagram voicing={voicingById(item.params.voicingId)} leftHanded={leftHanded} />
             </div>
           )}
@@ -750,7 +771,7 @@ export function SessionScreen() {
           }}
         />
       ) : (
-        <Button onClick={() => go((s) => skipItem(s, items, now()))}>{ko.session.skip}</Button>
+        <Button onClick={skip}>{ko.session.skip}</Button>
       )}
       <p className="mt-6 text-muted">
         <Phrases text={next ? ko.session.next(itemTitle(next)) : ko.session.lastItem} />
@@ -764,12 +785,7 @@ export function SessionScreen() {
         >
           {ko.session.previous}
         </Button>
-        <Button
-          variant="secondary"
-          disabled={runActive}
-          onClick={() => go((s) => skipItem(s, items, now()))}
-          data-testid="skip-item"
-        >
+        <Button variant="secondary" disabled={runActive} onClick={skip} data-testid="skip-item">
           {ko.session.skip}
         </Button>
         {!state.paused && (
