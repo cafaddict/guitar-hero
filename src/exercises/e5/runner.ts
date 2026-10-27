@@ -2,8 +2,8 @@
  * E5 strumming pattern ladder (SPEC §11.6). One count-in bar, then `bars` bars of the pattern against the
  * metronome; missed strums do not stop anything. Mode D scores strums (judged onset times) against the
  * eighth-note slot grid shifted by the calibrated RTT; strums in rest slots count as extra. Direction is not
- * judged (v2). Ladder: hit rate ≥ 90 % and no miss → +5 BPM; otherwise it stays — a failed run never lowers the
- * tempo, the learner picks it (D-098).
+ * judged (v2). Ladder: hit rate ≥ 90 % → +5 BPM, a few misses allowed (D-100); otherwise it stays — a failed run
+ * never lowers the tempo, the learner picks it (D-098).
  * Without a microphone the user rates the run (1 nothing missed / 2 sometimes missed / 3 often missed).
  * With a microphone the run waits "armed": the first strum (or Space) starts the count-in (SPEC §12.3).
  * While it waits, ↑/↓ (or the −5/+5 buttons) pick the tempo; it starts at the ladder's (D-098).
@@ -101,13 +101,12 @@ export interface E5View {
   liveBars: readonly LiveBar[];
 }
 
-/** Up or stay: a failed run never lowers the tempo (D-098). */
-export function ladderDecision(
-  hitRate: number,
-  misses: number,
-  bars: number = LADDER_MIN_BARS,
-): 'up' | 'stay' {
-  return hitRate >= LADDER_UP_HIT_RATE && misses === 0 && bars >= LADDER_MIN_BARS ? 'up' : 'stay';
+/**
+ * Up or stay: a failed run never lowers the tempo (D-098). Misses within the 10 % allowance do not block a pass:
+ * a quiet up-strum the microphone did not catch should not fail the run (D-100).
+ */
+export function ladderDecision(hitRate: number, bars: number = LADDER_MIN_BARS): 'up' | 'stay' {
+  return hitRate >= LADDER_UP_HIT_RATE && bars >= LADDER_MIN_BARS ? 'up' : 'stay';
 }
 
 /** The tempo after a run; `'down'` only comes from results stored before D-098. */
@@ -323,7 +322,6 @@ export class StrumLadderRunner extends BaseRunner<StrumResult, E5View> {
       return ladderDecision(
         // The ladder and pattern passes use the personal-lead-corrected hit rate (SPEC v1.1 §7.1, §11.6).
         this.analysis.hitRateCorrected,
-        this.analysis.misses,
         this.params.bars,
       );
     return null;

@@ -33,9 +33,12 @@ export interface TimingAnalysis {
   windowMs: number;
 }
 
-/** Window (design value): 60–80 BPM ±60 ms, 80–100 BPM ±50 ms, 100+ BPM ±40 ms. */
+/**
+ * Window (design value): below 80 BPM ±80 ms (D-100, was ±60), 80–100 BPM ±50 ms, 100+ BPM ±40 ms. Below 80 BPM
+ * the closest slots (swing 2/3, 6/8 eighths) are ≥ 250 ms apart, so two windows never overlap.
+ */
 export function timingWindowMs(bpm: number): number {
-  if (bpm < 80) return 60;
+  if (bpm < 80) return 80;
   if (bpm < 100) return 50;
   return 40;
 }

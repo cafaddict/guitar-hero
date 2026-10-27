@@ -229,7 +229,7 @@ describe('onset detection and timing (Mode D)', () => {
   });
 
   it('judges hits, misses and extras with BPM windows', () => {
-    expect([timingWindowMs(70), timingWindowMs(90), timingWindowMs(120)]).toEqual([60, 50, 40]);
+    expect([timingWindowMs(70), timingWindowMs(90), timingWindowMs(120)]).toEqual([80, 50, 40]);
     const slots = [0, 0.5, 1, 1.5].map((time, i) => ({ time, expected: i !== 2 }));
     const rtt = 0.1;
     const res = analyzeTiming(slots, [0.11, 0.68, 1.1], rtt, 90);

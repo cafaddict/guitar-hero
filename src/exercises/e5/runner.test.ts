@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { patternById } from '../../content/patterns';
 import { extractMetrics, strumResultSchema } from '../../domain/exerciseResults';
+import { timingWindowMs } from '../../dsp/timing';
 import { DETECTOR_VERSION } from '../../dsp/version';
 import { testContext } from '../testing/fakes';
 import {
@@ -58,12 +59,12 @@ function play(t: Awaited<ReturnType<typeof setup>>, offsets: number[], rttS: num
 }
 
 describe('E5 helpers', () => {
-  it('ladder: ≥ 90 % with no miss → up, anything else stays (never down, D-098)', () => {
-    expect(ladderDecision(0.95, 0)).toBe('up');
-    expect(ladderDecision(0.95, 1)).toBe('stay');
-    expect(ladderDecision(0.6, 3)).toBe('stay');
-    expect(ladderDecision(0.1, 20)).toBe('stay');
-    expect(ladderDecision(0.95, 0, 4)).toBe('stay');
+  it('ladder: ≥ 90 % over 8 bars → up, anything else stays (never down, D-098; misses allowed, D-100)', () => {
+    expect(ladderDecision(1)).toBe('up');
+    expect(ladderDecision(0.9)).toBe('up');
+    expect(ladderDecision(0.89)).toBe('stay');
+    expect(ladderDecision(0.1)).toBe('stay');
+    expect(ladderDecision(0.95, 4)).toBe('stay');
     expect(nextBpmFor(80, 'up')).toBe(85);
     // Results stored before D-098 may still say 'down'.
     expect(nextBpmFor(30, 'down')).toBe(30);
@@ -92,6 +93,40 @@ describe('E5 helpers', () => {
       countInBars: 1,
     });
     expect(slotGrid(p5, 40, 1, 0)[1]!.time).toBeCloseTo(0.5, 9);
+  });
+});
+
+describe('E5 judging leniency (D-100)', () => {
+  const p2Mute: Partial<E5Params> = { patternId: 'P2', mode: 'mute', bpm: 70, chords: [] };
+
+  it('P2 mute at 70 BPM passes with a few strums missed (≥ 90 %, misses allowed)', async () => {
+    const t = await setup(p2Mute);
+    const slots = slotGrid(patternById('P2'), 70, 8, 0).filter((s) => s.expected);
+    expect(slots).toHaveLength(48);
+    // Three quiet up-strums the microphone did not catch: 45/48 = 93.75 %.
+    play(
+      t,
+      slots.filter((_, i) => i !== 3 && i !== 20 && i !== 41).map((s) => s.time),
+      0,
+      40,
+    );
+    await flush();
+    expect(t.runner.finish()).toMatchObject({ hits: 45, misses: 3, ladder: 'up', passed: true });
+  });
+
+  it('below 80 BPM a strum 70 ms off the beat is a hit (±80 ms); from 80 BPM it is not', async () => {
+    const t = await setup(p2Mute);
+    const slots = slotGrid(patternById('P2'), 70, 8, 0).filter((s) => s.expected);
+    play(
+      t,
+      slots.map((s) => s.time + 0.07),
+      0,
+      40,
+    );
+    await flush();
+    expect(t.runner.finish()).toMatchObject({ hits: 48, misses: 0, passed: true });
+    expect(timingWindowMs(79)).toBe(80);
+    expect(timingWindowMs(80)).toBe(50);
   });
 });
 

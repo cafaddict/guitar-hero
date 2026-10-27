@@ -834,7 +834,7 @@ export const ko = {
         },
         keepGoing: '놓쳐도 멈추지 말고 계속 쳐요.',
         ladder: (up: number, bars: number, step: number) =>
-          `${bars}마디 이상 쳐서 놓친 칸 없이 ${up}% 이상 맞추면 다음엔 ${step}\u00a0BPM 올려요. 못 맞춰도 템포를 저절로 내리지 않아요.`,
+          `${bars}마디 이상 쳐서 ${up}% 이상 맞추면 다음엔 ${step}\u00a0BPM 올려요. 못 맞춰도 템포를 저절로 내리지 않아요.`,
       },
       E6: {
         chords: (progression: string) =>
